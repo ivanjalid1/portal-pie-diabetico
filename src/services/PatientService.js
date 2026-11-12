@@ -32,7 +32,7 @@ class PatientService {
     this.events = events;
   }
 
-  /** Siguiente código anónimo para el centro: P.HC016, P.RF004, ... */
+  /** Siguiente código anónimo para el centro: P.HC902, P.RF903, ... */
   async nextCodigo(centro) {
     const prefijo = prefijoCentro(centro);
     const codes = await this.patients.listCodigos();
@@ -74,7 +74,7 @@ class PatientService {
     const { personal, clinical } = splitPersonal(data);
     const codigo = clinical.codigo || (await this.nextCodigo(clinical.centro));
     if (!CODIGO_REGEX.test(codigo))
-      throw new ValidationError('Código inválido.', { codigo: 'Formato esperado: DEMO-002' });
+      throw new ValidationError('Código inválido.', { codigo: 'Formato esperado: P.HC901' });
     if (await this.patients.findByCodigo(codigo)) {
       throw new ConflictError(`Ya existe un paciente con el código ${codigo}.`);
     }

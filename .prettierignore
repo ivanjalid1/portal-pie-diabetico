@@ -5,3 +5,4 @@ public/demo
 src/views
 *.md
 supabase
+src/config/palettes/*.json

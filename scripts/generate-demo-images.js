@@ -45,7 +45,9 @@ function resolveToma2(rel) {
 
 function main() {
   if (!fs.existsSync(PRIVATE) || !fs.existsSync(LOCAL)) {
-    console.error('Faltan tesis-2026info/ o scripts/demo-pairs.local.json: las imágenes demo ya están en public/demo/.');
+    console.error(
+      'Faltan tesis-2026info/ o scripts/demo-pairs.local.json: las imágenes demo ya están en public/demo/.',
+    );
     process.exit(1);
   }
   const { pares } = JSON.parse(fs.readFileSync(LOCAL, 'utf8'));
@@ -70,7 +72,9 @@ function main() {
       const analysis = analyzeThermogram(img);
       if (!analysis.ok) throw new Error(`Par ${n} toma ${toma}: ${analysis.reason}`);
       entry[`toma${toma}`] = { file, rois: roisInCelsius(analysis) };
-      console.log(`par ${n} toma ${toma}: ${file} (escala ${calibrado ? 'calibrada con la cámara' : 'por percentiles'})`);
+      console.log(
+        `par ${n} toma ${toma}: ${file} (escala ${calibrado ? 'calibrada con la cámara' : 'por percentiles'})`,
+      );
     });
     manifest.push(entry);
   }

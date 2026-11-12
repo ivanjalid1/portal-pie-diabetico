@@ -18,7 +18,7 @@ function triState(v) {
 
 /**
  * Entidad Paciente: SÓLO datos clínicos, referenciados por el código anónimo
- * (`DEMO-002`, `DEMO-005`, ...). Los datos personales identificatorios (nombre,
+ * (`P.HC901`, `P.RF902`, ...; `DEMO-nnn` en la demo). Los datos personales identificatorios (nombre,
  * correo, teléfono) viven en el perfil de usuario y se combinan únicamente en
  * la capa de presentación mediante el DTO `PatientView` (minimización de datos,
  * Ley 25.326). El DNI es opcional y no se muestra en listados.

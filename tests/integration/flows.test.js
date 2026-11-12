@@ -53,15 +53,15 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
 
   it('carga un estudio con 2 imágenes, analiza, publica y el paciente lo ve', async () => {
     const medico = await loginAs(app, 'medico@demo.com');
-    const rosa = await container.repos.patients.findByCodigo('DEMO-001');
-    const wizard = await medico.get(`/medico/estudios/nuevo?paciente=${rosa.id}`);
+    const ondina = await container.repos.patients.findByCodigo('DEMO-001');
+    const wizard = await medico.get(`/medico/estudios/nuevo?paciente=${ondina.id}`);
     expect(wizard.status).toBe(200);
     const csrf = extractCsrf(wizard.text);
 
     const res = await medico
       .post('/medico/estudios')
       .field('_csrf', csrf)
-      .field('patientId', rosa.id)
+      .field('patientId', ondina.id)
       .field('fechaToma1', '2026-10-10')
       .field('fechaHora', '2026-11-10T09:30')
       .field('centro', 'Hospital Córdoba')
@@ -123,12 +123,12 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
 
   it('rechaza un archivo que no es imagen aunque tenga extensión .png', async () => {
     const medico = await loginAs(app, 'medico@demo.com');
-    const rosa = await container.repos.patients.findByCodigo('DEMO-001');
-    const csrf = await csrfFrom(medico, `/medico/estudios/nuevo?paciente=${rosa.id}`);
+    const ondina = await container.repos.patients.findByCodigo('DEMO-001');
+    const csrf = await csrfFrom(medico, `/medico/estudios/nuevo?paciente=${ondina.id}`);
     const res = await medico
       .post('/medico/estudios')
       .field('_csrf', csrf)
-      .field('patientId', rosa.id)
+      .field('patientId', ondina.id)
       .field('fechaToma1', '2026-10-10')
       .field('fechaHora', '2026-11-10T09:30')
       .field('centro', 'Hospital Córdoba')
@@ -169,13 +169,13 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
 
   it('reutiliza la toma 1 de un estudio anterior y analiza IS2 reales', async () => {
     const medico = await loginAs(app, 'medico@demo.com');
-    const rosa = await container.repos.patients.findByCodigo('DEMO-001');
-    const [previo] = await container.repos.studies.listByPatient(rosa.id);
-    const csrf = await csrfFrom(medico, `/medico/estudios/nuevo?paciente=${rosa.id}`);
+    const ondina = await container.repos.patients.findByCodigo('DEMO-001');
+    const [previo] = await container.repos.studies.listByPatient(ondina.id);
+    const csrf = await csrfFrom(medico, `/medico/estudios/nuevo?paciente=${ondina.id}`);
     const res = await medico
       .post('/medico/estudios')
       .field('_csrf', csrf)
-      .field('patientId', rosa.id)
+      .field('patientId', ondina.id)
       .field('toma1Origen', previo.id)
       .field('fechaHora', '2026-11-11T09:30')
       .field('centro', 'Hospital Córdoba')

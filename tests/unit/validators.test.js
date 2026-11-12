@@ -43,7 +43,7 @@ describe('patientCreateSchema', () => {
   });
 
   it('valida el formato del código anónimo', () => {
-    expect(schemas.patientCreateSchema.safeParse({ ...validPatient, codigo: 'p.rf902' }).data.codigo).toBe('DEMO-005');
+    expect(schemas.patientCreateSchema.safeParse({ ...validPatient, codigo: 'p.rf902' }).data.codigo).toBe('P.RF902');
     expect(schemas.patientCreateSchema.safeParse({ ...validPatient, codigo: 'X-1' }).success).toBe(false);
   });
 

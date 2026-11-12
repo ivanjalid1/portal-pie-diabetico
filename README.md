@@ -19,15 +19,23 @@ Portal médico–paciente para la **estimación del riesgo de úlcera de pie dia
 
 ## Capturas
 
-| Ingreso | Resultado comparativo (toma 1 vs toma 2) |
+| Ingreso | Tablero del médico |
 | --- | --- |
-| ![Ingreso](docs/screenshots/01-login.png) | ![Resultado](docs/screenshots/04-resultado.png) |
-| **Tablero del médico** | **Asistente con vistas previas (PNG e IS2)** |
-| ![Tablero](docs/screenshots/02-dashboard.png) | ![Asistente](docs/screenshots/03-wizard-previews.png) |
-| **Ficha del paciente** | **Portal del paciente** |
-| ![Ficha](docs/screenshots/05-paciente-detalle.png) | ![Paciente](docs/screenshots/07-paciente-estudio.png) |
-| **Tema oscuro (opcional)** | **Móvil: menú a la derecha** |
-| ![Oscuro](docs/screenshots/09-resultado-dark.png) | ![Móvil](docs/screenshots/11-mobile-menu.png) |
+| ![Ingreso](docs/screenshots/01-login.png) | ![Tablero](docs/screenshots/02-dashboard.png) |
+| **Resultado comparativo (toma 1 vs toma 2)** | **Evolución entre tomas (sin doble eje)** |
+| ![Resultado](docs/screenshots/04-resultado.png) | ![Evolución](docs/screenshots/05-paciente-evolucion.png) |
+| **Estudios realizados** | **Controles** |
+| ![Estudios](docs/screenshots/06-estudios-realizados.png) | ![Controles](docs/screenshots/07-controles.png) |
+| **«Tu informe» (paciente)** | **Visor con paleta Fluke High Contrast** |
+| ![Informe](docs/screenshots/08-paciente-informe.png) | ![Visor](docs/screenshots/10-visor-paletas.png) |
+| **Asistente con vistas previas (PNG e IS2)** | **Tema oscuro (opcional)** |
+| ![Asistente](docs/screenshots/03-wizard-previews.png) | ![Oscuro](docs/screenshots/09-resultado-dark.png) |
+
+Paletas disponibles en el visor (High Contrast, Ironbow, Grises): [docs/screenshots/12-paletas-comparacion.png](docs/screenshots/12-paletas-comparacion.png).
+
+| Móvil: ingreso | Móvil: tablero | Móvil: evolución | Móvil: informe del paciente |
+| --- | --- | --- | --- |
+| ![](docs/screenshots/01b-login-mobile.png) | ![](docs/screenshots/20-mobile-dashboard.png) | ![](docs/screenshots/25-mobile-evolucion.png) | ![](docs/screenshots/26-mobile-informe.png) |
 
 ## Funcionalidades
 
@@ -35,7 +43,7 @@ Portal médico–paciente para la **estimación del riesgo de úlcera de pie dia
 - Tablero con KPIs y tendencia frente al mes anterior (con *sparklines*), distribución de riesgo, controles vencidos y próximos, últimos estudios con miniatura y cambio de asimetría ↑/↓, y pacientes con asimetría en aumento.
 - **Estudios realizados**: búsqueda por nombre, apellido o código, filtros (fechas, centro, riesgo, grupo, publicado, desenlace), orden, paginado, tarjetas en móvil y CSV del filtro actual.
 - **Controles**: pestañas Próximos / Vencidos / Realizados, ausencia con motivo, marcado automático al guardar la toma 2, línea de tiempo en la ficha y CSV.
-- Registro de pacientes por su **correo (Gmail)**: verifica criterios de exclusión y consentimiento, crea la cuenta con contraseña temporal (se muestra una sola vez) y asigna el **código anónimo** (`DEMO-002`, `DEMO-005`, `DEMO-011`).
+- Registro de pacientes por su **correo (Gmail)**: verifica criterios de exclusión y consentimiento, crea la cuenta con contraseña temporal (se muestra una sola vez) y asigna el **código anónimo** (`P.<centro><nnn>`, p. ej. `P.HC901`; los pacientes demo usan `DEMO-001` … `DEMO-012`).
 - Ficha clínica completa (DM, HbA1c con alerta >12 meses o imputada, tabaquismo «a consultar», neuropatía con puntaje y grado, vibratoria 0–50 / «>50», antecedentes, hallazgos, campos futuros) con evolución entre tomas sin doble eje (dumbbell por región, pendiente del |ΔT| máximo y probabilidad por estudio).
 - **Asistente de estudio en 4 pasos** que sigue el protocolo: paciente, fechas de ambas tomas y consentimiento → condiciones ambientales (T 21–24 °C, HR 40–70 %, la humedad resaltada) y checklist de cámara → carga de **dos termografías: toma 1 (basal) y toma 2 (control ~30 días después)** (JPG/PNG/TIFF/IS2, arrastrar y soltar, vista previa; los IS2 de Fluke se previsualizan decodificando la matriz infrarroja en el servidor; la toma 1 puede reutilizarse de un estudio anterior) → análisis.
 - Resultado **comparativo**: probabilidad a 6 semanas que considera la evolución (gauge con cortes 50/70 %), temperaturas absolutas por ROI de cada toma (6 por pie + general), ΔT por toma y **variación de la asimetría** (regiones que empeoran), **grupo térmico de cada toma, mostrado como «Con asimetría (P)» / «Sin asimetría (C)» con ayuda contextual, y simetría** con el umbral usado (1,0 °C por defecto; 2,2 °C de la literatura), mapas plantares lado a lado, factores contribuyentes y ficha del modelo de referencia.

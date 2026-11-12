@@ -57,7 +57,7 @@ const patientBase = z.object({
   apellido: f.text('Apellido', { max: 80 }),
   codigo: z.preprocess(
     (v) => (f.empty(v) ? null : String(v).trim().toUpperCase()),
-    z.union([z.null(), z.string().regex(CODIGO_REGEX, 'Formato de código esperado: DEMO-002, DEMO-005 o DEMO-011.')]),
+    z.union([z.null(), z.string().regex(CODIGO_REGEX, 'Formato de código esperado: P.HC901, P.RF902 o P.VHF903.')]),
   ),
   dni: z.preprocess(
     (v) => (f.empty(v) ? null : String(v).replace(/[.\s-]/g, '')),
@@ -249,7 +249,8 @@ const appointmentStatusSchema = z
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-const optDay = () => z.preprocess((v) => (f.empty(v) ? undefined : v), z.string().regex(ISO_DAY).optional()).catch(undefined);
+const optDay = () =>
+  z.preprocess((v) => (f.empty(v) ? undefined : v), z.string().regex(ISO_DAY).optional()).catch(undefined);
 
 /** Filtros del listado «Estudios realizados» (valores inválidos se ignoran). */
 const estudiosFilterSchema = z.object({

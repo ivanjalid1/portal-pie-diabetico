@@ -39,7 +39,9 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
       expect(byName.all.every((r) => r.patient.id === conEstudio.id || r.patient.apellido)).toBe(true);
       expect(byName.all.some((r) => r.patient.id === conEstudio.id)).toBe(true);
 
-      const byCode = await container.services.studyService.searchForMedico(medicoUser.id, { q: conEstudio.codigo.toLowerCase() });
+      const byCode = await container.services.studyService.searchForMedico(medicoUser.id, {
+        q: conEstudio.codigo.toLowerCase(),
+      });
       expect(byCode.all.every((r) => r.patient.codigo === conEstudio.codigo)).toBe(true);
 
       const none = await container.services.studyService.searchForMedico(medicoUser.id, { q: 'zzz-no-existe' });
@@ -125,7 +127,9 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
   describe('paletas', () => {
     it('la LUT High Contrast tiene 256 colores RGB válidos', () => {
       expect(lut.lut).toHaveLength(256);
-      expect(lut.lut.every((c) => c.length === 3 && c.every((v) => Number.isInteger(v) && v >= 0 && v <= 255))).toBe(true);
+      expect(lut.lut.every((c) => c.length === 3 && c.every((v) => Number.isInteger(v) && v >= 0 && v <= 255))).toBe(
+        true,
+      );
     });
 
     it('expone High Contrast (por defecto), Ironbow y Grises', () => {

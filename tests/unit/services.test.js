@@ -75,6 +75,13 @@ describe('PatientService', () => {
     ).rejects.toBeInstanceOf(ValidationError);
     await expect(
       c.services.patientService.register(newPatient({ codigo: 'DEMO-002' }), { id: medico.id }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    await c.services.patientService.register(newPatient({ codigo: 'P.HC901' }), { id: medico.id });
+    await expect(
+      c.services.patientService.register(
+        newPatient({ codigo: 'P.HC901', email: 'otra.persona.test@gmail.com', dni: null }),
+        { id: medico.id },
+      ),
     ).rejects.toBeInstanceOf(ConflictError);
   });
 

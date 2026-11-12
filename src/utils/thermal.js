@@ -50,7 +50,12 @@ const grays = (t) => interpolate(GRAYS, t);
 
 /** Paletas disponibles para renderizar termogramas (la primera es la predeterminada). */
 const PALETTES = Object.freeze({
-  alto_contraste: Object.freeze({ key: 'alto_contraste', nombre: 'High Contrast', fn: highContrast, stops: HIGH_CONTRAST }),
+  alto_contraste: Object.freeze({
+    key: 'alto_contraste',
+    nombre: 'High Contrast',
+    fn: highContrast,
+    stops: HIGH_CONTRAST,
+  }),
   ironbow: Object.freeze({ key: 'ironbow', nombre: 'Ironbow', fn: ironbow, stops: IRONBOW }),
   grises: Object.freeze({ key: 'grises', nombre: 'Escala de grises', fn: grays, stops: GRAYS }),
 });

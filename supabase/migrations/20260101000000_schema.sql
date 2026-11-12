@@ -2,7 +2,7 @@
 -- TermoPie · esquema de datos (Postgres / Supabase)
 -- Principio de minimización (Ley 25.326): los datos personales identificatorios
 -- (nombre, correo, teléfono) viven en `profiles`; la ficha clínica (`patients`)
--- se referencia por el código anónimo (DEMO-002, DEMO-005, DEMO-011).
+-- se referencia por el código anónimo (P.HC901, P.RF902, P.VHF903).
 -- =========================================================================
 
 create extension if not exists pgcrypto;

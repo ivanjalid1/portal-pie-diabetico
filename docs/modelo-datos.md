@@ -2,7 +2,7 @@
 
 El esquema está en [`supabase/migrations`](../supabase/migrations). El driver `memory` usa las mismas entidades (`src/models`).
 
-**Principio rector**: la ficha clínica (`patients`) se identifica sólo por el **código anónimo** (`DEMO-002`, `DEMO-005`, `DEMO-011`). Los datos personales identificatorios necesarios para el acceso (nombre, correo, teléfono) están en `profiles`, vinculados por `user_id`. El DNI es opcional y nunca se muestra en listados ni exportaciones.
+**Principio rector**: la ficha clínica (`patients`) se identifica sólo por el **código anónimo** (`P.<centro><nnn>`, p. ej. `P.HC901`; los pacientes demo usan `DEMO-001` … `DEMO-012`). Los datos personales identificatorios necesarios para el acceso (nombre, correo, teléfono) están en `profiles`, vinculados por `user_id`. El DNI es opcional y nunca se muestra en listados ni exportaciones.
 
 ## Diagrama entidad-relación
 

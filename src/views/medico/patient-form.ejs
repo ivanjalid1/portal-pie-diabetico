@@ -84,7 +84,7 @@
       <div class="<%= cls('codigo') %>">
         <label for="codigo">Código anónimo</label>
         <input id="codigo" name="codigo" value="<%= val('codigo') || codigosSugeridos[centroSel] || '' %>" pattern="P\.[A-Z]{2,4}[0-9]{3}" autocomplete="off" aria-describedby="codigo-hint" data-codigo-target>
-        <p class="field__hint" id="codigo-hint">Se sugiere según el centro (DEMO-002, DEMO-005, DEMO-011).</p>
+        <p class="field__hint" id="codigo-hint">Se sugiere según el centro (P.HC901, P.RF902, P.VHF903).</p>
         <%- err('codigo') %>
       </div>
       <% } else { %>

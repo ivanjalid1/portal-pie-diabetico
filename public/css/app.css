@@ -3049,7 +3049,7 @@ input[aria-invalid='true'] {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgb(5 12 18 / 0.86);
+  background: rgb(5 12 18 / 0.94);
   animation: fade-in 180ms var(--ease);
 }
 
@@ -4963,7 +4963,9 @@ h1,
 }
 
 .control-card--late {
-  box-shadow: inset 3px 0 0 var(--warn), var(--shadow-2);
+  box-shadow:
+    inset 3px 0 0 var(--warn),
+    var(--shadow-2);
 }
 
 .control-card__date {
@@ -6323,7 +6325,9 @@ body.is-locked {
   border-radius: 20px;
   overflow: hidden;
   background: #0e0a22;
-  box-shadow: 0 24px 48px -16px rgb(4 22 40 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.18);
+  box-shadow:
+    0 24px 48px -16px rgb(4 22 40 / 0.55),
+    0 0 0 1px rgb(255 255 255 / 0.18);
 }
 
 .auth-thermo img {
@@ -6426,7 +6430,9 @@ body.is-locked {
 
 .demo-account:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--primary), var(--focus);
+  box-shadow:
+    0 0 0 2px var(--primary),
+    var(--focus);
 }
 
 .auth-form__credits {

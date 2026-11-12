@@ -58,8 +58,7 @@ function locals(config) {
       return null;
     };
     /** Etiqueta clara del grupo térmico (P/C se mantiene sólo en el CSV). */
-    res.locals.grupoLabel = (g) =>
-      g === 'P' ? 'Con asimetría (P)' : g === 'C' ? 'Sin asimetría (C)' : 'Sin dato';
+    res.locals.grupoLabel = (g) => (g === 'P' ? 'Con asimetría (P)' : g === 'C' ? 'Sin asimetría (C)' : 'Sin dato');
     res.locals.grupoAyuda = (umbral = domain.DELTA_T_UMBRAL) =>
       `P = Problema: alguna región supera el umbral de ΔT (${fmt.num(umbral, 1)} °C). C = Control: ninguna región lo supera. No significa sano o enfermo: todos los participantes son diabéticos.`;
     /** «Toma 1: con asimetría → Toma 2: sin asimetría (mejoró)». */

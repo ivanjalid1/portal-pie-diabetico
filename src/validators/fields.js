@@ -31,7 +31,10 @@ const text = (label, { min = 1, max = 120 } = {}) =>
     .max(max, `${label}: máximo ${max} caracteres.`);
 
 const optionalText = (max = 500) =>
-  z.preprocess((v) => (empty(v) ? null : String(v).trim()), z.union([z.null(), z.string().max(max, `Máximo ${max} caracteres.`)]));
+  z.preprocess(
+    (v) => (empty(v) ? null : String(v).trim()),
+    z.union([z.null(), z.string().max(max, `Máximo ${max} caracteres.`)]),
+  );
 
 const email = () =>
   z
@@ -50,7 +53,8 @@ const date = (label, { notFuture = false } = {}) =>
     .refine((v) => !Number.isNaN(new Date(v).getTime()), `${label}: fecha inválida.`)
     .refine((v) => !notFuture || new Date(`${v}T00:00:00`) <= new Date(), `${label}: no puede ser futura.`);
 
-const optionalDate = (label, opts) => z.preprocess((v) => (empty(v) ? null : v), z.union([z.null(), date(label, opts)]));
+const optionalDate = (label, opts) =>
+  z.preprocess((v) => (empty(v) ? null : v), z.union([z.null(), date(label, opts)]));
 
 /** Lista de valores (checkboxes con el mismo nombre). */
 const list = () => z.preprocess((v) => (empty(v) ? [] : Array.isArray(v) ? v : [v]), z.array(z.string()));

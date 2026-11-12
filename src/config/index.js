@@ -44,10 +44,7 @@ function build(env = process.env) {
     predictor: (env.PREDICTOR || 'mock').toLowerCase(),
     session: Object.freeze({
       name: 'tp_session',
-      secret:
-        isProd && !env.SESSION_SECRET
-          ? require('node:crypto').randomBytes(32).toString('hex')
-          : sessionSecret,
+      secret: isProd && !env.SESSION_SECRET ? require('node:crypto').randomBytes(32).toString('hex') : sessionSecret,
       maxAgeMs: int(env.SESSION_MAX_AGE_HOURS, 8) * 60 * 60 * 1000,
       secure: bool(env.COOKIE_SECURE, isProd),
     }),

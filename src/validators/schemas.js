@@ -63,12 +63,10 @@ const patientBase = z.object({
     (v) => (f.empty(v) ? null : String(v).replace(/[.\s-]/g, '')),
     z.union([z.null(), z.string().regex(/^\d{7,8}$/, 'El DNI debe tener 7 u 8 dígitos.')]),
   ),
-  fechaNacimiento: f
-    .date('Fecha de nacimiento', { notFuture: true })
-    .refine((v) => {
-      const age = (Date.now() - new Date(v).getTime()) / (365.25 * 86400000);
-      return age >= 18 && age <= 110;
-    }, 'El protocolo incluye sólo pacientes adultos (18 años o más).'),
+  fechaNacimiento: f.date('Fecha de nacimiento', { notFuture: true }).refine((v) => {
+    const age = (Date.now() - new Date(v).getTime()) / (365.25 * 86400000);
+    return age >= 18 && age <= 110;
+  }, 'El protocolo incluye sólo pacientes adultos (18 años o más).'),
   sexo: z.enum(['F', 'M'], { error: 'Seleccioná el sexo.' }),
   email: f.email(),
   telefono: f.optionalText(30),
@@ -80,10 +78,7 @@ const patientBase = z.object({
   hba1cFecha: f.optionalDate('Fecha de HbA1c', { notFuture: true }),
   hba1cImputada: f.checkbox(),
   hba1cNota: f.optionalText(300),
-  tabaquismo: z.preprocess(
-    (v) => (v === 'si' ? true : v === 'no' ? false : null),
-    z.union([z.boolean(), z.null()]),
-  ),
+  tabaquismo: z.preprocess((v) => (v === 'si' ? true : v === 'no' ? false : null), z.union([z.boolean(), z.null()])),
   neuropatia: f.checkbox(),
   neuropatiaPuntaje: f.optionalNumber('Puntaje de neuropatía', { min: 0, max: 10, int: true }),
   vibratoriaDer: f.optionalNumber('Percepción vibratoria derecha', { min: 0, max: VIBRATORIA_MAX }),
@@ -118,7 +113,11 @@ function clinicalRefinements(d, ctx) {
   if (d.vibratoriaIzqMas50) d.vibratoriaIzq = null;
   if (!d.hiperqueratosis) d.hiperqueratosisLocalizacion = null;
   if (d.consentimientoFirmado && !d.consentimientoFecha) {
-    ctx.addIssue({ code: 'custom', path: ['consentimientoFecha'], message: 'Indicá la fecha de firma del consentimiento.' });
+    ctx.addIssue({
+      code: 'custom',
+      path: ['consentimientoFecha'],
+      message: 'Indicá la fecha de firma del consentimiento.',
+    });
   }
 }
 
@@ -143,10 +142,15 @@ function localToIso(v) {
 const studySchema = z
   .object({
     patientId: z.string().uuid('Seleccioná un paciente.'),
-    toma: z.preprocess((v) => Number(v), z.union([z.literal(1), z.literal(2)], { error: 'Indicá si es la toma 1 o 2.' })),
+    toma: z.preprocess(
+      (v) => Number(v),
+      z.union([z.literal(1), z.literal(2)], { error: 'Indicá si es la toma 1 o 2.' }),
+    ),
     fechaHora: z.preprocess(
       localToIso,
-      z.string().refine((v) => !Number.isNaN(new Date(v).getTime()), 'Fecha y hora inválidas.')
+      z
+        .string()
+        .refine((v) => !Number.isNaN(new Date(v).getTime()), 'Fecha y hora inválidas.')
         .refine((v) => new Date(v).getTime() <= Date.now() + 5 * 60000, 'La fecha de la toma no puede ser futura.'),
     ),
     centro: z.enum([...CENTRO_NOMBRES], { error: 'Seleccioná el centro.' }),
@@ -169,7 +173,11 @@ const studySchema = z
       ctx.addIssue({ code: 'custom', path: ['rangoMax'], message: 'El máximo del rango debe superar al mínimo.' });
     }
     if (!d.valida && !d.motivoInvalidez) {
-      ctx.addIssue({ code: 'custom', path: ['motivoInvalidez'], message: 'Indicá el motivo por el que la imagen no es válida.' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['motivoInvalidez'],
+        message: 'Indicá el motivo por el que la imagen no es válida.',
+      });
     }
     if (!d.consentimientoVerificado) {
       ctx.addIssue({
@@ -193,8 +201,10 @@ const outcomeSchema = z
     notas: z.string().trim().max(1000).default(''),
   })
   .superRefine((d, ctx) => {
-    if (d.generoLesion && !d.pie) ctx.addIssue({ code: 'custom', path: ['pie'], message: 'Indicá en qué pie apareció la lesión.' });
-    if (d.generoLesion && !d.roi) ctx.addIssue({ code: 'custom', path: ['roi'], message: 'Indicá la región de la lesión.' });
+    if (d.generoLesion && !d.pie)
+      ctx.addIssue({ code: 'custom', path: ['pie'], message: 'Indicá en qué pie apareció la lesión.' });
+    if (d.generoLesion && !d.roi)
+      ctx.addIssue({ code: 'custom', path: ['roi'], message: 'Indicá la región de la lesión.' });
     if (!d.generoLesion) {
       d.pie = null;
       d.roi = null;

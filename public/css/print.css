@@ -1,0 +1,190 @@
+/* Informe imprimible: A4, tinta mínima, sin navegación. */
+.report {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.report__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding: 12px;
+  background: var(--surface);
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.report__page {
+  max-width: 210mm;
+  margin: 24px auto;
+  padding: 18mm 16mm;
+  background: #fff;
+  color: #132029;
+  box-shadow: var(--shadow-2);
+  border-radius: 4px;
+  font-size: 13px;
+  display: grid;
+  gap: 16px;
+  color-scheme: light;
+  --text: #132029;
+  --text-2: #33444f;
+  --muted: #5c6c78;
+  --line: #dbe2e8;
+  --surface-2: #f6f8fa;
+  --surface-3: #edf1f4;
+  --danger-soft: #fbe6e4;
+  --danger: #b3261e;
+}
+
+.report__page h2 {
+  font-size: 14px;
+  margin: 0 0 4px;
+  color: #132029;
+}
+
+.report__page p {
+  margin: 0;
+}
+
+.report__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #0f2a3d;
+}
+
+.report__meta {
+  display: grid;
+  text-align: right;
+  font-size: 12px;
+}
+
+.report__meta strong {
+  font-size: 15px;
+}
+
+.report__disclaimer {
+  padding: 8px 10px;
+  border-left: 3px solid #9a5c06;
+  background: #fbf0dc;
+  font-size: 12px;
+}
+
+.report__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.report__grid--map {
+  grid-template-columns: 0.9fr 1.1fr;
+  align-items: center;
+}
+
+.report__result {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.report__big {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #f6f8fa;
+  justify-items: start;
+}
+
+.report__big .label {
+  font-size: 11px;
+  color: #5c6c78;
+}
+
+.report__pct {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.report__images {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.report__images figure {
+  margin: 0;
+}
+
+.report__images img {
+  width: 100%;
+  border-radius: 4px;
+}
+
+.report__images figcaption {
+  font-size: 11px;
+  color: #5c6c78;
+}
+
+.report__foot {
+  font-size: 11px;
+  color: #5c6c78;
+  border-top: 1px solid #dbe2e8;
+  padding-top: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.report__sign {
+  margin-top: 28px;
+  justify-self: end;
+  width: 220px;
+  border-top: 1px solid #132029;
+  text-align: center;
+  padding-top: 4px;
+}
+
+.report .pm-sole {
+  fill: #edf1f4;
+}
+
+.report .pm-outline {
+  stroke: #132029;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .report {
+    background: #fff;
+  }
+
+  .report__page {
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    max-width: none;
+  }
+
+  .report__page * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  section,
+  figure,
+  table {
+    break-inside: avoid;
+  }
+}

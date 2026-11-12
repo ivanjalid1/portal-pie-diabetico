@@ -9,7 +9,7 @@ function flash(req, res, next) {
     req.session.flash = [...(req.session.flash || []), { type, message }];
   };
   req.flashForm = (old, errors) => {
-    const { _csrf, password, nueva, actual, confirmacion, ...safe } = old || {};
+    const { _csrf, password: _p, nueva: _n, actual: _a, confirmacion: _c, ...safe } = old || {};
     req.session.form = { old: safe, errors: errors || {} };
   };
 

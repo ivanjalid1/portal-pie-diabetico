@@ -1,11 +1,6 @@
 'use strict';
 
-const {
-  neuropathyGrade,
-  VIBRATORIA_CORTE,
-  HBA1C_MAX_MESES,
-  EXCLUSION_CRITERIA,
-} = require('../config/domain');
+const { neuropathyGrade, VIBRATORIA_CORTE, HBA1C_MAX_MESES, EXCLUSION_CRITERIA } = require('../config/domain');
 
 const EXCLUSION_KEYS = EXCLUSION_CRITERIA.map((c) => c.key);
 

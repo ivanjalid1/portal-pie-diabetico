@@ -1,0 +1,19 @@
+-- =========================================================================
+-- Semilla de demostración.
+--
+-- Las cuentas de usuario de Supabase Auth NO se pueden crear de forma segura
+-- con SQL plano (hash de contraseña, identidades, confirmación de correo), por
+-- eso la semilla completa se carga con el script de Node, que reutiliza los
+-- mismos datos ficticios que el driver `memory` y la Admin API de Auth:
+--
+--     DATA_DRIVER=supabase npm run seed:supabase
+--
+-- El script crea: admin@demo.com, medico@demo.com, medico2@demo.com,
+-- paciente@demo.com y 11 pacientes con correos *.demo@gmail.com (contraseña
+-- Demo1234!), sus fichas clínicas, consentimientos, 20 estudios con
+-- resultados simulados, mediciones por ROI, controles e imágenes sintéticas
+-- subidas al bucket privado `estudios`.
+--
+-- Este archivo queda vacío a propósito para que `supabase db reset` no falle.
+-- =========================================================================
+select 1;

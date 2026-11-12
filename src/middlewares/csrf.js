@@ -30,7 +30,9 @@ function verifyCsrf(req, _res, next) {
   if (SAFE.has(req.method)) return next();
   const sent = req.body?._csrf || req.get('x-csrf-token');
   if (!tokensMatch(sent, req.session?.csrf)) {
-    return next(new AppError('El formulario venció o no es válido. Recargá la página e intentá de nuevo.', 403, 'csrf'));
+    return next(
+      new AppError('El formulario venció o no es válido. Recargá la página e intentá de nuevo.', 403, 'csrf'),
+    );
   }
   return next();
 }

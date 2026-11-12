@@ -70,7 +70,11 @@ function buildRoutes(container) {
   a.get('/', admin.dashboard);
   a.get('/usuarios', admin.users);
   a.get('/usuarios/nuevo-medico', admin.newMedico);
-  a.post('/usuarios/medicos', validate(schemas.medicoSchema, { back: '/admin/usuarios/nuevo-medico' }), admin.createMedico);
+  a.post(
+    '/usuarios/medicos',
+    validate(schemas.medicoSchema, { back: '/admin/usuarios/nuevo-medico' }),
+    admin.createMedico,
+  );
   a.post('/usuarios/:id/estado', admin.toggleActive);
   a.post('/usuarios/:id/restablecer', admin.resetPassword);
   a.get('/auditoria', admin.audit);
@@ -83,7 +87,11 @@ function buildRoutes(container) {
   m.get('/pacientes', medico.patients);
   m.get('/pacientes/nuevo', medico.newPatient);
   m.get('/pacientes/exportar.csv', medico.exportCsv);
-  m.post('/pacientes', validate(schemas.patientCreateSchema, { back: '/medico/pacientes/nuevo' }), medico.createPatient);
+  m.post(
+    '/pacientes',
+    validate(schemas.patientCreateSchema, { back: '/medico/pacientes/nuevo' }),
+    medico.createPatient,
+  );
   m.get('/pacientes/:id', medico.patientDetail);
   m.get('/pacientes/:id/editar', medico.editPatient);
   m.post(
@@ -113,7 +121,8 @@ function buildRoutes(container) {
     upload,
     verifyCsrf,
     validate(schemas.studySchema, {
-      back: (req) => `/medico/estudios/nuevo${req.body?.patientId ? `?paciente=${encodeURIComponent(req.body.patientId)}` : ''}`,
+      back: (req) =>
+        `/medico/estudios/nuevo${req.body?.patientId ? `?paciente=${encodeURIComponent(req.body.patientId)}` : ''}`,
     }),
     medico.createStudy,
   );

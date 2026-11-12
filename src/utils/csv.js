@@ -10,7 +10,8 @@ const { ROIS } = require('../config/domain');
  */
 
 const yesNo = (v) => (v === null || v === undefined ? '' : v ? 'SI' : 'NO');
-const num = (v, d = 2) => (v === null || v === undefined || Number.isNaN(Number(v)) ? '' : Number(v).toFixed(d).replace('.', ','));
+const num = (v, d = 2) =>
+  v === null || v === undefined || Number.isNaN(Number(v)) ? '' : Number(v).toFixed(d).replace('.', ',');
 
 function vib(value, mas50) {
   if (mas50) return '>50';
@@ -66,7 +67,8 @@ function buildCsv(rows) {
   const lines = [COLUMNS.map(([h]) => escape(h)).join(';')];
   for (const row of rows) lines.push(COLUMNS.map(([, get]) => escape(get(row))).join(';'));
   // BOM para que Excel detecte UTF-8 (tildes y ñ).
-  return `﻿${lines.join('\r\n')}\r\n`;
+  const BOM = String.fromCharCode(0xfeff);
+  return `${BOM}${lines.join('\r\n')}\r\n`;
 }
 
 module.exports = { buildCsv, COLUMNS };

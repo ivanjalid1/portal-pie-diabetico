@@ -253,7 +253,8 @@ const REFERENCE_MODEL = Object.freeze({
   especificidad: 50.0,
   vpp: 74.5,
   vpn: 60.0,
-  fuente: 'Parte 1: «Correlación entre la termografía y la predicción de úlceras en pie diabético» (Muñoz A. P., FCEFyN – UNC)',
+  fuente:
+    'Parte 1: «Correlación entre la termografía y la predicción de úlceras en pie diabético» (Muñoz A. P., FCEFyN – UNC)',
 });
 
 /** Datos institucionales del Proyecto Integrador (Parte 2). */
@@ -262,7 +263,11 @@ const PROJECT = Object.freeze({
     'Procesamiento de imágenes y análisis punto a punto de termogramas plantares para la detección temprana del riesgo de pie diabético',
   alumna: 'María Inés Greising Revol',
   asesor: 'Conrado J. Rodríguez',
-  coasesoras: Object.freeze(['Dra. María Ranz y Álvarez', 'Dra. María Eugenia Lozano', 'Dra. Beatriz Alejandra García']),
+  coasesoras: Object.freeze([
+    'Dra. María Ranz y Álvarez',
+    'Dra. María Eugenia Lozano',
+    'Dra. Beatriz Alejandra García',
+  ]),
   carrera: 'Ingeniería Biomédica',
   facultad: 'Facultad de Ciencias Exactas, Físicas y Naturales',
   universidad: 'Universidad Nacional de Córdoba',

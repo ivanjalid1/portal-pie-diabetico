@@ -105,7 +105,12 @@ const PATIENTS = [
   },
   {
     medico: 'medico',
-    personal: { email: 'jorge.ferreyra.demo@gmail.com', nombre: 'Jorge Luis', apellido: 'Ferreyra', telefono: '351 390-4411' },
+    personal: {
+      email: 'jorge.ferreyra.demo@gmail.com',
+      nombre: 'Jorge Luis',
+      apellido: 'Ferreyra',
+      telefono: '351 390-4411',
+    },
     codigo: 'DEMO-003',
     dni: '22318764',
     fechaNacimiento: '1970-06-21',
@@ -125,7 +130,12 @@ const PATIENTS = [
   },
   {
     medico: 'medico',
-    personal: { email: 'carlos.pereyra.demo@gmail.com', nombre: 'Carlos Alberto', apellido: 'Pereyra', telefono: '3543 42-7781' },
+    personal: {
+      email: 'carlos.pereyra.demo@gmail.com',
+      nombre: 'Carlos Alberto',
+      apellido: 'Pereyra',
+      telefono: '3543 42-7781',
+    },
     codigo: 'DEMO-004',
     dni: '11204558',
     fechaNacimiento: '1955-11-30',
@@ -145,7 +155,10 @@ const PATIENTS = [
     hiperqueratosis: true,
     hiperqueratosisLocalizacion: 'Borde externo del pie derecho',
     pesoKg: 92,
-    tomas: [{ dias: 40, humedad: 72 }, { dias: 2, publicado: false }],
+    tomas: [
+      { dias: 40, humedad: 72 },
+      { dias: 2, publicado: false },
+    ],
   },
   {
     medico: 'medico',
@@ -171,7 +184,12 @@ const PATIENTS = [
   },
   {
     medico: 'medico',
-    personal: { email: 'hector.bustos.demo@gmail.com', nombre: 'Héctor Ramón', apellido: 'Bustos', telefono: '351 455-6610' },
+    personal: {
+      email: 'hector.bustos.demo@gmail.com',
+      nombre: 'Héctor Ramón',
+      apellido: 'Bustos',
+      telefono: '351 455-6610',
+    },
     codigo: 'DEMO-006',
     dni: null,
     fechaNacimiento: '1963-04-08',
@@ -194,7 +212,12 @@ const PATIENTS = [
   },
   {
     medico: 'medico',
-    personal: { email: 'silvia.ortiz.demo@gmail.com', nombre: 'Silvia Beatriz', apellido: 'Ortiz', telefono: '351 338-9054' },
+    personal: {
+      email: 'silvia.ortiz.demo@gmail.com',
+      nombre: 'Silvia Beatriz',
+      apellido: 'Ortiz',
+      telefono: '351 338-9054',
+    },
     codigo: 'DEMO-007',
     dni: '18766402',
     fechaNacimiento: '1967-12-05',
@@ -243,7 +266,12 @@ const PATIENTS = [
   },
   {
     medico: 'medico',
-    personal: { email: 'graciela.vera.demo@gmail.com', nombre: 'Graciela Noemí', apellido: 'Vera', telefono: '351 622-3047' },
+    personal: {
+      email: 'graciela.vera.demo@gmail.com',
+      nombre: 'Graciela Noemí',
+      apellido: 'Vera',
+      telefono: '351 622-3047',
+    },
     codigo: 'DEMO-009',
     dni: '20114876',
     fechaNacimiento: '1972-02-26',
@@ -264,7 +292,12 @@ const PATIENTS = [
   },
   {
     medico: 'medico',
-    personal: { email: 'diego.aguirre.demo@gmail.com', nombre: 'Diego Martín', apellido: 'Aguirre', telefono: '351 299-8812' },
+    personal: {
+      email: 'diego.aguirre.demo@gmail.com',
+      nombre: 'Diego Martín',
+      apellido: 'Aguirre',
+      telefono: '351 299-8812',
+    },
     codigo: 'DEMO-010',
     dni: null,
     fechaNacimiento: '1985-10-11',
@@ -284,7 +317,12 @@ const PATIENTS = [
   },
   {
     medico: 'medico2',
-    personal: { email: 'norma.carranza.demo@gmail.com', nombre: 'Norma Isabel', apellido: 'Carranza', telefono: '351 477-1290' },
+    personal: {
+      email: 'norma.carranza.demo@gmail.com',
+      nombre: 'Norma Isabel',
+      apellido: 'Carranza',
+      telefono: '351 477-1290',
+    },
     codigo: 'DEMO-011',
     dni: '13677120',
     fechaNacimiento: '1960-05-03',
@@ -305,7 +343,12 @@ const PATIENTS = [
   },
   {
     medico: 'medico2',
-    personal: { email: 'walter.juarez.demo@gmail.com', nombre: 'Walter Hugo', apellido: 'Juárez', telefono: '351 530-7765' },
+    personal: {
+      email: 'walter.juarez.demo@gmail.com',
+      nombre: 'Walter Hugo',
+      apellido: 'Juárez',
+      telefono: '351 530-7765',
+    },
     codigo: 'DEMO-012',
     dni: '17009321',
     fechaNacimiento: '1966-08-29',

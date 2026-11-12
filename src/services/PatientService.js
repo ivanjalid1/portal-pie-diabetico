@@ -73,7 +73,8 @@ class PatientService {
     }
     const { personal, clinical } = splitPersonal(data);
     const codigo = clinical.codigo || (await this.nextCodigo(clinical.centro));
-    if (!CODIGO_REGEX.test(codigo)) throw new ValidationError('Código inválido.', { codigo: 'Formato esperado: DEMO-002' });
+    if (!CODIGO_REGEX.test(codigo))
+      throw new ValidationError('Código inválido.', { codigo: 'Formato esperado: DEMO-002' });
     if (await this.patients.findByCodigo(codigo)) {
       throw new ConflictError(`Ya existe un paciente con el código ${codigo}.`);
     }

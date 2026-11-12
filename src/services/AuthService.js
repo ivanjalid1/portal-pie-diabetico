@@ -12,7 +12,9 @@ class AuthService {
   }
 
   async login(email, password, { ip } = {}) {
-    const normalized = String(email || '').trim().toLowerCase();
+    const normalized = String(email || '')
+      .trim()
+      .toLowerCase();
     let userId;
     try {
       userId = await this.authProvider.authenticate(normalized, password);
@@ -41,7 +43,9 @@ class AuthService {
     try {
       await this.authProvider.authenticate(user.email, currentPassword);
     } catch {
-      throw new ValidationError('La contraseña actual no es correcta.', { actual: 'La contraseña actual no es correcta.' });
+      throw new ValidationError('La contraseña actual no es correcta.', {
+        actual: 'La contraseña actual no es correcta.',
+      });
     }
     if (currentPassword === newPassword) {
       throw new ValidationError('La nueva contraseña debe ser distinta de la actual.', {

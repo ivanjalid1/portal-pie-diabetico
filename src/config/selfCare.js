@@ -22,7 +22,8 @@ const SELF_CARE = Object.freeze([
   {
     icon: 'shield',
     titulo: 'Hidratá, pero no entre los dedos',
-    texto: 'Aplicá crema en la planta y el empeine para evitar grietas. Entre los dedos la humedad favorece infecciones.',
+    texto:
+      'Aplicá crema en la planta y el empeine para evitar grietas. Entre los dedos la humedad favorece infecciones.',
   },
   {
     icon: 'shoe',
@@ -44,7 +45,8 @@ const SELF_CARE = Object.freeze([
   {
     icon: 'activity',
     titulo: 'Controlá tu glucemia',
-    texto: 'Mantener la glucemia y la HbA1c en los valores que te indicó tu médico protege los nervios y la circulación.',
+    texto:
+      'Mantener la glucemia y la HbA1c en los valores que te indicó tu médico protege los nervios y la circulación.',
   },
   {
     icon: 'alert',

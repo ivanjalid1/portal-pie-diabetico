@@ -5,12 +5,30 @@ const { CENTRO_NOMBRES, IMAGE_SLOTS, CENTROS } = require('../config/domain');
 const { buildCsv } = require('../utils/csv');
 const { EVENTS } = require('../utils/eventBus');
 
+/** Asocia a un error de negocio la URL del formulario al que debe volver. */
+async function withBack(back, fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    if (!err.back) err.back = back;
+    throw err;
+  }
+}
+
 const RIESGO_FILTROS = ['alto', 'moderado', 'sin_riesgo', 'P', 'C', 'sin_estudios'];
 
 /** Controlador de la sección del médico/a (pacientes, estudios y análisis). */
-function createMedicoController({ dashboardService, patientService, studyService, appointmentService, events, config }) {
+function createMedicoController({
+  dashboardService,
+  patientService,
+  studyService,
+  appointmentService,
+  events,
+  config,
+}) {
   const actor = (req) => ({ id: req.user.id, email: req.user.email, ip: req.ip, role: req.user.role });
-  const defaultCentro = (req) => (CENTRO_NOMBRES.includes(req.user.institucion) ? req.user.institucion : CENTRO_NOMBRES[0]);
+  const defaultCentro = (req) =>
+    CENTRO_NOMBRES.includes(req.user.institucion) ? req.user.institucion : CENTRO_NOMBRES[0];
 
   return {
     async dashboard(req, res) {
@@ -42,7 +60,9 @@ function createMedicoController({ dashboardService, patientService, studyService
     },
 
     async createPatient(req, res) {
-      const { patient, user, tempPassword } = await patientService.register(req.validated, actor(req));
+      const { patient, user, tempPassword } = await withBack('/medico/pacientes/nuevo', () =>
+        patientService.register(req.validated, actor(req)),
+      );
       res.status(201).render('medico/patient-created', {
         title: 'Paciente registrado',
         patient,
@@ -91,7 +111,8 @@ function createMedicoController({ dashboardService, patientService, studyService
     async outcome(req, res) {
       await patientService.recordOutcome(req.params.id, req.validated, actor(req));
       req.flash('success', 'Registraste el desenlace del seguimiento.');
-      const back = typeof req.body.volver === 'string' && req.body.volver.startsWith('/medico/') ? req.body.volver : null;
+      const back =
+        typeof req.body.volver === 'string' && req.body.volver.startsWith('/medico/') ? req.body.volver : null;
       res.redirect(303, back || `/medico/pacientes/${req.params.id}#desenlace`);
     },
 
@@ -141,7 +162,9 @@ function createMedicoController({ dashboardService, patientService, studyService
     async createStudy(req, res) {
       const filesBySlot = Object.fromEntries(IMAGE_SLOTS.map(({ slot }) => [slot, req.files?.[slot]?.[0] || null]));
       const { patientId, consentimientoVerificado: _c, ...acquisition } = req.validated;
-      const { study } = await studyService.createWithAnalysis({ patientId, acquisition, filesBySlot }, actor(req));
+      const { study } = await withBack(`/medico/estudios/nuevo?paciente=${encodeURIComponent(patientId)}`, () =>
+        studyService.createWithAnalysis({ patientId, acquisition, filesBySlot }, actor(req)),
+      );
       req.flash('success', 'Análisis completado. Revisá el resultado antes de hacerlo visible al paciente.');
       res.redirect(303, `/medico/estudios/${study.id}`);
     },
@@ -169,7 +192,9 @@ function createMedicoController({ dashboardService, patientService, studyService
       await studyService.setPublished(req.params.id, publicado, actor(req));
       req.flash(
         'success',
-        publicado ? 'El resultado ya es visible para el paciente.' : 'El resultado dejó de ser visible para el paciente.',
+        publicado
+          ? 'El resultado ya es visible para el paciente.'
+          : 'El resultado dejó de ser visible para el paciente.',
       );
       res.redirect(303, `/medico/estudios/${req.params.id}`);
     },

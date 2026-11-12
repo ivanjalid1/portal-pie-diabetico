@@ -11,7 +11,16 @@ const { validateStudyImages } = require('../validators/imageValidator');
  * notas, publicación al paciente y acceso controlado a las imágenes.
  */
 class StudyService {
-  constructor({ studies, patients, patientService, files, analysisService, appointmentService, events, maxUploadBytes }) {
+  constructor({
+    studies,
+    patients,
+    patientService,
+    files,
+    analysisService,
+    appointmentService,
+    events,
+    maxUploadBytes,
+  }) {
     this.studies = studies;
     this.patients = patients;
     this.patientService = patientService;

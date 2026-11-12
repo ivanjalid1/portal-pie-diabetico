@@ -87,7 +87,8 @@ class MockUlcerPredictor extends UlcerPredictor {
       const izq = clamp(base + ROI_OFFSET[key] + noise(0.35), 23, 33.5);
       let delta = noise(0.45);
       if (key === hotspot) delta = lado * clamp(magnitud + noise(0.15), 0, 2.8);
-      else if ((key === 'metatarso' || key === 'dedo_mayor') && key !== hotspot) delta = lado * magnitud * 0.45 + noise(0.25);
+      else if ((key === 'metatarso' || key === 'dedo_mayor') && key !== hotspot)
+        delta = lado * magnitud * 0.45 + noise(0.25);
       else if (key === 'dedos_menores') delta = lado * magnitud * 0.3 + noise(0.3);
       delta = clamp(delta, -2.8, 2.8);
       const der = clamp(izq + delta, 23, 34);
@@ -126,7 +127,12 @@ class MockUlcerPredictor extends UlcerPredictor {
         valor: patient.insulinorequiriente ? 'Sí' : 'No',
         contribucion: COEF.insulinorequiriente * (patient.insulinorequiriente ? 1 : 0),
       },
-      { key: 'delta_dedo_mayor', nombre: 'ΔT Dedo mayor', valor: `${round(dDedo, 1)} °C`, contribucion: COEF.deltaDedoMayor * dDedo },
+      {
+        key: 'delta_dedo_mayor',
+        nombre: 'ΔT Dedo mayor',
+        valor: `${round(dDedo, 1)} °C`,
+        contribucion: COEF.deltaDedoMayor * dDedo,
+      },
       { key: 'anios_dm', nombre: 'Años de DM', valor: `${round(anios, 1)} años`, contribucion: COEF.aniosDm * anios },
       {
         key: 'grado_neuropatia',
@@ -134,7 +140,12 @@ class MockUlcerPredictor extends UlcerPredictor {
         valor: grade,
         contribucion: COEF.gradoNeuropatia * GRADE_INDEX[grade],
       },
-      { key: 'delta_metatarso', nombre: 'ΔT Metatarso', valor: `${round(dMeta, 1)} °C`, contribucion: COEF.deltaMetatarso * dMeta },
+      {
+        key: 'delta_metatarso',
+        nombre: 'ΔT Metatarso',
+        valor: `${round(dMeta, 1)} °C`,
+        contribucion: COEF.deltaMetatarso * dMeta,
+      },
     ].map((f) => ({ ...f, contribucion: round(f.contribucion, 3) }));
 
     const logit = COEF.intercepto + factores.reduce((s, f) => s + f.contribucion, 0);

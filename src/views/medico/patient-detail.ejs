@@ -30,7 +30,7 @@
         <span class="muted small">Probabilidad estimada y ΔT máximo por toma</span>
       </div>
       <% if (serie.length) { %>
-      <div class="chart-box">
+      <div class="chart-box skeleton" data-chart-box>
         <canvas id="evolucion" height="220" data-chart="evolucion" data-series="<%= JSON.stringify(serie.map((s) => ({ label: `${fmt.date(s.fecha)} (toma ${s.toma})`, p: s.probabilidad, dt: s.deltaTMax }))) %>" data-umbral="<%= domain.DELTA_T_UMBRAL %>" aria-label="Gráfico de evolución de la probabilidad y del ΔT máximo"></canvas>
       </div>
       <table class="sr-only"><caption>Evolución</caption><tr><th>Fecha</th><th>Probabilidad</th><th>ΔT máx.</th></tr><% serie.forEach((s) => { %><tr><td><%= fmt.date(s.fecha) %></td><td><%= s.probabilidad %> %</td><td><%= s.deltaTMax %> °C</td></tr><% }) %></table>

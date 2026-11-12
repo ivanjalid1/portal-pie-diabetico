@@ -19,7 +19,7 @@
     <h2 id="control-title" class="card__title">Próximo control</h2>
     <% if (proximo) { %>
     <p class="next-visit__date"><%- include('../partials/icon', { name: 'calendar', size: 28 }) %><span><strong><%= fmt.dateLong(proximo.fecha) %></strong><small><%= fmt.relativeDays(proximo.fecha) %></small></span></p>
-    <p class="muted"><%= proximo.motivo %>. Asistí sin cremas en los pies y con medias limpias: el día del estudio vas a estar descalzo unos 15 minutos para que la temperatura se estabilice.</p>
+    <p class="muted">Control de seguimiento con tu médico. Asistí sin cremas en los pies y con medias limpias: el día del estudio vas a estar descalzo unos 15 minutos para que la temperatura se estabilice.</p>
     <% } else { %>
     <p class="muted">No tenés un control programado. Tu médico te va a avisar la fecha.</p>
     <% } %>

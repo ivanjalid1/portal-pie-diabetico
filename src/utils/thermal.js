@@ -1,8 +1,11 @@
 'use strict';
 
 /**
- * Escala de color «ironbow» (la paleta habitual de las cámaras Fluke) usada
- * en el mapa plantar esquemático y en las imágenes demo.
+ * Escalas de color térmicas.
+ *  - IRONBOW: paleta clásica de las cámaras Fluke (imágenes demo).
+ *  - HIGH_CONTRAST: similar a la paleta «High Contrast» de Fluke (azul →
+ *    cian → verde → amarillo → rojo → blanco). Se usa en el mapa plantar
+ *    porque separa mejor diferencias pequeñas de ΔT.
  */
 const IRONBOW = [
   [0.0, [16, 12, 48]],
@@ -14,24 +17,51 @@ const IRONBOW = [
   [1.0, [255, 244, 190]],
 ];
 
-function ironbow(t) {
+const HIGH_CONTRAST = [
+  [0.0, [20, 24, 92]],
+  [0.14, [30, 64, 200]],
+  [0.3, [18, 168, 222]],
+  [0.44, [40, 196, 120]],
+  [0.58, [190, 220, 40]],
+  [0.7, [252, 196, 30]],
+  [0.84, [240, 84, 36]],
+  [0.94, [206, 24, 48]],
+  [1.0, [255, 236, 236]],
+];
+
+function interpolate(stops, t) {
   const x = Math.min(1, Math.max(0, t));
-  for (let i = 1; i < IRONBOW.length; i += 1) {
-    const [p1, c1] = IRONBOW[i];
-    const [p0, c0] = IRONBOW[i - 1];
+  for (let i = 1; i < stops.length; i += 1) {
+    const [p1, c1] = stops[i];
+    const [p0, c0] = stops[i - 1];
     if (x <= p1) {
       const k = (x - p0) / (p1 - p0);
       return c0.map((v, j) => Math.round(v + (c1[j] - v) * k));
     }
   }
-  return IRONBOW.at(-1)[1];
+  return stops.at(-1)[1];
 }
+
+const ironbow = (t) => interpolate(IRONBOW, t);
+const highContrast = (t) => interpolate(HIGH_CONTRAST, t);
 
 const hex = (rgb) => `#${rgb.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 
+/** Gradiente CSS de una escala (para leyendas). */
+function cssGradient(stops, from = 0, to = 1) {
+  const parts = stops
+    .filter(([p]) => p >= from && p <= to)
+    .map(([p, c]) => `${hex(c)} ${Math.round(((p - from) / (to - from)) * 100)}%`);
+  return `linear-gradient(90deg, ${parts.join(', ')})`;
+}
+
+/** Rango de la escala usado por el mapa: |ΔT| 0 °C → 0,06; 3 °C → 0,94. */
+const DELTA_SCALE = Object.freeze({ from: 0.06, to: 0.94, max: 3 });
+
 /** Color para una diferencia contralateral |ΔT| (0 °C → frío, ≥3 °C → caliente). */
-function deltaColor(delta, max = 3) {
-  return hex(ironbow(0.12 + (Math.min(Math.abs(delta), max) / max) * 0.8));
+function deltaColor(delta, max = DELTA_SCALE.max) {
+  const k = Math.min(Math.abs(delta), max) / max;
+  return hex(highContrast(DELTA_SCALE.from + k * (DELTA_SCALE.to - DELTA_SCALE.from)));
 }
 
 /** Color para una temperatura absoluta dentro del rango de la cámara. */
@@ -45,7 +75,9 @@ function inkOn(hexColor) {
   const r = (n >> 16) & 255;
   const g = (n >> 8) & 255;
   const b = n & 255;
-  return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#1a1320' : '#ffffff';
+  return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#10161c' : '#ffffff';
 }
 
-module.exports = { ironbow, deltaColor, tempColor, inkOn, hex };
+const DELTA_LEGEND_CSS = cssGradient(HIGH_CONTRAST, 0, 1);
+
+module.exports = { ironbow, highContrast, deltaColor, tempColor, inkOn, hex, cssGradient, DELTA_LEGEND_CSS };

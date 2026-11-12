@@ -53,6 +53,18 @@
       Referencia bibliográfica: <%= fmt.num(domain.DELTA_T_REFERENCIA, 1) %> °C.
       Todos los participantes son diabéticos: «C» indica ausencia de asimetría, no un sujeto sano.
     </p>
+    <div class="over-threshold">
+      <h3 class="card__subtitle">Regiones con |ΔT| ≥ <%= fmt.num(a.umbral, 1) %> °C</h3>
+      <% if (a.roisSobreUmbral.length) { %>
+      <ul class="roi-chips">
+        <% a.roisSobreUmbral.forEach((r) => { %>
+        <li><span class="roi-chips__swatch" style="background: <%= thermal.deltaColor(r.deltaT) %>" aria-hidden="true"></span><%= domain.ROI_NAMES[r.roi] %> <strong class="num"><%= fmt.signed(r.deltaT, 1) %> °C</strong> <span class="muted">pie <%= r.deltaT > 0 ? 'der.' : 'izq.' %> más caliente</span></li>
+        <% }) %>
+      </ul>
+      <% } else { %>
+      <p class="muted small">Ninguna región supera el umbral.</p>
+      <% } %>
+    </div>
   </section>
 </div>
 

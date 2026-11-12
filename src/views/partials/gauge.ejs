@@ -1,27 +1,33 @@
 <%
   // Indicador semicircular de probabilidad con cortes en 50 % y 70 %.
+  // El arco de progreso y la aguja se animan con CSS al cargar (respetando
+  // prefers-reduced-motion).
   const p = Math.max(0, Math.min(100, Number(value)));
   const R = 80, cx = 100, cy = 100;
-  const pt = (v) => { const a = Math.PI * (1 - v / 100); return [cx + R * Math.cos(a), cy - R * Math.sin(a)]; };
-  const arc = (from, to) => { const [x1, y1] = pt(from); const [x2, y2] = pt(to); return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${R} ${R} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`; };
-  const [nx, ny] = pt(p);
+  const pt = (v, r = R) => { const a = Math.PI * (1 - v / 100); return [cx + r * Math.cos(a), cy - r * Math.sin(a)]; };
+  const arc = (from, to, r = R) => { const [x1, y1] = pt(from, r); const [x2, y2] = pt(to, r); return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`; };
   const cuts = domain.RISK_CUTS;
   const cat = domain.RISK_CATEGORIES[category];
+  const angle = (p / 100) * 180;
 %>
 <div class="gauge gauge--<%= cat.tono %>">
-  <svg viewBox="0 0 200 118" role="img" aria-label="Probabilidad estimada de úlcera: <%= fmt.num(p, 1) %> por ciento, <%= cat.nombre %>">
+  <svg viewBox="0 -14 200 132" role="img" aria-label="Probabilidad estimada de úlcera: <%= fmt.num(p, 1) %> por ciento, <%= cat.nombre %>">
+    <path d="<%= arc(0.6, cuts.moderado - 0.6, 92) %>" class="gauge__zone gauge__zone--ok"/>
+    <path d="<%= arc(cuts.moderado + 0.6, cuts.alto - 0.6, 92) %>" class="gauge__zone gauge__zone--warn"/>
+    <path d="<%= arc(cuts.alto + 0.6, 99.4, 92) %>" class="gauge__zone gauge__zone--danger"/>
     <path d="<%= arc(0, 100) %>" class="gauge__track"/>
-    <path d="<%= arc(0.5, cuts.moderado - 0.5) %>" class="gauge__seg gauge__seg--ok"/>
-    <path d="<%= arc(cuts.moderado + 0.5, cuts.alto - 0.5) %>" class="gauge__seg gauge__seg--warn"/>
-    <path d="<%= arc(cuts.alto + 0.5, 99.5) %>" class="gauge__seg gauge__seg--danger"/>
-    <line x1="<%= cx %>" y1="<%= cy %>" x2="<%= nx.toFixed(2) %>" y2="<%= ny.toFixed(2) %>" class="gauge__needle"/>
-    <circle cx="<%= cx %>" cy="<%= cy %>" r="5" class="gauge__hub"/>
-    <% [cuts.moderado, cuts.alto].forEach((c) => { const [tx, ty] = pt(c); const [ox, oy] = [cx + (R + 12) * Math.cos(Math.PI * (1 - c / 100)), cy - (R + 12) * Math.sin(Math.PI * (1 - c / 100))]; %>
-    <text x="<%= ox.toFixed(1) %>" y="<%= oy.toFixed(1) %>" class="gauge__tick" text-anchor="middle"><%= c %></text>
+    <path d="<%= arc(0, 100) %>" class="gauge__value-arc" pathLength="100" style="--p: <%= p %>"/>
+    <% [cuts.moderado, cuts.alto].forEach((c) => { const [x1, y1] = pt(c, 70); const [x2, y2] = pt(c, 98); const [tx, ty] = pt(c, 108); %>
+    <line x1="<%= x1.toFixed(1) %>" y1="<%= y1.toFixed(1) %>" x2="<%= x2.toFixed(1) %>" y2="<%= y2.toFixed(1) %>" class="gauge__cut"/>
+    <text x="<%= tx.toFixed(1) %>" y="<%= (ty + 3).toFixed(1) %>" class="gauge__tick" text-anchor="middle"><%= c %></text>
     <% }) %>
+    <g class="gauge__needle" style="--angle: <%= angle.toFixed(1) %>deg">
+      <line x1="<%= cx %>" y1="<%= cy %>" x2="<%= cx - 64 %>" y2="<%= cy %>"/>
+    </g>
+    <circle cx="<%= cx %>" cy="<%= cy %>" r="6" class="gauge__hub"/>
   </svg>
   <div class="gauge__readout">
     <span class="gauge__value num"><%= fmt.num(p, 1) %><small>%</small></span>
-    <span class="badge badge--<%= cat.tono %>"><%= cat.nombre %></span>
+    <span class="badge badge--<%= cat.tono %>"><span class="dot" aria-hidden="true"></span><%= cat.nombre %></span>
   </div>
 </div>

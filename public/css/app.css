@@ -6,7 +6,7 @@
 
 /* ---------- Tokens ---------- */
 :root {
-  --font: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   /* Paleta clínica: tinta petróleo + superficies frías. El color cálido se
      reserva para los datos térmicos. */
@@ -2297,52 +2297,88 @@ input[aria-invalid='true'] {
 .gauge {
   display: grid;
   justify-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .gauge svg {
   width: 100%;
-  max-width: 280px;
+  max-width: 300px;
+  overflow: visible;
+}
+
+.gauge__zone {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.gauge__zone--ok {
+  stroke: var(--ok);
+}
+
+.gauge__zone--warn {
+  stroke: var(--warn);
+}
+
+.gauge__zone--danger {
+  stroke: var(--danger);
 }
 
 .gauge__track {
   fill: none;
   stroke: var(--surface-3);
-  stroke-width: 16;
+  stroke-width: 14;
+  stroke-linecap: round;
 }
 
-.gauge__seg {
+.gauge__value-arc {
   fill: none;
-  stroke-width: 16;
+  stroke-width: 14;
+  stroke-linecap: round;
+  stroke: var(--gauge-color, var(--primary));
+  stroke-dasharray: 100 100;
+  stroke-dashoffset: calc(100 - var(--p));
+  animation: gauge-fill 1100ms var(--ease-out-expo) both 150ms;
 }
 
-.gauge__seg--ok {
-  stroke: var(--ok);
-  opacity: 0.85;
+.gauge--ok {
+  --gauge-color: var(--ok);
 }
 
-.gauge__seg--warn {
-  stroke: var(--warn);
-  opacity: 0.85;
+.gauge--warn {
+  --gauge-color: var(--warn);
 }
 
-.gauge__seg--danger {
-  stroke: var(--danger);
-  opacity: 0.85;
+.gauge--danger {
+  --gauge-color: var(--danger);
+}
+
+.gauge__cut {
+  stroke: var(--surface);
+  stroke-width: 2.5;
 }
 
 .gauge__needle {
+  transform-origin: 100px 100px;
+  transform: rotate(var(--angle));
+  animation: gauge-needle 1100ms var(--ease-out-expo) both 150ms;
+}
+
+.gauge__needle line {
   stroke: var(--text);
   stroke-width: 3.5;
   stroke-linecap: round;
 }
 
 .gauge__hub {
-  fill: var(--text);
+  fill: var(--surface);
+  stroke: var(--text);
+  stroke-width: 3.5;
 }
 
 .gauge__tick {
   font-size: 9px;
+  font-weight: 600;
   fill: var(--muted);
   font-family: var(--font);
 }
@@ -2350,22 +2386,36 @@ input[aria-invalid='true'] {
 .gauge__readout {
   display: grid;
   justify-items: center;
-  gap: 6px;
-  margin-top: -6px;
+  gap: 8px;
+  margin-top: -2px;
 }
 
 .gauge__value {
-  font-size: 2.6rem;
-  font-weight: 680;
-  letter-spacing: -0.03em;
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
   line-height: 1;
 }
 
 .gauge__value small {
+  font-family: var(--font);
   font-size: 1.2rem;
   font-weight: 560;
-  margin-left: 2px;
+  margin-left: 3px;
   color: var(--muted);
+}
+
+@keyframes gauge-fill {
+  from {
+    stroke-dashoffset: 100;
+  }
+}
+
+@keyframes gauge-needle {
+  from {
+    transform: rotate(0deg);
+  }
 }
 
 .metric-row {
@@ -3266,6 +3316,286 @@ input[aria-invalid='true'] {
   margin-top: 1.5rem;
 }
 
+/* =========================================================================
+   Capa de pulido: tipografía display, micro-interacciones, stepper,
+   skeletons y detalles de superficie.
+   ========================================================================= */
+:root {
+  --font-display: 'Bricolage Grotesque', var(--font);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+h1,
+.page-header h1,
+.hero h1,
+.band h2,
+.error-page h1,
+.auth__panel h1,
+.demo-box h2 {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+
+.page-header h1 {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.kpi__value,
+.metric__value,
+.patient-status__level,
+.error-page__code,
+.report__pct {
+  font-family: var(--font-display);
+}
+
+.kpi__value {
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+/* Tarjetas con borde de luz superior muy sutil (profundidad sin bordes). */
+.card,
+.kpi {
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.5), rgb(255 255 255 / 0) 48px);
+}
+
+@media (prefers-color-scheme: dark) {
+  .card,
+  .kpi {
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.025), rgb(255 255 255 / 0) 48px);
+  }
+}
+
+/* Indicador lateral de KPI con la escala térmica */
+.kpi::after {
+  content: '';
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--primary);
+  opacity: 0;
+  transition: opacity 180ms var(--ease);
+}
+
+.kpi--link:hover::after {
+  opacity: 0.6;
+}
+
+.kpi--danger::after {
+  background: var(--danger);
+}
+
+.kpi--warn::after {
+  background: var(--warn);
+}
+
+/* Botones: icono alineado ópticamente */
+.btn .icon {
+  margin-left: -2px;
+}
+
+/* Filas clicables: el chevron se desplaza levemente */
+.row-link .table__chevron .icon {
+  transition: translate 180ms var(--ease);
+}
+
+.row-link:hover .table__chevron .icon {
+  translate: 3px 0;
+  color: var(--primary);
+}
+
+/* Stepper del asistente con barra de progreso animada */
+.wizard__progress {
+  position: relative;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  overflow: hidden;
+  margin-top: -6px;
+}
+
+.wizard__progress span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--progress, 25%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--primary), #12a3b8);
+  transition: width 420ms var(--ease-out-expo);
+}
+
+.wizard__steps li {
+  position: relative;
+}
+
+.wizard__num {
+  transition-property: background-color, color, scale;
+  transition-duration: 260ms;
+  transition-timing-function: var(--ease-out-expo);
+}
+
+.wizard__steps li[aria-current='step'] .wizard__num {
+  scale: 1.08;
+}
+
+.wizard__steps li.is-done .wizard__num {
+  font-size: 0;
+}
+
+.wizard__steps li.is-done .wizard__num::before {
+  content: '';
+  width: 12px;
+  height: 7px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  rotate: -45deg;
+  translate: 0 -1px;
+}
+
+.js .wizard__panel.is-active {
+  animation: panel-in 320ms var(--ease-out-expo) both;
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+
+/* Skeleton para contenido que se carga en el cliente (gráficos). */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  translate: -100% 0;
+  background: linear-gradient(90deg, transparent, rgb(127 127 127 / 0.1), transparent);
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+
+.chart-box.is-ready.skeleton::after {
+  display: none;
+}
+
+.chart-box.is-ready.skeleton {
+  background: transparent;
+}
+
+@keyframes shimmer {
+  to {
+    translate: 100% 0;
+  }
+}
+
+/* Mapa plantar */
+.pm-roi {
+  cursor: default;
+}
+
+.pm-roi > * {
+  transition: filter 160ms var(--ease);
+}
+
+.pm-roi:hover > * {
+  filter: brightness(1.12) saturate(1.1);
+}
+
+.pm-value {
+  paint-order: stroke;
+  stroke: rgb(0 0 0 / 0.18);
+  stroke-width: 2px;
+}
+
+/* Hero de la landing */
+.hero {
+  position: relative;
+}
+
+.public {
+  background:
+    radial-gradient(1100px 520px at 85% -10%, rgb(11 110 128 / 0.1), transparent 60%),
+    radial-gradient(700px 380px at -10% 10%, rgb(236 102 34 / 0.06), transparent 60%), var(--surface);
+}
+
+@media (prefers-color-scheme: dark) {
+  .public {
+    background:
+      radial-gradient(1100px 520px at 85% -10%, rgb(76 180 198 / 0.12), transparent 60%),
+      radial-gradient(700px 380px at -10% 10%, rgb(236 102 34 / 0.07), transparent 60%), var(--bg);
+  }
+}
+
+.hero__card {
+  background: radial-gradient(420px 260px at 50% 0%, rgb(76 180 198 / 0.16), transparent 70%), var(--ink);
+}
+
+.hero__stats {
+  display: flex;
+  gap: 28px;
+  margin-top: 2rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--line);
+}
+
+.hero__stats div {
+  display: grid;
+}
+
+.hero__stats strong {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero__stats span {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Copiar credenciales: confirmación */
+.icon-btn.is-copied {
+  color: var(--ok);
+}
+
+/* Inputs numéricos sin spinners en la tarjeta ambiental */
+.env-card__input input::-webkit-outer-spin-button,
+.env-card__input input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Lista de tips con hover suave en el portal del paciente */
+.tips--grid li.card {
+  transition: box-shadow 180ms var(--ease);
+}
+
+.tips--grid li.card:hover {
+  box-shadow: var(--shadow-3);
+}
+
+@media (max-width: 560px) {
+  .hero__stats {
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+
+  .gauge__value {
+    font-size: 2.5rem;
+  }
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1080px) {
   .kpis {
@@ -3484,4 +3814,47 @@ input[aria-invalid='true'] {
     border: 1px solid #ccc;
     break-inside: avoid;
   }
+}
+
+/* Etiquetas del mapa fuera del pie y chips de ROIs sobre el umbral */
+.pm-value--outside {
+  fill: var(--text-2);
+  stroke: none;
+}
+
+.hero__card .pm-value--outside {
+  fill: var(--ink-text);
+}
+
+.roi-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.roi-chips li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: 0.9rem;
+}
+
+.roi-chips__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
+}
+
+/* Contenedores posicionados: evita que elementos .sr-only absolutos
+   escapen del scroll horizontal de las tablas en móvil. */
+.card,
+.table-wrap {
+  position: relative;
 }

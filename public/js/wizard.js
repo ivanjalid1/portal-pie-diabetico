@@ -29,6 +29,8 @@
         if (idx === current) li.setAttribute('aria-current', 'step');
         else li.removeAttribute('aria-current');
       });
+      const bar = $('[data-progress]', form);
+      if (bar) bar.style.setProperty('--progress', `${((current + 1) / panels.length) * 100}%`);
       if (current === panels.length - 1) fillSummary();
       const heading = panels[current].querySelector('h2');
       if (heading) {

@@ -11,6 +11,7 @@
     const css = getComputedStyle(document.documentElement);
     const token = (name) => css.getPropertyValue(name).trim();
 
+    canvas.closest('[data-chart-box]')?.classList.add('is-ready');
     const Chart = window.Chart;
     Chart.defaults.font.family = token('--font');
     Chart.defaults.color = token('--muted');

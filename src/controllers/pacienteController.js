@@ -31,6 +31,16 @@ function createPacienteController({ studyService, appointmentService, patientSer
       res.render('paciente/study-detail', { title: 'Detalle del estudio', ...data, proximo, imageSlots: IMAGE_SLOTS });
     },
 
+    async controles(req, res) {
+      const patient = await patientService.getByUserId(req.user.id);
+      const list = await appointmentService.listForPatient(patient.id);
+      const proximos = list.filter((a) => a.estado === 'pendiente');
+      const historial = list
+        .filter((a) => a.estado === 'realizado' || a.estado === 'ausente')
+        .sort((a, b) => new Date(b.realizadoEn || b.fecha) - new Date(a.realizadoEn || a.fecha));
+      res.render('paciente/controles', { title: 'Mis controles', proximos, historial, now: new Date() });
+    },
+
     selfCare(req, res) {
       res.render('paciente/self-care', { title: 'Cuidado de los pies', consejos: SELF_CARE });
     },

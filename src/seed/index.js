@@ -73,7 +73,7 @@ async function seedDemoData({ repos, authProvider, predictor }, options = {}) {
   for (const p of PATIENTS) {
     if (await repos.patients.findByCodigo(p.codigo)) continue;
     const medico = staff[p.medico];
-    const { estudio, medico: _m, personal, hba1cDias, lesion, ...clinical } = p;
+    const { estudio, medico: _m, personal, hba1cDias, lesion, ausencia: _a, controlPendienteDias: _c, ...clinical } = p;
     const diasToma1 = estudio ? estudio.dias + estudio.intervalo : 33;
     const alta = daysAgo(now, diasToma1 + 1, 8, 45);
 
@@ -128,11 +128,24 @@ async function seedDemoData({ repos, authProvider, predictor }, options = {}) {
     log(`paciente ${patient.codigo}`);
 
     if (!estudio) {
-      // Paciente con la toma 1 agendada pero todavía sin estudio comparativo.
+      // Paciente que todavía no completó la toma 2: una visita perdida (ausente)
+      // y el control reprogramado, que puede estar vencido.
+      const pend = p.controlPendienteDias ?? 5;
+      if (p.ausencia) {
+        await repos.appointments.create({
+          patientId: patient.id,
+          medicoId: medico.id,
+          fecha: isoDate(daysAgo(now, p.ausencia.dias)),
+          motivo: 'Toma 2 · control termográfico',
+          estado: 'ausente',
+          motivoAusencia: p.ausencia.motivo,
+          createdAt: alta.toISOString(),
+        });
+      }
       await repos.appointments.create({
         patientId: patient.id,
         medicoId: medico.id,
-        fecha: isoDate(new Date(now.getTime() + 5 * DAY)),
+        fecha: isoDate(new Date(now.getTime() + pend * DAY)),
         motivo: 'Toma 2 · control termográfico',
         estado: 'pendiente',
         createdAt: alta.toISOString(),
@@ -202,16 +215,18 @@ async function seedDemoData({ repos, authProvider, predictor }, options = {}) {
     await repos.appointments.create({
       patientId: patient.id,
       medicoId: medico.id,
-      fecha: isoDate(fecha),
+      studyId: study.id,
+      fecha: isoDate(new Date(fechaToma1.getTime() + 30 * DAY)),
       motivo: 'Toma 2 · control termográfico',
       estado: 'realizado',
+      realizadoEn: fecha.toISOString(),
       createdAt: fechaToma1.toISOString(),
     });
     await repos.appointments.create({
       patientId: patient.id,
       medicoId: medico.id,
-      studyId: study.id,
-      fecha: isoDate(new Date(fecha.getTime() + 42 * DAY)),
+      origenStudyId: study.id,
+      fecha: isoDate(new Date(fecha.getTime() + (estudio.controlDias ?? 42) * DAY)),
       motivo: 'Control clínico y registro de desenlace',
       estado: 'pendiente',
       createdAt: fecha.toISOString(),

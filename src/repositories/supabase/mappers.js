@@ -123,7 +123,19 @@ const COLUMNS = {
     'createdAt',
   ],
   roi_mediciones: ['analysisId', 'toma', 'roi', 'avgDer', 'avgIzq', 'maxDer', 'maxIzq', 'minDer', 'minIzq', 'deltaT'],
-  appointments: ['id', 'patientId', 'medicoId', 'studyId', 'fecha', 'motivo', 'estado', 'createdAt'],
+  appointments: [
+    'id',
+    'patientId',
+    'medicoId',
+    'studyId',
+    'origenStudyId',
+    'fecha',
+    'motivo',
+    'estado',
+    'realizadoEn',
+    'motivoAusencia',
+    'createdAt',
+  ],
   audit_log: ['id', 'actorId', 'actorEmail', 'action', 'entity', 'entityId', 'detail', 'ip', 'createdAt'],
 };
 

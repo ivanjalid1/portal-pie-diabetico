@@ -1,39 +1,116 @@
-<%- include('../partials/page-header', { heading: 'Controles', lead: 'Controles pendientes de tus pacientes, ordenados por fecha.' }) %>
-<div class="card card--flush">
-  <% if (!items.length) { %>
+<%
+  const ESTADOS = { pendiente: ['Pendiente', 'info'], realizado: ['Realizado', 'ok'], ausente: ['Ausente', 'warn'], cancelado: ['Cancelado', 'muted'] };
+  const qs = (over) => {
+    const p = new URLSearchParams();
+    const all = { ...filters, ...over };
+    Object.entries(all).forEach(([k, v]) => { if (v) p.set(k, v); });
+    return `?${p.toString()}`;
+  };
+  const tabs = [['proximos', 'Próximos'], ['vencidos', 'Vencidos'], ['realizados', 'Realizados']];
+%>
+<%- include('../partials/page-header', {
+  heading: 'Controles',
+  lead: 'Seguimiento de los controles de tus pacientes: próximos, vencidos y realizados.',
+  actions: `<a class="btn btn--ghost" href="/medico/controles/exportar.csv${qs({})}">${include('../partials/icon', { name: 'table', size: 18 })}Exportar CSV</a>`
+}) %>
+
+<nav class="tabs tabs--segmented" aria-label="Estado de los controles">
+  <% tabs.forEach(([k, label]) => { %>
+  <a href="/medico/controles<%= qs({ vista: k }) %>" class="tabs__item<%= filters.vista === k ? ' is-active' : '' %>"<%- filters.vista === k ? ' aria-current="page"' : '' %>>
+    <%= label %> <span class="count<%= k === 'vencidos' && counts.vencidos ? ' count--warn' : '' %>"><%= counts[k] %></span>
+  </a>
+  <% }) %>
+</nav>
+
+<form method="get" action="/medico/controles" class="filters" aria-label="Filtros">
+  <input type="hidden" name="vista" value="<%= filters.vista %>">
+  <div class="field field--inline">
+    <label for="desde" class="small">Desde</label>
+    <input id="desde" name="desde" type="date" value="<%= filters.desde || '' %>">
+  </div>
+  <div class="field field--inline">
+    <label for="hasta" class="small">Hasta</label>
+    <input id="hasta" name="hasta" type="date" value="<%= filters.hasta || '' %>">
+  </div>
+  <div class="field field--inline">
+    <label for="riesgo" class="small">Riesgo</label>
+    <select id="riesgo" name="riesgo">
+      <option value="">Todos</option>
+      <% ['alto', 'moderado', 'sin_riesgo'].forEach((k) => { %><option value="<%= k %>"<%= filters.riesgo === k ? ' selected' : '' %>><%= domain.RISK_CATEGORIES[k].nombre %></option><% }) %>
+    </select>
+  </div>
+  <button type="submit" class="btn btn--ghost filters__submit">Filtrar</button>
+  <% if (filters.desde || filters.hasta || filters.riesgo) { %><a class="link" href="/medico/controles?vista=<%= filters.vista %>">Limpiar</a><% } %>
+</form>
+
+<% if (!items.length) { %>
+<div class="card">
   <div class="empty">
     <%- include('../partials/icon', { name: 'calendar', size: 28 }) %>
-    <h2>No hay controles pendientes</h2>
-    <p>Programalos desde el resultado de cada estudio.</p>
+    <h2><%= filters.vista === 'realizados' ? 'Todavía no hay controles realizados' : filters.vista === 'vencidos' ? 'No hay controles vencidos' : 'No hay controles próximos' %></h2>
+    <p><%= filters.vista === 'proximos' ? 'Programalos desde el resultado de cada estudio.' : 'Probá con otro rango de fechas o quitá el filtro de riesgo.' %></p>
   </div>
-  <% } else { %>
-  <div class="table-wrap">
-    <table class="table">
-      <thead><tr><th scope="col">Fecha</th><th scope="col">Paciente</th><th scope="col">Motivo</th><th scope="col">Último resultado</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
-      <tbody>
-        <% items.forEach(({ appt, row }) => { const late = appt.vencido(now); %>
-        <tr>
-          <td class="nowrap"><strong class="num<%= late ? ' text-warn' : '' %>"><%= fmt.date(appt.fecha) %></strong><small class="muted block"><%= late ? 'Vencido, ' : '' %><%= fmt.relativeDays(appt.fecha) %></small></td>
-          <td><a class="person" href="/medico/pacientes/<%= row.patient.id %>"><span class="code"><%= row.patient.codigo %></span><span><strong><%= row.patient.nombreCompleto %></strong></span></a></td>
-          <td><%= appt.motivo %></td>
-          <td><%- include('../partials/risk-badge', { analysis: row.ultimoAnalisis, showPct: true }) %></td>
-          <td class="table__actions">
-            <a class="btn btn--ghost btn--sm" href="/medico/estudios/nuevo?paciente=<%= row.patient.id %>">Cargar toma</a>
-            <form method="post" action="/medico/controles/<%= appt.id %>/estado">
-              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <input type="hidden" name="estado" value="realizado">
-              <button type="submit" class="btn btn--ghost btn--sm">Marcar realizado</button>
-            </form>
-            <form method="post" action="/medico/controles/<%= appt.id %>/estado" data-confirm="¿Cancelar este control?">
-              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <input type="hidden" name="estado" value="cancelado">
-              <button type="submit" class="btn btn--danger-ghost btn--sm">Cancelar</button>
-            </form>
-          </td>
-        </tr>
-        <% }) %>
-      </tbody>
-    </table>
-  </div>
-  <% } %>
 </div>
+<% } else { %>
+<ul class="control-list">
+  <% items.forEach(({ appt, patient, row, analysis }) => { const [eName, eTone] = ESTADOS[appt.estado] || ['—', 'muted']; const late = appt.vencido(now); %>
+  <li class="control-card card<%= late ? ' control-card--late' : '' %>">
+    <div class="control-card__date">
+      <span class="control-card__day num"><%= fmt.date(appt.realizadoEn || appt.fecha).slice(0, 5) %></span>
+      <small class="num"><%= fmt.date(appt.realizadoEn || appt.fecha).slice(6) %></small>
+    </div>
+    <div class="control-card__body">
+      <a class="person" href="/medico/pacientes/<%= patient.id %>"><span class="code"><%= patient.codigo %></span><strong><%= patient.nombreCompleto %></strong></a>
+      <p class="control-card__meta">
+        <span class="badge badge--<%= eTone %>"><span class="dot" aria-hidden="true"></span><%= eName %></span>
+        <span><%= appt.motivo %></span>
+      </p>
+      <p class="control-card__dates small muted">
+        Programado: <%= fmt.date(appt.fecha) %>
+        <% if (appt.realizadoEn) { %> · Realizado: <%= fmt.date(appt.realizadoEn) %><% if (appt.desvioDias) { %> (<%= appt.desvioDias > 0 ? `+${appt.desvioDias}` : appt.desvioDias %> d)<% } %><% } %>
+        <% if (appt.estado === 'pendiente') { %> · <%= late ? 'vencido ' : '' %><%= fmt.relativeDays(appt.fecha) %><% } %>
+      </p>
+      <% if (appt.estado === 'ausente' && appt.motivoAusencia) { %><p class="small text-warn">Motivo: <%= appt.motivoAusencia %></p><% } %>
+    </div>
+    <div class="control-card__result">
+      <% if (analysis) { %>
+      <a class="control-card__study" href="/medico/estudios/<%= appt.studyId %>">
+        <span class="small muted">Estudio comparativo</span>
+        <span class="control-card__groups"><span class="grupo grupo--sm grupo--<%= analysis.grupoToma1 %>"><%= analysis.grupoToma1 %></span><span class="grupo-arrow">→</span><span class="grupo grupo--<%= analysis.grupo %>"><%= analysis.grupo %></span></span>
+        <span class="small"><%= analysis.roisQueEmpeoran.length ? `Asimetría +${fmt.num(analysis.maxEmpeoramiento, 1)} °C` : 'Asimetría estable' %></span>
+        <%- include('../partials/risk-badge', { analysis, showPct: true }) %>
+      </a>
+      <% } else if (row.ultimoAnalisis) { %>
+      <span class="small muted">Último resultado</span>
+      <%- include('../partials/risk-badge', { analysis: row.ultimoAnalisis, showPct: true }) %>
+      <% } %>
+      <% if (appt.estado === 'realizado' || appt.estado === 'ausente') { %>
+      <span class="small muted">Desenlace: <%= patient.generoLesion === null ? 'sin registrar' : patient.generoLesion ? 'generó lesión' : 'sin lesión' %></span>
+      <% } %>
+    </div>
+    <% if (appt.estado === 'pendiente') { %>
+    <div class="control-card__actions">
+      <a class="btn btn--primary btn--sm" href="/medico/estudios/nuevo?paciente=<%= patient.id %>"><%- include('../partials/icon', { name: 'scan', size: 16 }) %>Cargar toma</a>
+      <form method="post" action="/medico/controles/<%= appt.id %>/estado">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="estado" value="realizado">
+        <button type="submit" class="btn btn--ghost btn--sm">Marcar realizado</button>
+      </form>
+      <details class="disclosure disclosure--inline">
+        <summary>Ausente o cancelar</summary>
+        <form method="post" action="/medico/controles/<%= appt.id %>/estado" class="form form--compact">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label class="sr-only" for="motivo-<%= appt.id %>">Motivo</label>
+          <input id="motivo-<%= appt.id %>" name="motivo" placeholder="Motivo (obligatorio si estuvo ausente)">
+          <div class="form__actions">
+            <button type="submit" name="estado" value="ausente" class="btn btn--ghost btn--sm">Registrar ausencia</button>
+            <button type="submit" name="estado" value="cancelado" class="btn btn--danger-ghost btn--sm">Cancelar control</button>
+          </div>
+        </form>
+      </details>
+    </div>
+    <% } %>
+  </li>
+  <% }) %>
+</ul>
+<% } %>

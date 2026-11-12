@@ -209,7 +209,7 @@ const PATIENTS = [
     hematomas: true,
     pesoKg: 95,
     observaciones: 'Tabaquismo a consultar en el próximo control.',
-    estudio: { par: 2, dias: 27, intervalo: 31, temp: 24.6 },
+    estudio: { par: 2, dias: 27, intervalo: 31, temp: 24.6, controlDias: 21 },
   },
   {
     medico: 'medico',
@@ -235,6 +235,7 @@ const PATIENTS = [
     vibratoriaIzq: 17,
     pesoKg: 70,
     estudio: null,
+    ausencia: { dias: 9, motivo: 'No asistió por un cuadro gripal; avisó por teléfono.' },
   },
   {
     medico: 'medico',
@@ -315,6 +316,7 @@ const PATIENTS = [
     vibratoriaIzq: 22,
     pesoKg: 77,
     estudio: null,
+    controlPendienteDias: -4,
   },
   {
     medico: 'medico2',
@@ -366,7 +368,7 @@ const PATIENTS = [
     vibratoriaIzq: 21,
     pesoKg: 99,
     generoLesion: false,
-    estudio: { par: 6, dias: 40, intervalo: 41 },
+    estudio: { par: 6, dias: 40, intervalo: 41, controlDias: 35 },
   },
 ];
 

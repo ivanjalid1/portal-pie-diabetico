@@ -1,0 +1,42 @@
+<%- include('../partials/page-header', { heading: 'Mis controles', lead: 'Tus próximas visitas y las que ya hiciste.' }) %>
+
+<section class="card" aria-labelledby="prox-title">
+  <h2 id="prox-title" class="card__title">Próximos</h2>
+  <% if (!proximos.length) { %>
+  <p class="muted">No tenés controles programados. Tu médico te va a avisar la próxima fecha.</p>
+  <% } else { %>
+  <ul class="visit-list">
+    <% proximos.forEach((a) => { const late = a.vencido(now); %>
+    <li class="visit<%= late ? ' visit--late' : '' %>">
+      <span class="visit__icon"><%- include('../partials/icon', { name: 'calendar', size: 22 }) %></span>
+      <span class="visit__text">
+        <strong><%= fmt.dateLong(a.fecha) %></strong>
+        <small><%= late ? `La fecha ya pasó (${fmt.relativeDays(a.fecha)}). Comunicate con tu médico para reprogramarla.` : `Faltan ${fmt.relativeDays(a.fecha).replace('en ', '')}.` %></small>
+        <small><%= /toma 2/i.test(a.motivo) ? 'Nueva termografía de tus pies para comparar con la primera.' : 'Control con tu médico.' %></small>
+      </span>
+    </li>
+    <% }) %>
+  </ul>
+  <p class="hint">El día del estudio vas a estar descalzo unos 15 minutos para que la temperatura se estabilice. Vení sin cremas en los pies.</p>
+  <% } %>
+</section>
+
+<section class="card" aria-labelledby="hist-title">
+  <h2 id="hist-title" class="card__title">Historial</h2>
+  <% if (!historial.length) { %>
+  <p class="muted">Todavía no hay controles realizados.</p>
+  <% } else { %>
+  <ol class="visit-list visit-list--history">
+    <% historial.forEach((a) => { %>
+    <li class="visit visit--<%= a.estado %>">
+      <span class="visit__icon"><%- include('../partials/icon', { name: a.estado === 'realizado' ? 'check' : 'x', size: 20 }) %></span>
+      <span class="visit__text">
+        <strong><%= fmt.dateLong(a.realizadoEn || a.fecha) %></strong>
+        <small><%= a.estado === 'realizado' ? 'Asististe al control.' : 'No pudiste asistir a este control.' %></small>
+      </span>
+      <% if (a.studyId) { %><a class="btn btn--ghost btn--sm" href="/paciente/estudios/<%= a.studyId %>">Ver estudio</a><% } %>
+    </li>
+    <% }) %>
+  </ol>
+  <% } %>
+</section>

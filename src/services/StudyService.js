@@ -100,6 +100,13 @@ class StudyService {
 
     const analysis = await this.analysisService.run({ study, patient, images }, actor);
     study = await this.studies.update(study.id, { estado: 'analizado' });
+    // El control pendiente del paciente queda realizado y vinculado a este estudio.
+    // Es un efecto secundario: si falla, el estudio ya guardado no se pierde.
+    try {
+      await this.appointmentService.completeWithStudy(study, actor);
+    } catch (err) {
+      console.error(`[controles] no se pudo vincular el control al estudio ${study.id}: ${err.message}`);
+    }
     return { study, patient, analysis };
   }
 

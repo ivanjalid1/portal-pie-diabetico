@@ -2,7 +2,8 @@
 
 const AppointmentService = require('../services/AppointmentService');
 const { CENTRO_NOMBRES, IMAGE_SLOTS, CENTROS } = require('../config/domain');
-const { buildCsv } = require('../utils/csv');
+const { buildCsv, buildControlesCsv } = require('../utils/csv');
+const { controlesFilterSchema } = require('../validators/schemas');
 const { sniffImageType } = require('../validators/imageValidator');
 const { is2PreviewPng } = require('../imaging/thermogram');
 const { EVENTS } = require('../utils/eventBus');
@@ -246,23 +247,36 @@ function createMedicoController({
     /* ---------- Controles ---------- */
 
     async appointments(req, res) {
-      const rows = await patientService.listForMedico(req.user.id);
-      const byId = new Map(rows.map((r) => [r.patient.id, r]));
-      const pending = await appointmentService.pendingForMedico(req.user.id);
-      res.render('medico/appointments', {
-        title: 'Controles',
-        items: pending.map((appt) => ({ appt, row: byId.get(appt.patientId) })).filter((i) => i.row),
-        now: new Date(),
+      const filters = controlesFilterSchema.parse(req.query);
+      const { items, counts } = await appointmentService.listDetailed(req.user.id, filters);
+      res.render('medico/appointments', { title: 'Controles', items, counts, filters, now: new Date() });
+    },
+
+    async exportControles(req, res) {
+      const filters = controlesFilterSchema.parse({ vista: 'realizados', ...req.query });
+      const { items } = await appointmentService.listDetailed(req.user.id, filters);
+      events.publish(EVENTS.DATA_EXPORTED, {
+        actor: actor(req),
+        entity: 'control',
+        detail: `CSV de controles (${filters.vista}) · ${items.length} filas`,
       });
+      const stamp = new Date().toISOString().slice(0, 10);
+      res.set('Content-Type', 'text/csv; charset=utf-8');
+      res.set('Content-Disposition', `attachment; filename="termopie-controles-${filters.vista}-${stamp}.csv"`);
+      res.send(buildControlesCsv(items));
     },
 
     async setAppointmentStatus(req, res) {
-      await appointmentService.setEstado(req.params.id, req.validated.estado, actor(req));
-      req.flash(
-        'success',
-        req.validated.estado === 'realizado' ? 'Marcaste el control como realizado.' : 'Cancelaste el control.',
-      );
-      res.redirect(303, '/medico/controles');
+      const { estado, motivo, volver } = req.validated;
+      await appointmentService.setEstado(req.params.id, { estado, motivo }, actor(req));
+      const msg = {
+        realizado: 'Marcaste el control como realizado.',
+        ausente: 'Registraste la ausencia al control.',
+        cancelado: 'Cancelaste el control.',
+      };
+      req.flash('success', msg[estado]);
+      const back = typeof volver === 'string' && volver.startsWith('/medico/') ? volver : '/medico/controles';
+      res.redirect(303, back);
     },
   };
 }

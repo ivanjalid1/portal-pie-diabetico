@@ -33,7 +33,6 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
   const authService = new AuthService({ authProvider, users: repos.users, events });
   const userService = new UserService({ users: repos.users, authProvider, events });
   const analysisService = new AnalysisService({ predictor, analyses: repos.analyses, events });
-  const appointmentService = new AppointmentService({ appointments: repos.appointments, events });
   const patientService = new PatientService({
     patients: repos.patients,
     users: repos.users,
@@ -42,6 +41,13 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
     appointments: repos.appointments,
     consents: repos.consents,
     userService,
+    events,
+  });
+  const appointmentService = new AppointmentService({
+    appointments: repos.appointments,
+    studies: repos.studies,
+    analyses: repos.analyses,
+    patientService,
     events,
   });
   const studyService = new StudyService({

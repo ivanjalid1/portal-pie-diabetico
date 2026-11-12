@@ -117,17 +117,25 @@
     </section>
 
     <section class="card">
-      <h2 class="card__title">Controles</h2>
-      <% const pend = appointments.filter((a) => a.estado === 'pendiente'); %>
-      <% if (!pend.length) { %><p class="muted">Sin controles pendientes. Programalo desde el resultado de un estudio.</p><% } %>
-      <ul class="agenda">
-        <% appointments.slice().reverse().slice(0, 5).forEach((a) => { %>
-        <li class="<%= a.vencido() ? 'is-late' : '' %>">
-          <span class="agenda__date"><span class="num"><%= fmt.date(a.fecha) %></span><small><%= a.estado %></small></span>
-          <span class="agenda__what"><%= a.motivo %></span>
+      <div class="card__head"><h2 class="card__title">Controles</h2><a class="link" href="/medico/controles">Ver todos</a></div>
+      <% const ctrl = appointments.filter((a) => a.estado !== 'reprogramado').slice().sort((x, y) => new Date(y.fecha) - new Date(x.fecha)); %>
+      <% if (!ctrl.length) { %><p class="muted">Sin controles. Programalo desde el resultado de un estudio.</p><% } %>
+      <ol class="ctl-timeline">
+        <% ctrl.forEach((a) => { const late = a.vencido(); const st = late ? 'vencido' : a.estado; %>
+        <li class="ctl-timeline__item ctl-timeline__item--<%= st %>">
+          <span class="ctl-timeline__dot" aria-hidden="true"></span>
+          <div class="ctl-timeline__body">
+            <div class="ctl-timeline__head">
+              <strong class="num"><%= fmt.date(a.fecha) %></strong>
+              <span class="badge badge--<%= { pendiente: 'info', vencido: 'warn', realizado: 'ok', ausente: 'warn', cancelado: 'muted' }[st] %>"><%= { pendiente: 'Programado', vencido: 'Vencido', realizado: 'Realizado', ausente: 'Ausente', cancelado: 'Cancelado' }[st] %></span>
+            </div>
+            <small class="muted"><%= a.motivo %><% if (a.realizadoEn) { %> · realizado el <%= fmt.date(a.realizadoEn) %><% } %></small>
+            <% if (a.motivoAusencia) { %><small class="text-warn"><%= a.motivoAusencia %></small><% } %>
+            <% if (a.studyId) { %><a class="link small" href="/medico/estudios/<%= a.studyId %>">Ver estudio comparativo</a><% } %>
+          </div>
         </li>
         <% }) %>
-      </ul>
+      </ol>
     </section>
 
     <section class="card" id="consentimiento">

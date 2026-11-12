@@ -235,7 +235,26 @@ const appointmentSchema = z.object({
   motivo: z.string().trim().max(200).default('Control termográfico a 6 semanas'),
 });
 
-const appointmentStatusSchema = z.object({ estado: z.enum(['realizado', 'cancelado']) });
+const appointmentStatusSchema = z
+  .object({
+    estado: z.enum(['realizado', 'ausente', 'cancelado'], { error: 'Estado inválido.' }),
+    motivo: f.optionalText(300),
+    volver: z.string().optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (d.estado === 'ausente' && !d.motivo) {
+      ctx.addIssue({ code: 'custom', path: ['motivo'], message: 'Indicá el motivo de la ausencia.' });
+    }
+  });
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+const controlesFilterSchema = z.object({
+  vista: z.enum(['proximos', 'vencidos', 'realizados']).catch('proximos'),
+  desde: z.preprocess((v) => (f.empty(v) ? undefined : v), z.string().regex(ISO_DAY).optional()).catch(undefined),
+  hasta: z.preprocess((v) => (f.empty(v) ? undefined : v), z.string().regex(ISO_DAY).optional()).catch(undefined),
+  riesgo: z.enum(['sin_riesgo', 'moderado', 'alto']).optional().catch(undefined),
+});
 
 module.exports = {
   loginSchema,
@@ -251,5 +270,6 @@ module.exports = {
   revokeConsentSchema,
   appointmentSchema,
   appointmentStatusSchema,
+  controlesFilterSchema,
   localToIso,
 };

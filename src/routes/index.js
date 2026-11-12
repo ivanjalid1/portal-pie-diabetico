@@ -145,6 +145,7 @@ function buildRoutes(container) {
     medico.scheduleFromStudy,
   );
   m.get('/controles', medico.appointments);
+  m.get('/controles/exportar.csv', medico.exportControles);
   m.post('/controles/:id/estado', validate(schemas.appointmentStatusSchema), medico.setAppointmentStatus);
   router.use('/medico', m);
 
@@ -154,6 +155,7 @@ function buildRoutes(container) {
   p.get('/', paciente.home);
   p.get('/estudios', paciente.studies);
   p.get('/estudios/:id', paciente.studyDetail);
+  p.get('/controles', paciente.controles);
   p.get('/autocuidado', paciente.selfCare);
   p.get('/datos', paciente.myData);
   router.use('/paciente', p);

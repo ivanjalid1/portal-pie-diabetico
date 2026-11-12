@@ -21,6 +21,7 @@ const NAV = {
   paciente: [
     { href: '/paciente', label: 'Inicio', icon: 'home', exact: true },
     { href: '/paciente/estudios', label: 'Mis estudios', icon: 'scan' },
+    { href: '/paciente/controles', label: 'Mis controles', icon: 'calendar' },
     { href: '/paciente/autocuidado', label: 'Cuidado de los pies', icon: 'heart' },
     { href: '/paciente/datos', label: 'Mis datos', icon: 'user' },
   ],

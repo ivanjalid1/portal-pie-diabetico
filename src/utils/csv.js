@@ -89,3 +89,27 @@ function buildCsv(rows) {
 }
 
 module.exports = { buildCsv, COLUMNS };
+
+/** CSV de controles (vista «Controles» del médico). Sólo códigos anónimos. */
+function buildControlesCsv(items) {
+  const cols = [
+    ['ID PACIENTE', ({ patient }) => patient.codigo],
+    ['ESTADO', ({ appt }) => appt.estado.toUpperCase()],
+    ['FECHA PROGRAMADA', ({ appt }) => String(appt.fecha).slice(0, 10)],
+    ['FECHA REALIZADO', ({ appt }) => (appt.realizadoEn ? appt.realizadoEn.slice(0, 10) : '')],
+    ['DESVIO (DIAS)', ({ appt }) => appt.desvioDias ?? ''],
+    ['MOTIVO', ({ appt }) => appt.motivo],
+    ['MOTIVO AUSENCIA', ({ appt }) => appt.motivoAusencia || ''],
+    ['GRUPO T1', ({ analysis }) => analysis?.grupoToma1 || ''],
+    ['GRUPO T2', ({ analysis }) => analysis?.grupo || ''],
+    ['AUMENTO MAX |DIF| (°C)', ({ analysis }) => (analysis ? num(analysis.maxEmpeoramiento) : '')],
+    ['PROBABILIDAD (%) SIMULADA', ({ analysis }) => num(analysis?.probabilidad, 1)],
+    ['GENERÓ LESIÓN', ({ patient }) => yesNo(patient.generoLesion)],
+  ];
+  const lines = [cols.map(([h]) => escape(h)).join(';')];
+  for (const item of items) lines.push(cols.map(([, get]) => escape(get(item))).join(';'));
+  const BOM = String.fromCharCode(0xfeff);
+  return `${BOM}${lines.join('\r\n')}\r\n`;
+}
+
+module.exports.buildControlesCsv = buildControlesCsv;

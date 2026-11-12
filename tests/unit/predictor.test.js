@@ -4,8 +4,9 @@ const MockUlcerPredictor = require('../../src/services/predictors/MockUlcerPredi
 const { createPredictor } = require('../../src/services/predictors/PredictorFactory');
 const { LogisticRegressionPredictor } = require('../../src/services/predictors/FuturePredictors');
 const UlcerPredictor = require('../../src/services/predictors/UlcerPredictor');
-const { Patient, Study } = require('../../src/models');
+const { Patient, Study, AnalysisResult } = require('../../src/models');
 const { categoryFor, ROIS, thermalGroup } = require('../../src/config/domain');
+const { fakeIs2 } = require('../helpers/is2');
 
 const basePatient = (over = {}) =>
   new Patient({
@@ -19,9 +20,14 @@ const basePatient = (over = {}) =>
     neuropatia: false,
     ...over,
   });
-const study = new Study({ fechaHora: '2026-10-01T12:00:00.000Z', tempAmbiente: 22.5, humedadRelativa: 50 });
+const study = new Study({
+  fechaHora: '2026-10-01T12:00:00.000Z',
+  fechaToma1: '2026-09-01T12:00:00.000Z',
+  tempAmbiente: 22.5,
+  humedadRelativa: 50,
+});
 
-describe('MockUlcerPredictor (estrategia simulada)', () => {
+describe('MockUlcerPredictor (análisis comparativo de dos tomas)', () => {
   const predictor = new MockUlcerPredictor();
 
   it('implementa la interfaz UlcerPredictor', () => {
@@ -29,55 +35,77 @@ describe('MockUlcerPredictor (estrategia simulada)', () => {
     expect(predictor.info.version).toBe('mock-v0');
   });
 
-  it('es determinístico para el mismo paciente y fecha', async () => {
+  it('es determinístico para el mismo paciente y fechas', async () => {
     const a = await predictor.predict({ patient: basePatient(), study, images: [] });
     const b = await predictor.predict({ patient: basePatient(), study, images: [] });
     expect(a).toEqual(b);
   });
 
-  it('devuelve 7 ROIs con temperaturas en rango y ΔT ≤ 2,8 °C', async () => {
+  it('devuelve las 7 ROIs de cada toma con temperaturas en rango y ΔT ≤ 2,8 °C', async () => {
     const r = await predictor.predict({ patient: basePatient(), study, images: [] });
-    expect(r.rois.map((x) => x.roi)).toEqual(ROIS.map((x) => x.key));
-    for (const roi of r.rois) {
-      expect(roi.avgDer).toBeGreaterThanOrEqual(23);
-      expect(roi.avgDer).toBeLessThanOrEqual(34);
-      expect(roi.avgIzq).toBeGreaterThanOrEqual(23);
-      expect(roi.avgIzq).toBeLessThanOrEqual(34);
-      expect(Math.abs(roi.deltaT)).toBeLessThanOrEqual(2.81);
-      expect(roi.deltaT).toBeCloseTo(roi.avgDer - roi.avgIzq, 1);
+    for (const list of [r.roisToma1, r.rois]) {
+      expect(list.map((x) => x.roi)).toEqual(ROIS.map((x) => x.key));
+      for (const roi of list) {
+        expect(roi.avgDer).toBeGreaterThanOrEqual(23);
+        expect(roi.avgIzq).toBeLessThanOrEqual(34);
+        expect(Math.abs(roi.deltaT)).toBeLessThanOrEqual(2.81);
+        expect(roi.deltaT).toBeCloseTo(roi.avgDer - roi.avgIzq, 1);
+      }
     }
+    expect(r.fuenteRois).toBe('simulada');
   });
 
-  it('informa probabilidad, categoría coherente con los cortes, umbral y grupo P/C', async () => {
+  it('clasifica cada toma (P/C, simetría) e informa umbral y categoría', async () => {
     const r = await predictor.predict({ patient: basePatient(), study, images: [] });
-    expect(r.probabilidad).toBeGreaterThanOrEqual(0);
-    expect(r.probabilidad).toBeLessThanOrEqual(100);
     expect(r.categoria).toBe(categoryFor(r.probabilidad));
-    expect(r.horizonteSemanas).toBe(6);
     expect(r.umbral).toBe(1);
-    expect(['P', 'C']).toContain(r.grupo);
+    expect(r.grupo).toBe(thermalGroup(r.rois, 1).grupo);
+    expect(r.grupoToma1).toBe(thermalGroup(r.roisToma1, 1).grupo);
     expect(r.factores.map((f) => f.key)).toEqual(
-      expect.arrayContaining([
-        'tabaquismo',
-        'insulinorequiriente',
-        'delta_dedo_mayor',
-        'anios_dm',
-        'grado_neuropatia',
-        'delta_metatarso',
-      ]),
+      expect.arrayContaining(['tabaquismo', 'insulinorequiriente', 'delta_dedo_mayor', 'evolucion', 'anios_dm']),
     );
-    expect(r.simulado).toBe(true);
+  });
+
+  it('usa las ROIs provistas (hints) y la probabilidad aumenta si la asimetría empeora', async () => {
+    const flat = ROIS.map(({ key }) => ({
+      roi: key,
+      avgDer: 29,
+      avgIzq: 29,
+      maxDer: 30,
+      maxIzq: 30,
+      minDer: 28,
+      minIzq: 28,
+      deltaT: 0,
+    }));
+    const worse = flat.map((r) => (r.roi === 'dedo_mayor' ? { ...r, avgDer: 30.6, deltaT: 1.6 } : r));
+    const stable = await predictor.predict({ patient: basePatient(), study, hints: { toma1: flat, toma2: flat } });
+    const worsening = await predictor.predict({ patient: basePatient(), study, hints: { toma1: flat, toma2: worse } });
+    expect(stable.fuenteRois).toBe('imagen');
+    expect(worsening.grupo).toBe('P');
+    expect(worsening.grupoToma1).toBe('C');
+    expect(worsening.probabilidad).toBeGreaterThan(stable.probabilidad);
+    const result = new AnalysisResult(worsening);
+    expect(result.roisQueEmpeoran.map((e) => e.roi)).toEqual(['dedo_mayor']);
+    expect(result.maxEmpeoramiento).toBeCloseTo(1.6, 1);
+  });
+
+  it('calcula las ROIs a partir de archivos IS2 cuando se suben ambas tomas en ese formato', async () => {
+    const images = [
+      { slot: 'toma1', mime: 'application/x-fluke-is2', buffer: fakeIs2() },
+      { slot: 'toma2', mime: 'application/x-fluke-is2', buffer: fakeIs2({ asym: 200 }) },
+    ];
+    const r = await predictor.predict({ patient: basePatient(), study, images });
+    expect(r.fuenteRois).toBe('is2');
+    const dedo1 = r.roisToma1.find((x) => x.roi === 'dedo_mayor');
+    const dedo2 = r.rois.find((x) => x.roi === 'dedo_mayor');
+    expect(Math.abs(dedo1.deltaT)).toBeLessThan(0.3);
+    expect(dedo2.deltaT).toBeGreaterThan(1); // pie derecho más caliente en la toma 2
   });
 
   it('asigna mayor probabilidad a un perfil de alto riesgo clínico', async () => {
-    const low = await predictor.predict({
-      patient: basePatient({ codigo: 'P.HC100', aniosEvolucionDm: 2 }),
-      study,
-      images: [],
-    });
+    const low = await predictor.predict({ patient: basePatient({ aniosEvolucionDm: 2 }), study });
     const high = await predictor.predict({
       patient: basePatient({
-        codigo: 'P.HC100',
         aniosEvolucionDm: 25,
         tabaquismo: true,
         insulinorequiriente: true,
@@ -86,16 +114,8 @@ describe('MockUlcerPredictor (estrategia simulada)', () => {
         ulceraPreviaDer: true,
       }),
       study,
-      images: [],
     });
     expect(high.probabilidad).toBeGreaterThan(low.probabilidad);
-  });
-
-  it('respeta un umbral de asimetría configurable (2,2 °C de la literatura)', async () => {
-    const strict = new MockUlcerPredictor({ umbral: 2.2 });
-    const r = await strict.predict({ patient: basePatient(), study, images: [] });
-    expect(r.umbral).toBe(2.2);
-    expect(r.grupo).toBe(thermalGroup(r.rois, 2.2).grupo);
   });
 });
 

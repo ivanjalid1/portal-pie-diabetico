@@ -1,0 +1,25 @@
+<div class="dropzone<%= error ? ' has-error' : '' %>" data-dropzone data-slot="<%= s.slot %>">
+  <input type="file" id="file-<%= s.slot %>" name="<%= s.slot %>" accept=".jpg,.jpeg,.png,.tif,.tiff,.is2,.IS2,image/jpeg,image/png,image/tiff" required data-max-mb="<%= maxFileMb %>" class="dropzone__input">
+  <label for="file-<%= s.slot %>" class="dropzone__label">
+    <span class="dropzone__head">
+      <span class="dropzone__badge dropzone__badge--t<%= s.toma %>"><%= s.etiqueta %></span>
+      <span class="dropzone__title"><%= s.titulo.split('·')[1].trim() %></span>
+      <span class="dropzone__desc"><%= s.descripcion %></span>
+    </span>
+    <span class="dropzone__empty" data-dz-empty>
+      <span class="dropzone__icon"><%- include('icon', { name: 'upload', size: 26 }) %></span>
+      <span><strong>Elegí un archivo</strong> o arrastralo aquí</span>
+      <small>JPG · PNG · TIFF · IS2</small>
+    </span>
+    <span class="dropzone__preview" data-dz-preview hidden>
+      <span class="dropzone__frame">
+        <img alt="Vista previa: <%= s.corto %>" data-dz-img hidden>
+        <span class="dropzone__loading skeleton" data-dz-loading hidden>Generando vista previa…</span>
+        <span class="dropzone__file" data-dz-file hidden><%- include('icon', { name: 'file', size: 28 }) %><span data-dz-ext></span></span>
+      </span>
+      <span class="dropzone__meta"><span data-dz-name></span><span data-dz-size class="num"></span></span>
+      <span class="dropzone__change">Cambiar archivo</span>
+    </span>
+  </label>
+  <p class="field__error" data-dz-error<%= error ? '' : ' hidden' %>><%= error || '' %></p>
+</div>

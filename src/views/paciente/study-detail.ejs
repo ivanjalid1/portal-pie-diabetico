@@ -1,4 +1,4 @@
-<%- include('../partials/page-header', { heading: `Estudio del ${fmt.dateLong(study.fechaHora)}`, lead: study.toma === 1 ? 'Primer estudio (toma basal).' : 'Estudio de seguimiento.', back: { href: '/paciente/estudios', label: 'Mis estudios' } }) %>
+<%- include('../partials/page-header', { heading: `Estudio del ${fmt.dateLong(study.fechaHora)}`, lead: `Compara tu primer estudio (${fmt.date(study.fechaToma1)}) con el control.`, back: { href: '/paciente/estudios', label: 'Mis estudios' } }) %>
 
 <div class="grid grid--2">
   <section class="card patient-status<%= analysis ? ' patient-status--' + domain.RISK_CATEGORIES[analysis.categoria].tono : '' %>" aria-labelledby="res-title">
@@ -6,6 +6,11 @@
     <% if (analysis) { const cat = domain.RISK_CATEGORIES[analysis.categoria]; %>
     <p class="patient-status__level"><span class="dot dot--<%= cat.tono %>" aria-hidden="true"></span><%= cat.paciente %></p>
     <p><%= cat.mensajePaciente %></p>
+    <% if (analysis.roisQueEmpeoran && analysis.roisQueEmpeoran.length) { %>
+    <p>Desde tu primer estudio, la diferencia de temperatura entre tus pies aumentó en alguna zona. Por eso es importante el control.</p>
+    <% } else if (analysis.tieneToma1) { %>
+    <p>Desde tu primer estudio, la temperatura de tus pies se mantuvo estable o mejoró.</p>
+    <% } %>
     <% if (analysis.grupo === 'P') { %>
     <p class="muted">En alguna zona de la planta, un pie estuvo más caliente que el otro. Esto puede indicar inflamación antes de que aparezca una herida, por eso es importante el seguimiento.</p>
     <% } else { %>

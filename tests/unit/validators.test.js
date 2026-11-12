@@ -58,7 +58,7 @@ describe('patientCreateSchema', () => {
 describe('studySchema', () => {
   const base = {
     patientId: '0b8f3b1e-1c1a-4b8e-9d1a-2f3c4d5e6f70',
-    toma: '1',
+    fechaToma1: '2026-09-01',
     fechaHora: '2026-10-01T10:30',
     centro: 'Hospital Córdoba',
     tempAmbiente: '22,4',
@@ -79,7 +79,8 @@ describe('studySchema', () => {
     expect(r.success).toBe(true);
     expect(r.data.fechaHora).toBe('2026-10-01T13:30:00.000Z');
     expect(r.data.valida).toBe(true);
-    expect(r.data.toma).toBe(1);
+    expect(r.data.fechaToma1).toBe('2026-09-01');
+    expect(r.data.toma1Origen).toBeNull();
   });
   it('exige motivo cuando la imagen no es válida y la verificación del consentimiento', () => {
     const r = schemas.studySchema.safeParse({ ...base, valida: 'no', consentimientoVerificado: undefined });
@@ -87,9 +88,12 @@ describe('studySchema', () => {
     const paths = r.error.issues.map((i) => i.path[0]);
     expect(paths).toEqual(expect.arrayContaining(['motivoInvalidez', 'consentimientoVerificado']));
   });
-  it('rechaza una toma distinta de 1 o 2 y un fondo fuera del protocolo', () => {
-    const r = schemas.studySchema.safeParse({ ...base, toma: '3', fondo: 'Madera' });
-    expect(r.success).toBe(false);
+  it('exige que la toma 1 sea anterior a la toma 2 y un fondo del protocolo', () => {
+    const orden = schemas.studySchema.safeParse({ ...base, fechaToma1: '2026-10-05' });
+    expect(orden.success).toBe(false);
+    expect(orden.error.issues[0].path).toEqual(['fechaToma1']);
+    expect(schemas.studySchema.safeParse({ ...base, fondo: 'Madera' }).success).toBe(false);
+    expect(schemas.studySchema.safeParse({ ...base, fechaToma1: '' }).success).toBe(false);
   });
 });
 
@@ -138,13 +142,13 @@ describe('imageValidator', () => {
     expect(sniffImageType(zip, 'malicioso.zip')).toBeNull();
   });
   it('exige las dos imágenes del estudio', () => {
-    const r = validateStudyImages({ termografia: { buffer: png, size: 8, originalname: 'a.png' } }, 1024);
+    const r = validateStudyImages({ toma1: { buffer: png, size: 8, originalname: 'a.png' } }, 1024);
     expect(r.ok).toBe(false);
-    expect(Object.keys(r.errors)).toEqual(['visible']);
+    expect(Object.keys(r.errors)).toEqual(['toma2']);
   });
   it('rechaza archivos que superan el tamaño máximo', () => {
     const big = { buffer: png, size: 5000, originalname: 'a.png' };
-    const r = validateStudyImages({ termografia: big, visible: big }, 1000);
+    const r = validateStudyImages({ toma1: big, toma2: big }, 1000);
     expect(r.ok).toBe(false);
   });
 });

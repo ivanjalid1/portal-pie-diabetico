@@ -9,13 +9,14 @@
     <aside class="sidebar" id="sidebar" aria-label="Navegación principal">
       <div class="sidebar__brand">
         <a href="<%= user ? ROLE_HOME[user.role] : '/' %>" class="brand">
-          <img src="/img/logo.svg" alt="" width="32" height="32">
+          <img src="/img/logo.svg" alt="" width="34" height="34">
           <span class="brand__text"><strong><%= appName %></strong><small>Termografía plantar</small></span>
         </a>
         <button type="button" class="icon-btn sidebar__close" data-sidebar-close aria-label="Cerrar menú"><%- include('../partials/icon', { name: 'x' }) %></button>
       </div>
       <% if (user) { %>
       <nav class="nav">
+        <p class="nav__section"><%= ROLE_LABELS[user.role] %></p>
         <ul>
           <% navFor(user.role).forEach((item) => { %>
           <li>
@@ -26,10 +27,17 @@
           <% }) %>
         </ul>
       </nav>
+      <% if (user.role === 'medico') { %>
+      <div class="sidebar__cta">
+        <p>Compará la toma basal con la de control en cuatro pasos.</p>
+        <a class="btn btn--primary btn--sm btn--block" href="/medico/estudios/nuevo"><%- include('../partials/icon', { name: 'scan', size: 16 }) %>Nuevo estudio</a>
+      </div>
+      <% } %>
       <div class="sidebar__foot">
+        <div class="theme-row"><span>Tema</span><%- include('../partials/theme-toggle') %></div>
         <div class="me">
           <span class="avatar" aria-hidden="true"><%= user.iniciales %></span>
-          <span class="me__text"><strong><%= user.nombreCompleto %></strong><small><%= ROLE_LABELS[user.role] %></small></span>
+          <span class="me__text"><strong><%= user.nombreCompleto %></strong><small><%= user.email %></small></span>
         </div>
         <div class="sidebar__actions">
           <a href="/cuenta/password" class="nav__link nav__link--small"><%- include('../partials/icon', { name: 'lock', size: 18 }) %><span>Contraseña</span></a>
@@ -45,11 +53,13 @@
 
     <div class="main">
       <header class="topbar">
-        <button type="button" class="icon-btn topbar__menu" data-sidebar-open aria-controls="sidebar" aria-label="Abrir menú"><%- include('../partials/icon', { name: 'menu' }) %></button>
-        <a href="<%= user ? ROLE_HOME[user.role] : '/' %>" class="brand brand--compact"><img src="/img/logo.svg" alt="" width="28" height="28"><strong><%= appName %></strong></a>
+        <a href="<%= user ? ROLE_HOME[user.role] : '/' %>" class="brand brand--compact"><img src="/img/logo.svg" alt="" width="30" height="30"><strong><%= appName %></strong></a>
         <% if (dataDriver === 'memory') { %>
-        <span class="env-pill" title="Los datos de demostración se reinician periódicamente">Datos de demostración</span>
+        <span class="env-pill" title="Los datos de demostración se reinician periódicamente">Demo</span>
+        <% } else { %>
+        <span class="env-spacer"></span>
         <% } %>
+        <button type="button" class="icon-btn topbar__menu" data-sidebar-open aria-controls="sidebar" aria-expanded="false" aria-label="Abrir menú"><%- include('../partials/icon', { name: 'menu' }) %></button>
       </header>
       <main id="contenido" class="content" tabindex="-1">
         <%- body %>

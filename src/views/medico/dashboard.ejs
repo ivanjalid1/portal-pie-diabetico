@@ -49,7 +49,7 @@
     <% } else { %>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th scope="col">Paciente</th><th scope="col">Toma</th><th scope="col">ΔT máx.</th><th scope="col">Grupo</th><th scope="col">Resultado</th><th scope="col"><span class="sr-only">Abrir</span></th></tr></thead>
+        <thead><tr><th scope="col">Paciente</th><th scope="col">Tomas</th><th scope="col">ΔT máx.</th><th scope="col">Grupo</th><th scope="col">Resultado</th><th scope="col"><span class="sr-only">Abrir</span></th></tr></thead>
         <tbody>
           <% recientes.forEach(({ study, patient, analysis }) => { %>
           <tr class="row-link">
@@ -59,9 +59,9 @@
                 <span><strong><%= patient.nombreCompleto %></strong><small><%= fmt.date(study.fechaHora) %></small></span>
               </a>
             </td>
-            <td class="num"><%= study.toma %></td>
+            <td class="num nowrap"><span class="toma-dot toma-dot--1"></span><%= study.diasEntreTomas ?? '—' %> d<small class="muted block">entre tomas</small></td>
             <td class="num"><%= analysis ? `${fmt.signed(analysis.deltaTMax)} °C` : '—' %><% if (analysis) { %><small class="muted block"><%= domain.ROI_NAMES[analysis.deltaTMaxRoi] %></small><% } %></td>
-            <td><% if (analysis) { %><span class="grupo grupo--<%= analysis.grupo %>"><%= analysis.grupo %></span><% } %></td>
+            <td class="nowrap"><% if (analysis) { %><span class="grupo grupo--sm grupo--<%= analysis.grupoToma1 %>"><%= analysis.grupoToma1 %></span><span class="grupo-arrow" aria-hidden="true">→</span><span class="grupo grupo--<%= analysis.grupo %>"><%= analysis.grupo %></span><% } %></td>
             <td><%- include('../partials/risk-badge', { analysis, showPct: true }) %></td>
             <td class="table__chevron"><%- include('../partials/icon', { name: 'chevronRight', size: 18 }) %></td>
           </tr>

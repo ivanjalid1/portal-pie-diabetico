@@ -37,7 +37,8 @@
         <div><dt>Neuropatía</dt><dd><%= p.gradoNeuropatia %></dd></div>
       </dl>
       <dl class="kv kv--compact">
-        <div><dt>Toma</dt><dd><%= s.toma === 1 ? '1 (basal)' : '2 (seguimiento)' %>, <%= fmt.dateTime(s.fechaHora) %></dd></div>
+        <div><dt>Toma 1 (basal)</dt><dd><%= fmt.date(s.fechaToma1) %></dd></div>
+        <div><dt>Toma 2 (control)</dt><dd><%= fmt.dateTime(s.fechaHora) %><%= s.diasEntreTomas !== null ? ` (${s.diasEntreTomas} días)` : '' %></dd></div>
         <div><dt>Centro</dt><dd><%= s.centro %></dd></div>
         <div><dt>Médico/a</dt><dd><%= medico.nombreCompleto %><%= medico.matricula ? `, ${medico.matricula}` : '' %></dd></div>
         <div><dt>Ambiente</dt><dd><%= fmt.num(s.tempAmbiente, 1) %> °C, HR <%= fmt.num(s.humedadRelativa, 0) %> % <%= s.condicionesOk ? '(dentro del protocolo)' : '(fuera del protocolo)' %></dd></div>
@@ -53,24 +54,27 @@
         <span class="badge badge--<%= domain.RISK_CATEGORIES[a.categoria].tono %>"><%= domain.RISK_CATEGORIES[a.categoria].nombre %></span>
       </div>
       <div class="report__big">
-        <span class="label">ΔT máximo</span>
+        <span class="label">ΔT máximo (toma 2)</span>
         <span class="num report__pct"><%= fmt.signed(a.deltaTMax) %> °C</span>
         <span><%= domain.ROI_NAMES[a.deltaTMaxRoi] %></span>
       </div>
       <div class="report__big">
-        <span class="label">Grupo térmico / simetría</span>
-        <span class="report__pct"><%= a.grupo %></span>
+        <span class="label">Grupo térmico toma 1 → toma 2</span>
+        <span class="report__pct"><%= a.grupoToma1 || '—' %> → <%= a.grupo %></span>
         <span><%= a.simetrico ? 'Simétrico' : 'No simétrico' %>, umbral <%= fmt.num(a.umbral, 1) %> °C</span>
       </div>
     </section>
 
-    <section class="report__grid report__grid--map">
-      <%- include('../partials/plantar-map', { rois: a.rois, umbral: a.umbral, mapId: 'rep' }) %>
+    <section class="report__grid">
+      <figure class="report__map"><figcaption>Toma 1</figcaption><%- include('../partials/plantar-map', { rois: a.roisToma1, umbral: a.umbral, mapId: 'rep1', values: true }) %></figure>
+      <figure class="report__map"><figcaption>Toma 2</figcaption><%- include('../partials/plantar-map', { rois: a.rois, umbral: a.umbral, mapId: 'rep2', values: true }) %></figure>
+    </section>
+    <section>
       <table class="table table--num table--dense">
-        <thead><tr><th scope="col">Región</th><th scope="col">Der.</th><th scope="col">Izq.</th><th scope="col">ΔT</th></tr></thead>
+        <thead><tr><th scope="col">Región</th><th scope="col">Der. T1</th><th scope="col">Izq. T1</th><th scope="col">ΔT T1</th><th scope="col">Der. T2</th><th scope="col">Izq. T2</th><th scope="col">ΔT T2</th><th scope="col">Cambio |ΔT|</th></tr></thead>
         <tbody>
-          <% a.rois.forEach((r) => { const hot = r.roi !== 'general' && Math.abs(r.deltaT) >= a.umbral; %>
-          <tr class="<%= hot ? 'row-hot' : '' %><%= r.roi === 'general' ? ' row-total' : '' %>"><th scope="row"><%= domain.ROI_NAMES[r.roi] %></th><td><%= fmt.num(r.avgDer, 2) %></td><td><%= fmt.num(r.avgIzq, 2) %></td><td><%= fmt.signed(r.deltaT, 2) %></td></tr>
+          <% a.rois.forEach((r) => { const r1 = a.roi(r.roi, 1) || {}; const e = a.evolucion.find((x) => x.roi === r.roi) || {}; const hot = r.roi !== 'general' && Math.abs(r.deltaT) >= a.umbral; %>
+          <tr class="<%= hot ? 'row-hot' : '' %><%= r.roi === 'general' ? ' row-total' : '' %>"><th scope="row"><%= domain.ROI_NAMES[r.roi] %></th><td><%= fmt.num(r1.avgDer, 2) %></td><td><%= fmt.num(r1.avgIzq, 2) %></td><td><%= fmt.signed(r1.deltaT, 2) %></td><td><%= fmt.num(r.avgDer, 2) %></td><td><%= fmt.num(r.avgIzq, 2) %></td><td><%= fmt.signed(r.deltaT, 2) %></td><td><%= fmt.signed(e.cambio, 2) %></td></tr>
           <% }) %>
         </tbody>
       </table>

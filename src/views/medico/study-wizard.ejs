@@ -5,10 +5,11 @@
   const err = (k) => errors[k] ? `<p class="field__error">${errors[k]}</p>` : '';
   const cls = (k, extra = '') => `field${extra ? ' ' + extra : ''}${errors[k] ? ' has-error' : ''}`;
   const checklistOld = hasOld ? [].concat(old.checklist || []) : [];
-  const tomaSel = String(v('toma', tomaSugerida));
-  const steps = ['Paciente', 'Condiciones', 'Imágenes', 'Análisis'];
+  const steps = ['Paciente y tomas', 'Condiciones', 'Termografías', 'Análisis'];
+  const defaultToma1 = new Date(Date.now() - domain.DIAS_ENTRE_TOMAS.esperado * 86400000);
+  const [slot1, slot2] = imageSlots;
 %>
-<%- include('../partials/page-header', { heading: 'Nuevo estudio termográfico', lead: 'Seguí el protocolo de captura paso a paso. Al finalizar se ejecuta el análisis.', back: selected ? { href: `/medico/pacientes/${selected.id}`, label: selected.codigo } : { href: '/medico', label: 'Tablero' } }) %>
+<%- include('../partials/page-header', { heading: 'Nuevo estudio termográfico', lead: 'Compará la termografía basal (toma 1) con la de control (toma 2, ~30 días después). Seguí el protocolo de captura paso a paso.', back: selected ? { href: `/medico/pacientes/${selected.id}`, label: selected.codigo } : { href: '/medico', label: 'Tablero' } }) %>
 
 <form method="post" action="/medico/estudios" enctype="multipart/form-data" class="wizard" novalidate data-wizard>
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -22,31 +23,29 @@
 
   <!-- Paso 1 -->
   <section class="card wizard__panel" data-step="0" aria-labelledby="step1-title">
-    <h2 id="step1-title">Paciente y consentimiento</h2>
+    <h2 id="step1-title">Paciente y fechas de las tomas</h2>
     <div class="form-grid">
       <div class="<%= cls('patientId', 'field--span') %>">
         <label for="patientId">Paciente</label>
         <select id="patientId" name="patientId" required data-patient-select>
           <option value="">Elegí un paciente</option>
-          <% rows.forEach(({ patient: p, estudios }) => { %>
-          <option value="<%= p.id %>" data-estudios="<%= estudios %>" data-centro="<%= p.centro %>"<%= (v('patientId', selected && selected.id) === p.id) ? ' selected' : '' %><%= p.consentimientoFirmado ? '' : ' disabled' %>><%= p.codigo %>, <%= p.nombreCompleto %><%= p.consentimientoFirmado ? '' : ' (sin consentimiento)' %></option>
+          <% rows.forEach(({ patient: p }) => { %>
+          <option value="<%= p.id %>" data-centro="<%= p.centro %>" data-toma1="<%= JSON.stringify((toma1Options[p.id] || []).map((o) => ({ id: o.studyId, fecha: fmt.date(o.fecha) }))) %>"<%= (v('patientId', selected && selected.id) === p.id) ? ' selected' : '' %><%= p.consentimientoFirmado ? '' : ' disabled' %>><%= p.codigo %>, <%= p.nombreCompleto %><%= p.consentimientoFirmado ? '' : ' (sin consentimiento)' %></option>
           <% }) %>
         </select>
         <%- err('patientId') %>
         <% if (!rows.length) { %><p class="field__hint">No tenés pacientes registrados. <a href="/medico/pacientes/nuevo">Registrar paciente</a></p><% } %>
       </div>
-      <fieldset class="<%= cls('toma') %>">
-        <legend>Toma</legend>
-        <div class="segmented">
-          <% domain.TOMAS.forEach((t) => { %>
-          <label><input type="radio" name="toma" value="<%= t.value %>"<%= tomaSel === String(t.value) ? ' checked' : '' %> required data-toma><span><%= t.nombre %></span></label>
-          <% }) %>
-        </div>
-        <%- err('toma') %>
-      </fieldset>
+      <div class="<%= cls('fechaToma1') %>" data-fecha-toma1>
+        <label for="fechaToma1">Fecha de la toma 1 (basal)</label>
+        <input id="fechaToma1" name="fechaToma1" type="date" value="<%= v('fechaToma1', fmt.inputDate(defaultToma1)) %>" required>
+        <p class="field__hint">Si reutilizás una toma 1 anterior, se usa su fecha.</p>
+        <%- err('fechaToma1') %>
+      </div>
       <div class="<%= cls('fechaHora') %>">
-        <label for="fechaHora">Fecha y hora de la toma</label>
+        <label for="fechaHora">Fecha y hora de la toma 2 (control)</label>
         <input id="fechaHora" name="fechaHora" type="datetime-local" required value="<%= hasOld && old.fechaHora ? old.fechaHora : fmt.inputDateTime(new Date()) %>">
+        <p class="field__hint">Se esperan unos <%= domain.DIAS_ENTRE_TOMAS.esperado %> días entre tomas.</p>
         <%- err('fechaHora') %>
       </div>
       <div class="<%= cls('centro') %>">
@@ -67,30 +66,45 @@
     </div>
     <div class="wizard__nav">
       <span></span>
-      <button type="button" class="btn btn--primary" data-next>Continuar</button>
+      <button type="button" class="btn btn--primary" data-next>Continuar<%- include('../partials/icon', { name: 'arrowRight', size: 18 }) %></button>
     </div>
   </section>
 
   <!-- Paso 2 -->
   <section class="card wizard__panel" data-step="1" aria-labelledby="step2-title">
-    <h2 id="step2-title">Condiciones ambientales y cámara</h2>
+    <h2 id="step2-title">Condiciones de la toma 2 y cámara</h2>
     <p class="muted">La humedad relativa fue el factor ambiental más influyente en la Parte 1: registrala con precisión.</p>
     <div class="env-grid">
       <div class="env-card <%= errors.tempAmbiente ? 'has-error' : '' %>" data-env="temp" data-min="<%= A.tempAmbiente.min %>" data-max="<%= A.tempAmbiente.max %>">
-        <label for="tempAmbiente">Temperatura ambiente</label>
+        <label for="tempAmbiente"><%- include('../partials/icon', { name: 'thermo', size: 18 }) %>Temperatura ambiente</label>
         <div class="env-card__input"><input id="tempAmbiente" name="tempAmbiente" inputmode="decimal" required value="<%= v('tempAmbiente', '') %>" placeholder="22,5"><span>°C</span></div>
         <p class="env-card__range">Válido: <%= A.tempAmbiente.min %>–<%= A.tempAmbiente.max %> °C</p>
         <span class="env-badge" data-env-badge aria-live="polite"></span>
         <%- err('tempAmbiente') %>
       </div>
       <div class="env-card env-card--key <%= errors.humedadRelativa ? 'has-error' : '' %>" data-env="hum" data-min="<%= A.humedadRelativa.min %>" data-max="<%= A.humedadRelativa.max %>">
-        <label for="humedadRelativa">Humedad relativa <span class="tag tag--key">factor clave</span></label>
+        <label for="humedadRelativa"><%- include('../partials/icon', { name: 'droplet', size: 18 }) %>Humedad relativa <span class="tag tag--key">factor clave</span></label>
         <div class="env-card__input"><input id="humedadRelativa" name="humedadRelativa" inputmode="decimal" required value="<%= v('humedadRelativa', '') %>" placeholder="55"><span>%</span></div>
         <p class="env-card__range">Válido: <%= A.humedadRelativa.min %>–<%= A.humedadRelativa.max %> %</p>
         <span class="env-badge" data-env-badge aria-live="polite"></span>
         <%- err('humedadRelativa') %>
       </div>
     </div>
+    <details class="disclosure disclosure--card" data-toma1-conditions<%= hasOld && (old.tempAmbienteToma1 || old.humedadRelativaToma1) ? ' open' : '' %>>
+      <summary>Condiciones de la toma 1 <span class="optional">opcional</span></summary>
+      <div class="form-grid">
+        <div class="<%= cls('tempAmbienteToma1') %>">
+          <label for="tempAmbienteToma1">Temperatura ambiente toma 1 (°C)</label>
+          <input id="tempAmbienteToma1" name="tempAmbienteToma1" inputmode="decimal" value="<%= v('tempAmbienteToma1', '') %>" placeholder="22,0">
+          <%- err('tempAmbienteToma1') %>
+        </div>
+        <div class="<%= cls('humedadRelativaToma1') %>">
+          <label for="humedadRelativaToma1">Humedad relativa toma 1 (%)</label>
+          <input id="humedadRelativaToma1" name="humedadRelativaToma1" inputmode="decimal" value="<%= v('humedadRelativaToma1', '') %>" placeholder="52">
+          <%- err('humedadRelativaToma1') %>
+        </div>
+      </div>
+    </details>
     <div class="form-grid form-grid--3">
       <div class="<%= cls('distanciaCm') %>">
         <label for="distanciaCm">Distancia cámara (cm)</label>
@@ -130,47 +144,46 @@
     <fieldset class="checks">
       <legend>Checklist de captura</legend>
       <% domain.CAPTURE_CHECKLIST.forEach((c) => { %>
-      <label class="check"><input type="checkbox" name="checklist" value="<%= c.key %>"<%= !hasOld || checklistOld.includes(c.key) ? (hasOld ? ' checked' : '') : '' %>><span><%= c.texto %></span></label>
+      <label class="check"><input type="checkbox" name="checklist" value="<%= c.key %>"<%= hasOld && checklistOld.includes(c.key) ? ' checked' : '' %>><span><%= c.texto %></span></label>
       <% }) %>
     </fieldset>
     <p class="muted small">Cámara: <%= A.camara %>.</p>
     <div class="wizard__nav">
-      <button type="button" class="btn btn--ghost" data-prev>Volver</button>
-      <button type="button" class="btn btn--primary" data-next>Continuar</button>
+      <button type="button" class="btn btn--ghost" data-prev><%- include('../partials/icon', { name: 'arrowLeft', size: 18 }) %>Volver</button>
+      <button type="button" class="btn btn--primary" data-next>Continuar<%- include('../partials/icon', { name: 'arrowRight', size: 18 }) %></button>
     </div>
   </section>
 
   <!-- Paso 3 -->
   <section class="card wizard__panel" data-step="2" aria-labelledby="step3-title">
-    <h2 id="step3-title">Carga de imágenes</h2>
-    <p class="muted">JPG, PNG, TIFF o IS2 (archivo nativo de Fluke), hasta <%= maxFileMb %> MB cada una.</p>
+    <h2 id="step3-title">Termografías de ambas tomas</h2>
+    <p class="muted">JPG, PNG, TIFF o IS2 (archivo nativo de Fluke; la vista previa se genera a partir de la imagen infrarroja), hasta <%= maxFileMb %> MB cada una.</p>
     <div class="dropzones">
-      <% imageSlots.forEach((s) => { %>
-      <div class="dropzone<%= errors[s.slot] ? ' has-error' : '' %>" data-dropzone>
-        <input type="file" id="file-<%= s.slot %>" name="<%= s.slot %>" accept=".jpg,.jpeg,.png,.tif,.tiff,.is2,image/jpeg,image/png,image/tiff" required data-max-mb="<%= maxFileMb %>" class="dropzone__input">
-        <label for="file-<%= s.slot %>" class="dropzone__label">
-          <span class="dropzone__title"><%= s.titulo %></span>
-          <span class="dropzone__desc"><%= s.descripcion %></span>
-          <span class="dropzone__empty" data-dz-empty>
-            <%- include('../partials/icon', { name: 'upload', size: 28 }) %>
-            <span><strong>Elegí un archivo</strong> o arrastralo aquí</span>
-          </span>
-          <span class="dropzone__preview" data-dz-preview hidden>
-            <img alt="Vista previa de <%= s.corto %>" data-dz-img hidden>
-            <span class="dropzone__file" data-dz-file hidden><%- include('../partials/icon', { name: 'file', size: 28 }) %><span data-dz-ext></span></span>
-            <span class="dropzone__meta"><span data-dz-name></span><span data-dz-size class="num"></span></span>
-          </span>
-        </label>
-        <p class="field__error" data-dz-error<%= errors[s.slot] ? '' : ' hidden' %>><%= errors[s.slot] || '' %></p>
+      <div class="dropzone-col">
+        <fieldset class="toma1-source" data-toma1-source hidden>
+          <legend class="sr-only">Origen de la toma 1</legend>
+          <div class="segmented segmented--full">
+            <label><input type="radio" name="toma1Modo" value="subir" checked data-toma1-mode><span>Subir archivo</span></label>
+            <label><input type="radio" name="toma1Modo" value="reusar" data-toma1-mode><span>Usar una toma 1 anterior</span></label>
+          </div>
+          <div class="field" data-toma1-reuse hidden>
+            <label for="toma1Origen">Toma 1 cargada previamente</label>
+            <select id="toma1Origen" name="toma1Origen" data-toma1-select><option value="">Elegí una toma</option></select>
+            <%- err('toma1Origen') %>
+          </div>
+        </fieldset>
+        <%- include('../partials/dropzone', { s: slot1, maxFileMb, error: errors[slot1.slot] }) %>
       </div>
-      <% }) %>
+      <div class="dropzone-col">
+        <%- include('../partials/dropzone', { s: slot2, maxFileMb, error: errors[slot2.slot] }) %>
+      </div>
     </div>
     <div class="form-grid">
       <fieldset class="<%= cls('valida') %>">
-        <legend>Calidad de la imagen</legend>
+        <legend>Calidad de las imágenes</legend>
         <div class="segmented">
-          <label><input type="radio" name="valida" value="si"<%= v('valida', 'si') === 'si' ? ' checked' : '' %> data-valida><span>Válida</span></label>
-          <label><input type="radio" name="valida" value="no"<%= v('valida', 'si') === 'no' ? ' checked' : '' %> data-valida><span>No válida</span></label>
+          <label><input type="radio" name="valida" value="si"<%= v('valida', 'si') === 'si' ? ' checked' : '' %> data-valida><span>Válidas</span></label>
+          <label><input type="radio" name="valida" value="no"<%= v('valida', 'si') === 'no' ? ' checked' : '' %> data-valida><span>No válidas</span></label>
         </div>
       </fieldset>
       <div class="<%= cls('motivoInvalidez') %>" data-motivo>
@@ -180,29 +193,31 @@
       </div>
     </div>
     <div class="wizard__nav">
-      <button type="button" class="btn btn--ghost" data-prev>Volver</button>
-      <button type="button" class="btn btn--primary" data-next>Revisar</button>
+      <button type="button" class="btn btn--ghost" data-prev><%- include('../partials/icon', { name: 'arrowLeft', size: 18 }) %>Volver</button>
+      <button type="button" class="btn btn--primary" data-next>Revisar<%- include('../partials/icon', { name: 'arrowRight', size: 18 }) %></button>
     </div>
   </section>
 
   <!-- Paso 4 -->
   <section class="card wizard__panel" data-step="3" aria-labelledby="step4-title">
     <h2 id="step4-title">Revisar y analizar</h2>
-    <dl class="kv summary" data-summary>
-      <div><dt>Paciente</dt><dd data-sum="patientId">—</dd></div>
-      <div><dt>Toma</dt><dd data-sum="toma">—</dd></div>
-      <div><dt>Fecha y hora</dt><dd data-sum="fechaHora">—</dd></div>
-      <div><dt>Temperatura ambiente</dt><dd data-sum="tempAmbiente">—</dd></div>
-      <div><dt>Humedad relativa</dt><dd data-sum="humedadRelativa">—</dd></div>
-      <div><dt>Imágenes</dt><dd data-sum="images">—</dd></div>
-    </dl>
+    <div class="summary-grid">
+      <dl class="kv summary" data-summary>
+        <div><dt>Paciente</dt><dd data-sum="patientId">—</dd></div>
+        <div><dt>Toma 1</dt><dd data-sum="toma1">—</dd></div>
+        <div><dt>Toma 2</dt><dd data-sum="fechaHora">—</dd></div>
+        <div><dt>Temperatura ambiente</dt><dd data-sum="tempAmbiente">—</dd></div>
+        <div><dt>Humedad relativa</dt><dd data-sum="humedadRelativa">—</dd></div>
+      </dl>
+      <div class="summary-thumbs" data-summary-thumbs aria-label="Vista previa de las termografías"></div>
+    </div>
     <p class="notice notice--warn small">
       <%- include('../partials/icon', { name: 'alert', size: 18 }) %>
       <span><%= domain.DISCLAIMER %></span>
     </p>
     <div class="wizard__nav">
-      <button type="button" class="btn btn--ghost" data-prev>Volver</button>
-      <button type="submit" class="btn btn--primary btn--lg" data-submit><%- include('../partials/icon', { name: 'activity', size: 18 }) %>Analizar estudio</button>
+      <button type="button" class="btn btn--ghost" data-prev><%- include('../partials/icon', { name: 'arrowLeft', size: 18 }) %>Volver</button>
+      <button type="submit" class="btn btn--primary btn--lg" data-submit><%- include('../partials/icon', { name: 'activity', size: 18 }) %><span>Analizar estudio</span></button>
     </div>
   </section>
 </form>

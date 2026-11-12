@@ -37,7 +37,7 @@ describe('Control de acceso por rol (RBAC)', () => {
     expect((await agent.get('/medico/pacientes')).status).toBe(403);
     const medico = await container.repos.users.findByEmail('medico@demo.com');
     const [study] = await container.repos.studies.listByMedico(medico.id);
-    expect((await agent.get(`/media/estudios/${study.id}/termografia`)).status).toBe(403);
+    expect((await agent.get(`/media/estudios/${study.id}/toma1`)).status).toBe(403);
   });
 
   it('un médico no ve pacientes ni estudios de otro médico (control por objeto)', async () => {
@@ -54,6 +54,6 @@ describe('Control de acceso por rol (RBAC)', () => {
     const [ajeno] = await container.repos.studies.listByPatient(otro.id);
     const agent = await loginAs(app, 'paciente@demo.com');
     expect((await agent.get(`/paciente/estudios/${ajeno.id}`)).status).toBe(404);
-    expect((await agent.get(`/media/estudios/${ajeno.id}/termografia`)).status).toBe(403);
+    expect((await agent.get(`/media/estudios/${ajeno.id}/toma1`)).status).toBe(403);
   });
 });

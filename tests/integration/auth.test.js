@@ -9,12 +9,13 @@ describe('Autenticación y sesión', () => {
     ({ app } = makeApp());
   });
 
-  it('la landing y el login son públicos y muestran las cuentas demo', async () => {
+  it('la raíz redirige al login, que muestra el proyecto y las cuentas demo', async () => {
     const home = await request(app).get('/');
-    expect(home.status).toBe(200);
-    expect(home.text).toContain('Procesamiento de imágenes y análisis punto a punto');
+    expect(home.status).toBe(302);
+    expect(home.headers.location).toBe('/login');
     const login = await request(app).get('/login');
     expect(login.status).toBe(200);
+    expect(login.text).toContain('Procesamiento de imágenes y análisis punto a punto');
     expect(login.text).toContain('Cuentas demo');
     expect(login.text).toContain('medico@demo.com');
   });

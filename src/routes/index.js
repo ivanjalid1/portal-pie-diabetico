@@ -49,7 +49,7 @@ function buildRoutes(container) {
   }).fields(IMAGE_SLOTS.map(({ slot }) => ({ name: slot, maxCount: 1 })));
 
   /* ---------- Público ---------- */
-  router.get('/', pub.landing);
+  router.get('/', pub.home);
   router.get('/salud', pub.health);
   router.get('/login', redirectIfAuthenticated, auth.showLogin);
   router.post('/login', loginLimiter, validate(schemas.loginSchema, { back: '/login' }), auth.login);
@@ -125,6 +125,15 @@ function buildRoutes(container) {
         `/medico/estudios/nuevo${req.body?.patientId ? `?paciente=${encodeURIComponent(req.body.patientId)}` : ''}`,
     }),
     medico.createStudy,
+  );
+  m.post(
+    '/estudios/vista-previa',
+    multer({
+      storage: multer.memoryStorage(),
+      limits: { fileSize: config.uploads.maxFileMb * 1024 * 1024, files: 1 },
+    }).single('archivo'),
+    verifyCsrf,
+    medico.previewUpload,
   );
   m.get('/estudios/:id', medico.studyDetail);
   m.get('/estudios/:id/informe', medico.report);

@@ -205,6 +205,9 @@ class MemoryFileStorage extends contracts.FileStorage {
     this.files.set(key, { buffer: Buffer.from(buffer), mime });
     return { storagePath: key };
   }
+  async read(storagePath) {
+    return this.files.get(storagePath)?.buffer || null;
+  }
   async getAccess(storagePath) {
     const f = this.files.get(storagePath);
     if (!f) return null;

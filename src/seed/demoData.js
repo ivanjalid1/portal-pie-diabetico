@@ -1,13 +1,16 @@
 'use strict';
 
 /**
- * Datos de demostración 100 % ficticios. Nombres, DNI y correos son
- * inventados; cualquier coincidencia con personas reales es casual. No se usa
- * ningún dato ni imagen de pacientes reales del estudio.
+ * Datos de demostración: nombres, DNI, correos y datos clínicos son
+ * FICTICIOS; cualquier coincidencia con personas reales es casual. Las
+ * imágenes son termogramas reales anonimizados (sólo la matriz infrarroja de
+ * las plantas de los pies, sin texto ni metadatos), usados con autorización
+ * del equipo del proyecto y asignados a estos pacientes ficticios.
  *
  * Las fechas se expresan como «días antes de hoy» para que los tableros
- * siempre se vean actuales. Cada paciente tiene la toma 1 (basal) y, en la
- * mayoría de los casos, la toma 2 (seguimiento a 30–45 días).
+ * siempre se vean actuales. Cada estudio compara la toma 1 (basal) con la toma 2
+ * (control ~30 días después) usando un par de termogramas reales anonimizados
+ * (public/demo/par-NN-tomaK.png, ver scripts/generate-demo-images.js).
  */
 
 const DEMO_PASSWORD = 'Demo1234!';
@@ -45,7 +48,8 @@ const STAFF = [
 
 /**
  * `personal` va al perfil de usuario; el resto es la ficha clínica.
- * `tomas`: días transcurridos desde cada toma (basal primero).
+ * `estudio`: par de imágenes demo, días desde la toma 2 e intervalo entre tomas
+ * (null = el paciente todavía no completó ambas tomas).
  */
 const PATIENTS = [
   {
@@ -71,7 +75,7 @@ const PATIENTS = [
     hiperqueratosisLocalizacion: 'Cabeza del 1.er metatarsiano izquierdo',
     pesoKg: 78,
     generoLesion: false,
-    tomas: [{ dias: 52 }, { dias: 10 }],
+    estudio: { par: 7, dias: 10, intervalo: 34 },
   },
   {
     medico: 'medico',
@@ -101,7 +105,7 @@ const PATIENTS = [
     generoLesion: true,
     lesion: { pie: 'derecho', roi: 'dedo_mayor', dias: 3 },
     observaciones: 'Usa calzado ortopédico desde hace dos años.',
-    tomas: [{ dias: 44 }, { dias: 4, publicado: false }],
+    estudio: { par: 10, dias: 4, intervalo: 31, publicado: false },
   },
   {
     medico: 'medico',
@@ -126,7 +130,7 @@ const PATIENTS = [
     vibratoriaDer: 18,
     vibratoriaIzq: 20,
     pesoKg: 88,
-    tomas: [{ dias: 21 }],
+    estudio: { par: 1, dias: 21, intervalo: 31 },
   },
   {
     medico: 'medico',
@@ -155,10 +159,7 @@ const PATIENTS = [
     hiperqueratosis: true,
     hiperqueratosisLocalizacion: 'Borde externo del pie derecho',
     pesoKg: 92,
-    tomas: [
-      { dias: 40, humedad: 72 },
-      { dias: 2, publicado: false },
-    ],
+    estudio: { par: 8, dias: 2, intervalo: 38, publicado: false, humedad: 72 },
   },
   {
     medico: 'medico',
@@ -180,7 +181,7 @@ const PATIENTS = [
     vibratoriaIzq: 26,
     pesoKg: 61,
     generoLesion: false,
-    tomas: [{ dias: 56 }, { dias: 14 }],
+    estudio: { par: 4, dias: 14, intervalo: 31 },
   },
   {
     medico: 'medico',
@@ -208,7 +209,7 @@ const PATIENTS = [
     hematomas: true,
     pesoKg: 95,
     observaciones: 'Tabaquismo a consultar en el próximo control.',
-    tomas: [{ dias: 66 }, { dias: 27, temp: 24.6 }],
+    estudio: { par: 2, dias: 27, intervalo: 31, temp: 24.6 },
   },
   {
     medico: 'medico',
@@ -233,7 +234,7 @@ const PATIENTS = [
     vibratoriaDer: 15,
     vibratoriaIzq: 17,
     pesoKg: 70,
-    tomas: [{ dias: 33 }],
+    estudio: null,
   },
   {
     medico: 'medico',
@@ -262,7 +263,7 @@ const PATIENTS = [
     pesoKg: 81,
     generoLesion: true,
     lesion: { pie: 'izquierdo', roi: 'metatarso', dias: 6 },
-    tomas: [{ dias: 50 }, { dias: 11, valida: false, motivo: 'Movimiento del paciente durante la captura' }],
+    estudio: { par: 3, dias: 11, intervalo: 31, valida: false, motivo: 'Movimiento del paciente durante la captura' },
   },
   {
     medico: 'medico',
@@ -288,7 +289,7 @@ const PATIENTS = [
     vibratoriaDer: 27,
     vibratoriaIzq: 25,
     pesoKg: 74,
-    tomas: [{ dias: 45 }, { dias: 6 }],
+    estudio: { par: 9, dias: 6, intervalo: 29 },
   },
   {
     medico: 'medico',
@@ -313,7 +314,7 @@ const PATIENTS = [
     vibratoriaDer: 21,
     vibratoriaIzq: 22,
     pesoKg: 77,
-    tomas: [],
+    estudio: null,
   },
   {
     medico: 'medico2',
@@ -339,7 +340,7 @@ const PATIENTS = [
     vibratoriaDer: 33,
     vibratoriaIzq: 35,
     pesoKg: 69,
-    tomas: [{ dias: 58 }, { dias: 18 }],
+    estudio: { par: 5, dias: 18, intervalo: 41 },
   },
   {
     medico: 'medico2',
@@ -365,7 +366,7 @@ const PATIENTS = [
     vibratoriaIzq: 21,
     pesoKg: 99,
     generoLesion: false,
-    tomas: [{ dias: 78 }, { dias: 40 }],
+    estudio: { par: 6, dias: 40, intervalo: 41 },
   },
 ];
 

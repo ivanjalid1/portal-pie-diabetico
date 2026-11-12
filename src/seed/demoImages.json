@@ -1,0 +1,1535 @@
+{
+  "_descripcion": "Generado por scripts/generate-demo-images.js. Temperaturas por ROI estimadas (°C aprox.).",
+  "pares": [
+    {
+      "par": 1,
+      "toma1": {
+        "file": "par-01-toma1.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 31.87,
+            "avgIzq": 31.7,
+            "maxDer": 33.57,
+            "maxIzq": 33.94,
+            "minDer": 28.86,
+            "minIzq": 28.7,
+            "deltaT": 0.17
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 32.06,
+            "avgIzq": 32.04,
+            "maxDer": 34.26,
+            "maxIzq": 34.11,
+            "minDer": 28.7,
+            "minIzq": 28.61,
+            "deltaT": 0.02
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 32.39,
+            "avgIzq": 32.35,
+            "maxDer": 33.62,
+            "maxIzq": 33.35,
+            "minDer": 29.65,
+            "minIzq": 29.56,
+            "deltaT": 0.04
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 32.32,
+            "avgIzq": 32.17,
+            "maxDer": 33.44,
+            "maxIzq": 33.84,
+            "minDer": 28.52,
+            "minIzq": 28.38,
+            "deltaT": 0.15
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 32.33,
+            "avgIzq": 32.46,
+            "maxDer": 33.1,
+            "maxIzq": 33.4,
+            "minDer": 29.31,
+            "minIzq": 30.19,
+            "deltaT": -0.13
+          },
+          {
+            "roi": "talon",
+            "avgDer": 31.02,
+            "avgIzq": 31.34,
+            "maxDer": 32.41,
+            "maxIzq": 32.78,
+            "minDer": 28.42,
+            "minIzq": 28.39,
+            "deltaT": -0.32
+          },
+          {
+            "roi": "general",
+            "avgDer": 31.89,
+            "avgIzq": 31.93,
+            "maxDer": 33.4,
+            "maxIzq": 33.58,
+            "minDer": 28.69,
+            "minIzq": 28.65,
+            "deltaT": -0.04
+          }
+        ]
+      },
+      "toma2": {
+        "file": "par-01-toma2.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 31.16,
+            "avgIzq": 30.94,
+            "maxDer": 32.27,
+            "maxIzq": 32.96,
+            "minDer": 28.34,
+            "minIzq": 27.77,
+            "deltaT": 0.22
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 31.49,
+            "avgIzq": 31.42,
+            "maxDer": 33.8,
+            "maxIzq": 33.39,
+            "minDer": 27.84,
+            "minIzq": 28.53,
+            "deltaT": 0.07
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 31.38,
+            "avgIzq": 31.07,
+            "maxDer": 33.56,
+            "maxIzq": 33.46,
+            "minDer": 29.83,
+            "minIzq": 30.03,
+            "deltaT": 0.31
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 31.47,
+            "avgIzq": 31.2,
+            "maxDer": 32.36,
+            "maxIzq": 32.31,
+            "minDer": 28.9,
+            "minIzq": 27.55,
+            "deltaT": 0.27
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 31.08,
+            "avgIzq": 30.52,
+            "maxDer": 31.66,
+            "maxIzq": 31.06,
+            "minDer": 30.03,
+            "minIzq": 29.7,
+            "deltaT": 0.56
+          },
+          {
+            "roi": "talon",
+            "avgDer": 30.46,
+            "avgIzq": 30.44,
+            "maxDer": 31.49,
+            "maxIzq": 31.45,
+            "minDer": 28.18,
+            "minIzq": 27.77,
+            "deltaT": 0.02
+          },
+          {
+            "roi": "general",
+            "avgDer": 31.09,
+            "avgIzq": 30.84,
+            "maxDer": 32.75,
+            "maxIzq": 32.71,
+            "minDer": 28.73,
+            "minIzq": 28.18,
+            "deltaT": 0.25
+          }
+        ]
+      }
+    },
+    {
+      "par": 2,
+      "toma1": {
+        "file": "par-02-toma1.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 27.86,
+            "avgIzq": 27.78,
+            "maxDer": 28.94,
+            "maxIzq": 29.19,
+            "minDer": 26.82,
+            "minIzq": 26.7,
+            "deltaT": 0.08
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 27.86,
+            "avgIzq": 28.44,
+            "maxDer": 28.79,
+            "maxIzq": 29.44,
+            "minDer": 26.78,
+            "minIzq": 26.86,
+            "deltaT": -0.58
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 28.7,
+            "avgIzq": 29.05,
+            "maxDer": 29.69,
+            "maxIzq": 30.15,
+            "minDer": 27.22,
+            "minIzq": 26.91,
+            "deltaT": -0.35
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 29.4,
+            "avgIzq": 29.54,
+            "maxDer": 30.25,
+            "maxIzq": 30.52,
+            "minDer": 26.91,
+            "minIzq": 26.77,
+            "deltaT": -0.14
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 28.85,
+            "avgIzq": 29.41,
+            "maxDer": 29.87,
+            "maxIzq": 30.43,
+            "minDer": 27.27,
+            "minIzq": 27.62,
+            "deltaT": -0.56
+          },
+          {
+            "roi": "talon",
+            "avgDer": 29.13,
+            "avgIzq": 28.89,
+            "maxDer": 30.28,
+            "maxIzq": 30.21,
+            "minDer": 26.77,
+            "minIzq": 26.81,
+            "deltaT": 0.24
+          },
+          {
+            "roi": "general",
+            "avgDer": 28.84,
+            "avgIzq": 29.01,
+            "maxDer": 30.18,
+            "maxIzq": 30.41,
+            "minDer": 26.86,
+            "minIzq": 26.83,
+            "deltaT": -0.17
+          }
+        ]
+      },
+      "toma2": {
+        "file": "par-02-toma2.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 26.34,
+            "avgIzq": 26.67,
+            "maxDer": 27.29,
+            "maxIzq": 28,
+            "minDer": 25.79,
+            "minIzq": 25.82,
+            "deltaT": -0.33
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 26.37,
+            "avgIzq": 27.19,
+            "maxDer": 27.23,
+            "maxIzq": 28.29,
+            "minDer": 25.77,
+            "minIzq": 25.86,
+            "deltaT": -0.82
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 27.76,
+            "avgIzq": 28.8,
+            "maxDer": 29.27,
+            "maxIzq": 30.47,
+            "minDer": 26,
+            "minIzq": 26.96,
+            "deltaT": -1.04
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 29.32,
+            "avgIzq": 30,
+            "maxDer": 30.22,
+            "maxIzq": 30.78,
+            "minDer": 26.95,
+            "minIzq": 26.31,
+            "deltaT": -0.68
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 28.19,
+            "avgIzq": 29.06,
+            "maxDer": 29.66,
+            "maxIzq": 30.41,
+            "minDer": 26.27,
+            "minIzq": 27.47,
+            "deltaT": -0.87
+          },
+          {
+            "roi": "talon",
+            "avgDer": 28.75,
+            "avgIzq": 29.26,
+            "maxDer": 30.35,
+            "maxIzq": 30.57,
+            "minDer": 26.55,
+            "minIzq": 26.51,
+            "deltaT": -0.51
+          },
+          {
+            "roi": "general",
+            "avgDer": 28.15,
+            "avgIzq": 28.85,
+            "maxDer": 30.22,
+            "maxIzq": 30.65,
+            "minDer": 25.9,
+            "minIzq": 26.09,
+            "deltaT": -0.7
+          }
+        ]
+      }
+    },
+    {
+      "par": 3,
+      "toma1": {
+        "file": "par-03-toma1.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 27.43,
+            "avgIzq": 26.39,
+            "maxDer": 29.05,
+            "maxIzq": 27.35,
+            "minDer": 25.77,
+            "minIzq": 25.18,
+            "deltaT": 1.04
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 27.54,
+            "avgIzq": 26.61,
+            "maxDer": 29.39,
+            "maxIzq": 27.81,
+            "minDer": 25.38,
+            "minIzq": 25.24,
+            "deltaT": 0.93
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 30.02,
+            "avgIzq": 28.37,
+            "maxDer": 32.11,
+            "maxIzq": 30.28,
+            "minDer": 26.6,
+            "minIzq": 26.3,
+            "deltaT": 1.65
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 28.9,
+            "avgIzq": 28.05,
+            "maxDer": 30.36,
+            "maxIzq": 29,
+            "minDer": 26.94,
+            "minIzq": 25.39,
+            "deltaT": 0.85
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 28.7,
+            "avgIzq": 27.55,
+            "maxDer": 31.34,
+            "maxIzq": 28.83,
+            "minDer": 26.25,
+            "minIzq": 26.26,
+            "deltaT": 1.15
+          },
+          {
+            "roi": "talon",
+            "avgDer": 27.25,
+            "avgIzq": 27.06,
+            "maxDer": 28.29,
+            "maxIzq": 28.14,
+            "minDer": 25.53,
+            "minIzq": 25.37,
+            "deltaT": 0.19
+          },
+          {
+            "roi": "general",
+            "avgDer": 28.52,
+            "avgIzq": 27.52,
+            "maxDer": 31.58,
+            "maxIzq": 29.56,
+            "minDer": 25.78,
+            "minIzq": 25.42,
+            "deltaT": 1
+          }
+        ]
+      },
+      "toma2": {
+        "file": "par-03-toma2.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 28.98,
+            "avgIzq": 28.75,
+            "maxDer": 30.61,
+            "maxIzq": 30.25,
+            "minDer": 26.68,
+            "minIzq": 26.73,
+            "deltaT": 0.23
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 29.09,
+            "avgIzq": 29,
+            "maxDer": 30.91,
+            "maxIzq": 30.91,
+            "minDer": 26.47,
+            "minIzq": 26.4,
+            "deltaT": 0.09
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 30.5,
+            "avgIzq": 29.8,
+            "maxDer": 32.37,
+            "maxIzq": 30.79,
+            "minDer": 27.6,
+            "minIzq": 27.84,
+            "deltaT": 0.7
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 30.18,
+            "avgIzq": 30.25,
+            "maxDer": 31,
+            "maxIzq": 31.25,
+            "minDer": 26.82,
+            "minIzq": 26.77,
+            "deltaT": -0.07
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 30.14,
+            "avgIzq": 29.98,
+            "maxDer": 32.96,
+            "maxIzq": 30.88,
+            "minDer": 27.01,
+            "minIzq": 27.6,
+            "deltaT": 0.16
+          },
+          {
+            "roi": "talon",
+            "avgDer": 28.69,
+            "avgIzq": 29.04,
+            "maxDer": 30.09,
+            "maxIzq": 30.23,
+            "minDer": 26.5,
+            "minIzq": 26.53,
+            "deltaT": -0.35
+          },
+          {
+            "roi": "general",
+            "avgDer": 29.68,
+            "avgIzq": 29.57,
+            "maxDer": 32.23,
+            "maxIzq": 31.05,
+            "minDer": 26.7,
+            "minIzq": 26.81,
+            "deltaT": 0.11
+          }
+        ]
+      }
+    },
+    {
+      "par": 4,
+      "toma1": {
+        "file": "par-04-toma1.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 25.71,
+            "avgIzq": 26.89,
+            "maxDer": 26.42,
+            "maxIzq": 27.92,
+            "minDer": 24.9,
+            "minIzq": 25.15,
+            "deltaT": -1.18
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 25.63,
+            "avgIzq": 26.42,
+            "maxDer": 26.86,
+            "maxIzq": 27.92,
+            "minDer": 24.81,
+            "minIzq": 24.94,
+            "deltaT": -0.79
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 26.84,
+            "avgIzq": 27.75,
+            "maxDer": 28.12,
+            "maxIzq": 28.68,
+            "minDer": 25.16,
+            "minIzq": 25.72,
+            "deltaT": -0.91
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 27.9,
+            "avgIzq": 27.84,
+            "maxDer": 28.99,
+            "maxIzq": 28.77,
+            "minDer": 24.95,
+            "minIzq": 25.35,
+            "deltaT": 0.06
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 26.98,
+            "avgIzq": 27.26,
+            "maxDer": 28.38,
+            "maxIzq": 28.61,
+            "minDer": 25.59,
+            "minIzq": 25.74,
+            "deltaT": -0.28
+          },
+          {
+            "roi": "talon",
+            "avgDer": 27.23,
+            "avgIzq": 26.75,
+            "maxDer": 28.58,
+            "maxIzq": 28.18,
+            "minDer": 25.42,
+            "minIzq": 25.17,
+            "deltaT": 0.48
+          },
+          {
+            "roi": "general",
+            "avgDer": 26.98,
+            "avgIzq": 27.25,
+            "maxDer": 28.78,
+            "maxIzq": 28.62,
+            "minDer": 24.96,
+            "minIzq": 25.21,
+            "deltaT": -0.27
+          }
+        ]
+      },
+      "toma2": {
+        "file": "par-04-toma2.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 28.18,
+            "avgIzq": 27.76,
+            "maxDer": 29.23,
+            "maxIzq": 28.7,
+            "minDer": 26.35,
+            "minIzq": 25.59,
+            "deltaT": 0.42
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 28.25,
+            "avgIzq": 28.96,
+            "maxDer": 30.3,
+            "maxIzq": 30.44,
+            "minDer": 26.4,
+            "minIzq": 26.57,
+            "deltaT": -0.71
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 28.24,
+            "avgIzq": 28.82,
+            "maxDer": 29.52,
+            "maxIzq": 29.66,
+            "minDer": 27.31,
+            "minIzq": 26.85,
+            "deltaT": -0.58
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 29.74,
+            "avgIzq": 28.94,
+            "maxDer": 30.71,
+            "maxIzq": 30.05,
+            "minDer": 27.52,
+            "minIzq": 25.98,
+            "deltaT": 0.8
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 27.99,
+            "avgIzq": 28.23,
+            "maxDer": 30.26,
+            "maxIzq": 29.84,
+            "minDer": 26.59,
+            "minIzq": 26.4,
+            "deltaT": -0.24
+          },
+          {
+            "roi": "talon",
+            "avgDer": 28.13,
+            "avgIzq": 27.65,
+            "maxDer": 30.05,
+            "maxIzq": 30.13,
+            "minDer": 26.04,
+            "minIzq": 25.95,
+            "deltaT": 0.48
+          },
+          {
+            "roi": "general",
+            "avgDer": 28.4,
+            "avgIzq": 28.4,
+            "maxDer": 30.47,
+            "maxIzq": 29.96,
+            "minDer": 26.57,
+            "minIzq": 26.12,
+            "deltaT": 0
+          }
+        ]
+      }
+    },
+    {
+      "par": 5,
+      "toma1": {
+        "file": "par-05-toma1.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 26.9,
+            "avgIzq": 26.72,
+            "maxDer": 28.48,
+            "maxIzq": 27.97,
+            "minDer": 25.51,
+            "minIzq": 25.57,
+            "deltaT": 0.18
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 26.83,
+            "avgIzq": 26.83,
+            "maxDer": 28.55,
+            "maxIzq": 28.13,
+            "minDer": 25.53,
+            "minIzq": 25.51,
+            "deltaT": 0
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 28.41,
+            "avgIzq": 28.34,
+            "maxDer": 30.23,
+            "maxIzq": 29.38,
+            "minDer": 25.94,
+            "minIzq": 26.69,
+            "deltaT": 0.07
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 29.48,
+            "avgIzq": 29.09,
+            "maxDer": 30.15,
+            "maxIzq": 29.99,
+            "minDer": 26.99,
+            "minIzq": 26.35,
+            "deltaT": 0.39
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 29.63,
+            "avgIzq": 28.79,
+            "maxDer": 31.17,
+            "maxIzq": 29.78,
+            "minDer": 26.98,
+            "minIzq": 27.27,
+            "deltaT": 0.84
+          },
+          {
+            "roi": "talon",
+            "avgDer": 28.61,
+            "avgIzq": 27.99,
+            "maxDer": 29.75,
+            "maxIzq": 29.49,
+            "minDer": 26.37,
+            "minIzq": 26.51,
+            "deltaT": 0.62
+          },
+          {
+            "roi": "general",
+            "avgDer": 28.62,
+            "avgIzq": 28.24,
+            "maxDer": 30.65,
+            "maxIzq": 29.74,
+            "minDer": 25.85,
+            "minIzq": 25.91,
+            "deltaT": 0.38
+          }
+        ]
+      },
+      "toma2": {
+        "file": "par-05-toma2.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 31.49,
+            "avgIzq": 31.01,
+            "maxDer": 32.21,
+            "maxIzq": 32.01,
+            "minDer": 29.69,
+            "minIzq": 28.31,
+            "deltaT": 0.48
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 31.44,
+            "avgIzq": 31.38,
+            "maxDer": 32.67,
+            "maxIzq": 32.78,
+            "minDer": 28.88,
+            "minIzq": 28.94,
+            "deltaT": 0.06
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 31.32,
+            "avgIzq": 31.42,
+            "maxDer": 32.17,
+            "maxIzq": 32.11,
+            "minDer": 30.06,
+            "minIzq": 30.3,
+            "deltaT": -0.1
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 31.86,
+            "avgIzq": 31.44,
+            "maxDer": 32.56,
+            "maxIzq": 32.39,
+            "minDer": 30.13,
+            "minIzq": 28.73,
+            "deltaT": 0.42
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 30.98,
+            "avgIzq": 30.76,
+            "maxDer": 31.82,
+            "maxIzq": 31.61,
+            "minDer": 29.71,
+            "minIzq": 29.7,
+            "deltaT": 0.22
+          },
+          {
+            "roi": "talon",
+            "avgDer": 30,
+            "avgIzq": 29.65,
+            "maxDer": 31.52,
+            "maxIzq": 30.86,
+            "minDer": 28.29,
+            "minIzq": 28.14,
+            "deltaT": 0.35
+          },
+          {
+            "roi": "general",
+            "avgDer": 31,
+            "avgIzq": 30.8,
+            "maxDer": 32.39,
+            "maxIzq": 32.26,
+            "minDer": 28.74,
+            "minIzq": 28.48,
+            "deltaT": 0.2
+          }
+        ]
+      }
+    },
+    {
+      "par": 6,
+      "toma1": {
+        "file": "par-06-toma1.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 25.94,
+            "avgIzq": 25.91,
+            "maxDer": 27.11,
+            "maxIzq": 26.52,
+            "minDer": 24.72,
+            "minIzq": 24.85,
+            "deltaT": 0.03
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 25.72,
+            "avgIzq": 25.72,
+            "maxDer": 26.88,
+            "maxIzq": 26.57,
+            "minDer": 24.7,
+            "minIzq": 24.69,
+            "deltaT": 0
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 27.26,
+            "avgIzq": 27.11,
+            "maxDer": 28.95,
+            "maxIzq": 28.71,
+            "minDer": 25.17,
+            "minIzq": 25.42,
+            "deltaT": 0.15
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 28.39,
+            "avgIzq": 28.06,
+            "maxDer": 29.42,
+            "maxIzq": 29.05,
+            "minDer": 25.25,
+            "minIzq": 25.17,
+            "deltaT": 0.33
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 27.27,
+            "avgIzq": 27.48,
+            "maxDer": 28.6,
+            "maxIzq": 28.55,
+            "minDer": 25.92,
+            "minIzq": 26.33,
+            "deltaT": -0.21
+          },
+          {
+            "roi": "talon",
+            "avgDer": 26.53,
+            "avgIzq": 26.59,
+            "maxDer": 28.42,
+            "maxIzq": 28.47,
+            "minDer": 24.89,
+            "minIzq": 24.89,
+            "deltaT": -0.06
+          },
+          {
+            "roi": "general",
+            "avgDer": 27.07,
+            "avgIzq": 27.02,
+            "maxDer": 29.17,
+            "maxIzq": 28.84,
+            "minDer": 24.92,
+            "minIzq": 25.02,
+            "deltaT": 0.05
+          }
+        ]
+      },
+      "toma2": {
+        "file": "par-06-toma2.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 32.13,
+            "avgIzq": 31.56,
+            "maxDer": 34.1,
+            "maxIzq": 32.88,
+            "minDer": 29.32,
+            "minIzq": 28.34,
+            "deltaT": 0.57
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 32.32,
+            "avgIzq": 32.44,
+            "maxDer": 34.59,
+            "maxIzq": 34.13,
+            "minDer": 29.13,
+            "minIzq": 30.27,
+            "deltaT": -0.12
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 32.31,
+            "avgIzq": 32.15,
+            "maxDer": 33.92,
+            "maxIzq": 33.18,
+            "minDer": 30.82,
+            "minIzq": 30.41,
+            "deltaT": 0.16
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 32.47,
+            "avgIzq": 32.66,
+            "maxDer": 32.98,
+            "maxIzq": 33.48,
+            "minDer": 30.74,
+            "minIzq": 29.44,
+            "deltaT": -0.19
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 31.43,
+            "avgIzq": 31.99,
+            "maxDer": 32.67,
+            "maxIzq": 33.26,
+            "minDer": 30.03,
+            "minIzq": 30.66,
+            "deltaT": -0.56
+          },
+          {
+            "roi": "talon",
+            "avgDer": 31.08,
+            "avgIzq": 31.44,
+            "maxDer": 32.43,
+            "maxIzq": 32.53,
+            "minDer": 29.18,
+            "minIzq": 28.81,
+            "deltaT": -0.36
+          },
+          {
+            "roi": "general",
+            "avgDer": 31.89,
+            "avgIzq": 32.05,
+            "maxDer": 33.79,
+            "maxIzq": 33.46,
+            "minDer": 29.71,
+            "minIzq": 29.42,
+            "deltaT": -0.16
+          }
+        ]
+      }
+    },
+    {
+      "par": 7,
+      "toma1": {
+        "file": "par-07-toma1.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 29.75,
+            "avgIzq": 30.07,
+            "maxDer": 31.25,
+            "maxIzq": 31.08,
+            "minDer": 27.46,
+            "minIzq": 26.92,
+            "deltaT": -0.32
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 29.81,
+            "avgIzq": 29.91,
+            "maxDer": 31.37,
+            "maxIzq": 31.66,
+            "minDer": 26.88,
+            "minIzq": 27.18,
+            "deltaT": -0.1
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 29.07,
+            "avgIzq": 30.07,
+            "maxDer": 30.19,
+            "maxIzq": 31.12,
+            "minDer": 27.12,
+            "minIzq": 28.18,
+            "deltaT": -1
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 29.72,
+            "avgIzq": 29.86,
+            "maxDer": 30.57,
+            "maxIzq": 30.62,
+            "minDer": 27.47,
+            "minIzq": 27.13,
+            "deltaT": -0.14
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 28.45,
+            "avgIzq": 29.39,
+            "maxDer": 29.9,
+            "maxIzq": 30.52,
+            "minDer": 27,
+            "minIzq": 27.47,
+            "deltaT": -0.94
+          },
+          {
+            "roi": "talon",
+            "avgDer": 29.23,
+            "avgIzq": 29.01,
+            "maxDer": 30.47,
+            "maxIzq": 29.88,
+            "minDer": 26.55,
+            "minIzq": 26.69,
+            "deltaT": 0.22
+          },
+          {
+            "roi": "general",
+            "avgDer": 29.19,
+            "avgIzq": 29.65,
+            "maxDer": 30.64,
+            "maxIzq": 30.89,
+            "minDer": 26.88,
+            "minIzq": 27.11,
+            "deltaT": -0.46
+          }
+        ]
+      },
+      "toma2": {
+        "file": "par-07-toma2.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 27.44,
+            "avgIzq": 28.65,
+            "maxDer": 28.29,
+            "maxIzq": 29.74,
+            "minDer": 26.74,
+            "minIzq": 27.04,
+            "deltaT": -1.21
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 27.82,
+            "avgIzq": 28.33,
+            "maxDer": 28.48,
+            "maxIzq": 29.53,
+            "minDer": 26.73,
+            "minIzq": 27,
+            "deltaT": -0.51
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 28.5,
+            "avgIzq": 28.88,
+            "maxDer": 29.61,
+            "maxIzq": 29.74,
+            "minDer": 26.98,
+            "minIzq": 27.44,
+            "deltaT": -0.38
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 30.07,
+            "avgIzq": 30.36,
+            "maxDer": 30.99,
+            "maxIzq": 31.56,
+            "minDer": 27.3,
+            "minIzq": 27.22,
+            "deltaT": -0.29
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 29.13,
+            "avgIzq": 29.33,
+            "maxDer": 30.75,
+            "maxIzq": 30.93,
+            "minDer": 27.01,
+            "minIzq": 27.33,
+            "deltaT": -0.2
+          },
+          {
+            "roi": "talon",
+            "avgDer": 29.29,
+            "avgIzq": 29.45,
+            "maxDer": 31.09,
+            "maxIzq": 30.57,
+            "minDer": 27,
+            "minIzq": 26.92,
+            "deltaT": -0.16
+          },
+          {
+            "roi": "general",
+            "avgDer": 28.99,
+            "avgIzq": 29.28,
+            "maxDer": 30.88,
+            "maxIzq": 31.27,
+            "minDer": 26.91,
+            "minIzq": 27.13,
+            "deltaT": -0.29
+          }
+        ]
+      }
+    },
+    {
+      "par": 8,
+      "toma1": {
+        "file": "par-08-toma1.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 29.54,
+            "avgIzq": 30.89,
+            "maxDer": 30.35,
+            "maxIzq": 31.98,
+            "minDer": 27.03,
+            "minIzq": 27.33,
+            "deltaT": -1.35
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 30.08,
+            "avgIzq": 30.62,
+            "maxDer": 31.01,
+            "maxIzq": 32.06,
+            "minDer": 27.57,
+            "minIzq": 27.65,
+            "deltaT": -0.54
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 30.21,
+            "avgIzq": 30.52,
+            "maxDer": 31.19,
+            "maxIzq": 31.53,
+            "minDer": 29.05,
+            "minIzq": 28.81,
+            "deltaT": -0.31
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 29.68,
+            "avgIzq": 29.99,
+            "maxDer": 30.76,
+            "maxIzq": 30.76,
+            "minDer": 27.59,
+            "minIzq": 27.99,
+            "deltaT": -0.31
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 29.73,
+            "avgIzq": 29.49,
+            "maxDer": 30.49,
+            "maxIzq": 31.28,
+            "minDer": 28.4,
+            "minIzq": 27.62,
+            "deltaT": 0.24
+          },
+          {
+            "roi": "talon",
+            "avgDer": 30.45,
+            "avgIzq": 30.52,
+            "maxDer": 31.49,
+            "maxIzq": 31.91,
+            "minDer": 27.75,
+            "minIzq": 26.91,
+            "deltaT": -0.07
+          },
+          {
+            "roi": "general",
+            "avgDer": 30.06,
+            "avgIzq": 30.32,
+            "maxDer": 31.34,
+            "maxIzq": 31.83,
+            "minDer": 28.07,
+            "minIzq": 27.44,
+            "deltaT": -0.26
+          }
+        ]
+      },
+      "toma2": {
+        "file": "par-08-toma2.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 30.6,
+            "avgIzq": 31.71,
+            "maxDer": 31.13,
+            "maxIzq": 32.75,
+            "minDer": 29.04,
+            "minIzq": 29.04,
+            "deltaT": -1.11
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 30.92,
+            "avgIzq": 31.51,
+            "maxDer": 32.11,
+            "maxIzq": 32.52,
+            "minDer": 29.01,
+            "minIzq": 29.7,
+            "deltaT": -0.59
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 30.81,
+            "avgIzq": 30.72,
+            "maxDer": 31.58,
+            "maxIzq": 31.53,
+            "minDer": 29.83,
+            "minIzq": 30.03,
+            "deltaT": 0.09
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 31.25,
+            "avgIzq": 31.68,
+            "maxDer": 31.86,
+            "maxIzq": 32.56,
+            "minDer": 29.13,
+            "minIzq": 28.65,
+            "deltaT": -0.43
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 30.46,
+            "avgIzq": 30.37,
+            "maxDer": 31.63,
+            "maxIzq": 31.66,
+            "minDer": 29.39,
+            "minIzq": 29.51,
+            "deltaT": 0.09
+          },
+          {
+            "roi": "talon",
+            "avgDer": 30.81,
+            "avgIzq": 30.94,
+            "maxDer": 31.82,
+            "maxIzq": 31.96,
+            "minDer": 28.79,
+            "minIzq": 28.74,
+            "deltaT": -0.13
+          },
+          {
+            "roi": "general",
+            "avgDer": 30.84,
+            "avgIzq": 31.02,
+            "maxDer": 31.82,
+            "maxIzq": 32.45,
+            "minDer": 29.19,
+            "minIzq": 29.06,
+            "deltaT": -0.18
+          }
+        ]
+      }
+    },
+    {
+      "par": 9,
+      "toma1": {
+        "file": "par-09-toma1.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 28.31,
+            "avgIzq": 29.05,
+            "maxDer": 29.38,
+            "maxIzq": 30.66,
+            "minDer": 26.47,
+            "minIzq": 26.16,
+            "deltaT": -0.74
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 27.08,
+            "avgIzq": 27.74,
+            "maxDer": 28.58,
+            "maxIzq": 29.8,
+            "minDer": 25.42,
+            "minIzq": 25.65,
+            "deltaT": -0.66
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 28.83,
+            "avgIzq": 28.69,
+            "maxDer": 30.06,
+            "maxIzq": 30.03,
+            "minDer": 26.72,
+            "minIzq": 26.7,
+            "deltaT": 0.14
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 29.45,
+            "avgIzq": 29.44,
+            "maxDer": 30.43,
+            "maxIzq": 30.44,
+            "minDer": 25.81,
+            "minIzq": 25.86,
+            "deltaT": 0.01
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 28.67,
+            "avgIzq": 28.48,
+            "maxDer": 30.04,
+            "maxIzq": 29.86,
+            "minDer": 27.18,
+            "minIzq": 27.08,
+            "deltaT": 0.19
+          },
+          {
+            "roi": "talon",
+            "avgDer": 27.69,
+            "avgIzq": 27.86,
+            "maxDer": 29.79,
+            "maxIzq": 29.42,
+            "minDer": 25.56,
+            "minIzq": 25.53,
+            "deltaT": -0.17
+          },
+          {
+            "roi": "general",
+            "avgDer": 28.44,
+            "avgIzq": 28.52,
+            "maxDer": 30.22,
+            "maxIzq": 30.26,
+            "minDer": 25.79,
+            "minIzq": 25.86,
+            "deltaT": -0.08
+          }
+        ]
+      },
+      "toma2": {
+        "file": "par-09-toma2.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 30.5,
+            "avgIzq": 30.59,
+            "maxDer": 31.87,
+            "maxIzq": 32.47,
+            "minDer": 27.84,
+            "minIzq": 27.64,
+            "deltaT": -0.09
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 30.57,
+            "avgIzq": 30.15,
+            "maxDer": 32.44,
+            "maxIzq": 32.3,
+            "minDer": 27.26,
+            "minIzq": 27.87,
+            "deltaT": 0.42
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 30.44,
+            "avgIzq": 30.6,
+            "maxDer": 31.45,
+            "maxIzq": 31.61,
+            "minDer": 28.35,
+            "minIzq": 28.81,
+            "deltaT": -0.16
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 30.98,
+            "avgIzq": 31.4,
+            "maxDer": 31.78,
+            "maxIzq": 32.28,
+            "minDer": 27.74,
+            "minIzq": 27.84,
+            "deltaT": -0.42
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 29.96,
+            "avgIzq": 30.26,
+            "maxDer": 31.25,
+            "maxIzq": 31.35,
+            "minDer": 28.64,
+            "minIzq": 28.88,
+            "deltaT": -0.3
+          },
+          {
+            "roi": "talon",
+            "avgDer": 28.77,
+            "avgIzq": 29.4,
+            "maxDer": 30.4,
+            "maxIzq": 30.56,
+            "minDer": 26.78,
+            "minIzq": 26.91,
+            "deltaT": -0.63
+          },
+          {
+            "roi": "general",
+            "avgDer": 29.96,
+            "avgIzq": 30.3,
+            "maxDer": 31.71,
+            "maxIzq": 32.01,
+            "minDer": 27.2,
+            "minIzq": 27.53,
+            "deltaT": -0.34
+          }
+        ]
+      }
+    },
+    {
+      "par": 10,
+      "toma1": {
+        "file": "par-10-toma1.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 26.66,
+            "avgIzq": 27.16,
+            "maxDer": 27.43,
+            "maxIzq": 28.29,
+            "minDer": 25.73,
+            "minIzq": 25.69,
+            "deltaT": -0.5
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 26.53,
+            "avgIzq": 27.19,
+            "maxDer": 27.38,
+            "maxIzq": 28.43,
+            "minDer": 25.65,
+            "minIzq": 25.63,
+            "deltaT": -0.66
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 26.94,
+            "avgIzq": 27.9,
+            "maxDer": 27.66,
+            "maxIzq": 28.74,
+            "minDer": 25.85,
+            "minIzq": 26.12,
+            "deltaT": -0.96
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 27.7,
+            "avgIzq": 28.38,
+            "maxDer": 28.03,
+            "maxIzq": 28.94,
+            "minDer": 26.86,
+            "minIzq": 26.34,
+            "deltaT": -0.68
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 27.05,
+            "avgIzq": 27.45,
+            "maxDer": 27.92,
+            "maxIzq": 28.47,
+            "minDer": 25.81,
+            "minIzq": 26.46,
+            "deltaT": -0.4
+          },
+          {
+            "roi": "talon",
+            "avgDer": 27.56,
+            "avgIzq": 27.99,
+            "maxDer": 28.36,
+            "maxIzq": 28.75,
+            "minDer": 25.87,
+            "minIzq": 26.09,
+            "deltaT": -0.43
+          },
+          {
+            "roi": "general",
+            "avgDer": 27.18,
+            "avgIzq": 27.81,
+            "maxDer": 28.22,
+            "maxIzq": 28.77,
+            "minDer": 25.79,
+            "minIzq": 25.89,
+            "deltaT": -0.63
+          }
+        ]
+      },
+      "toma2": {
+        "file": "par-10-toma2.png",
+        "rois": [
+          {
+            "roi": "dedo_mayor",
+            "avgDer": 28.07,
+            "avgIzq": 28.54,
+            "maxDer": 28.86,
+            "maxIzq": 29.84,
+            "minDer": 27.08,
+            "minIzq": 27.18,
+            "deltaT": -0.47
+          },
+          {
+            "roi": "dedos_menores",
+            "avgDer": 27.84,
+            "avgIzq": 28.26,
+            "maxDer": 29.04,
+            "maxIzq": 29.93,
+            "minDer": 26.78,
+            "minIzq": 26.79,
+            "deltaT": -0.42
+          },
+          {
+            "roi": "metatarso",
+            "avgDer": 28.73,
+            "avgIzq": 29.81,
+            "maxDer": 29.48,
+            "maxIzq": 30.67,
+            "minDer": 27.53,
+            "minIzq": 27.64,
+            "deltaT": -1.08
+          },
+          {
+            "roi": "arco_interno",
+            "avgDer": 29.42,
+            "avgIzq": 30.28,
+            "maxDer": 29.97,
+            "maxIzq": 31.02,
+            "minDer": 27.74,
+            "minIzq": 27.56,
+            "deltaT": -0.86
+          },
+          {
+            "roi": "arco_externo",
+            "avgDer": 29.07,
+            "avgIzq": 29.47,
+            "maxDer": 29.96,
+            "maxIzq": 30.41,
+            "minDer": 27.9,
+            "minIzq": 27.88,
+            "deltaT": -0.4
+          },
+          {
+            "roi": "talon",
+            "avgDer": 29.34,
+            "avgIzq": 30.06,
+            "maxDer": 30.47,
+            "maxIzq": 31,
+            "minDer": 27.01,
+            "minIzq": 27.16,
+            "deltaT": -0.72
+          },
+          {
+            "roi": "general",
+            "avgDer": 28.98,
+            "avgIzq": 29.72,
+            "maxDer": 30.05,
+            "maxIzq": 30.91,
+            "minDer": 27.12,
+            "minIzq": 27.25,
+            "deltaT": -0.74
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -31,7 +31,7 @@
       </div>
       <% if (serie.length) { %>
       <div class="chart-box skeleton" data-chart-box>
-        <canvas id="evolucion" height="220" data-chart="evolucion" data-series="<%= JSON.stringify(serie.map((s) => ({ label: `${fmt.date(s.fecha)} (toma ${s.toma})`, p: s.probabilidad, dt: s.deltaTMax }))) %>" data-umbral="<%= domain.DELTA_T_UMBRAL %>" aria-label="Gráfico de evolución de la probabilidad y del ΔT máximo"></canvas>
+        <canvas id="evolucion" height="220" data-chart="evolucion" data-series="<%= JSON.stringify(serie.map((s) => ({ label: `${fmt.date(s.fecha)} · toma ${s.toma}`, p: s.probabilidad, dt: s.deltaTMax }))) %>" data-umbral="<%= domain.DELTA_T_UMBRAL %>" aria-label="Gráfico de evolución de la probabilidad y del ΔT máximo"></canvas>
       </div>
       <table class="sr-only"><caption>Evolución</caption><tr><th>Fecha</th><th>Probabilidad</th><th>ΔT máx.</th></tr><% serie.forEach((s) => { %><tr><td><%= fmt.date(s.fecha) %></td><td><%= s.probabilidad %> %</td><td><%= s.deltaTMax %> °C</td></tr><% }) %></table>
       <% } else { %>
@@ -55,7 +55,7 @@
         <% items.forEach(({ study, analysis }) => { %>
         <li class="timeline__item">
           <a href="/medico/estudios/<%= study.id %>" class="timeline__link">
-            <span class="timeline__date"><strong><%= fmt.date(study.fechaHora) %></strong><small>Toma <%= study.toma %></small></span>
+            <span class="timeline__date"><strong><%= fmt.date(study.fechaHora) %></strong><small>Toma 1: <%= fmt.date(study.fechaToma1) %></small></span>
             <span class="timeline__body">
               <% if (analysis) { %>
               <span>ΔT máx. <strong class="num"><%= fmt.signed(analysis.deltaTMax) %> °C</strong> en <%= domain.ROI_NAMES[analysis.deltaTMaxRoi].toLowerCase() %></span>

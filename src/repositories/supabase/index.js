@@ -219,10 +219,10 @@ class SupabaseAnalysisRepository extends contracts.AnalysisRepository {
   }
   entity(row) {
     if (!row) return null;
-    const rois = (row.roi_mediciones || []).map((r) => fromRow('roi_mediciones', r));
-    const order = ['dedo_mayor', 'dedos_menores', 'metatarso', 'arco_interno', 'arco_externo', 'talon', 'general'];
-    rois.sort((a, b) => order.indexOf(a.roi) - order.indexOf(b.roi));
-    return new AnalysisResult({ ...fromRow('analysis_results', row), rois });
+    const all = (row.roi_mediciones || []).map((r) => fromRow('roi_mediciones', r));
+    const rois = all.filter((r) => Number(r.toma ?? 2) === 2);
+    const roisToma1 = all.filter((r) => Number(r.toma) === 1);
+    return new AnalysisResult({ ...fromRow('analysis_results', row), rois, roisToma1 });
   }
   async findByStudyId(studyId) {
     const data = check(
@@ -259,7 +259,10 @@ class SupabaseAnalysisRepository extends contracts.AnalysisRepository {
       await this.db.from('analysis_results').insert(toRow('analysis_results', result)).select().single(),
       'analysis_results.insert',
     );
-    const rois = (result.rois || []).map((r) => toRow('roi_mediciones', { ...r, analysisId: row.id }));
+    const rois = [
+      ...(result.roisToma1 || []).map((r) => toRow('roi_mediciones', { ...r, toma: 1, analysisId: row.id })),
+      ...(result.rois || []).map((r) => toRow('roi_mediciones', { ...r, toma: 2, analysisId: row.id })),
+    ];
     if (rois.length) check(await this.db.from('roi_mediciones').insert(rois), 'roi_mediciones.insert');
     return this.findByStudyId(row.study_id);
   }
@@ -362,6 +365,11 @@ class SupabaseFileStorage extends contracts.FileStorage {
     });
     if (error) throw new Error(`[supabase] storage.upload: ${error.message}`);
     return { storagePath: data.path };
+  }
+  async read(storagePath) {
+    const { data, error } = await this.db.storage.from(this.bucket).download(storagePath);
+    if (error) return null;
+    return Buffer.from(await data.arrayBuffer());
   }
   async getAccess(storagePath, { download } = {}) {
     const { data, error } = await this.db.storage

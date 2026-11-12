@@ -81,7 +81,7 @@ run('Driver supabase (nube)', () => {
       .post('/medico/estudios')
       .field('_csrf', csrf)
       .field('patientId', patient.id)
-      .field('toma', '1')
+      .field('fechaToma1', '2026-10-10')
       .field('fechaHora', '2026-11-10T09:30')
       .field('centro', 'Hospital Ferreyra')
       .field('tempAmbiente', '22,5')
@@ -95,8 +95,8 @@ run('Driver supabase (nube)', () => {
       .field('fondo', 'Cartulina')
       .field('valida', 'si')
       .field('consentimientoVerificado', 'on')
-      .attach('termografia', fs.readFileSync(path.join(DEMO, 'termografia-03.png')), 'IR_9.png')
-      .attach('visible', fs.readFileSync(path.join(DEMO, 'visible-03.png')), 'VIS_9.png');
+      .attach('toma1', fs.readFileSync(path.join(DEMO, 'par-03-toma1.png')), 'IR_9.png')
+      .attach('toma2', fs.readFileSync(path.join(DEMO, 'par-03-toma2.png')), 'VIS_9.png');
     expect(res.status).toBe(303);
     const studyId = res.headers.location.split('/').pop();
 
@@ -106,7 +106,7 @@ run('Driver supabase (nube)', () => {
     const analysis = await container.repos.analyses.findByStudyId(studyId);
     expect(analysis.rois).toHaveLength(7);
 
-    const img = await medico.get(`/media/estudios/${studyId}/termografia`);
+    const img = await medico.get(`/media/estudios/${studyId}/toma1`);
     expect(img.status).toBe(302);
     expect(img.headers.location).toMatch(/supabase\.co\/storage\/v1\/object\/sign\/estudios\//);
 

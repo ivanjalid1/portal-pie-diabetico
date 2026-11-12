@@ -12,7 +12,7 @@
   <% items.forEach(({ study, analysis }) => { %>
   <li class="timeline__item">
     <a class="timeline__link card" href="/paciente/estudios/<%= study.id %>">
-      <span class="timeline__date"><strong><%= fmt.dateLong(study.fechaHora) %></strong><small><%= study.toma === 1 ? 'Primer estudio' : 'Estudio de seguimiento' %></small></span>
+      <span class="timeline__date"><strong><%= fmt.dateLong(study.fechaHora) %></strong><small>Compara con tu primer estudio del <%= fmt.date(study.fechaToma1) %></small></span>
       <span class="timeline__body"><%= study.centro %></span>
       <span class="timeline__result">
         <% if (analysis) { %><%- include('../partials/risk-badge', { analysis, patientView: true }) %><% } else { %><span class="badge badge--outline">En revisión</span><% } %>

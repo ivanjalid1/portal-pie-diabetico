@@ -3,11 +3,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { DEMO_PASSWORD, STAFF, PATIENTS, NOTAS } = require('./demoData');
+const { pares: DEMO_PAIRS } = require('./demoImages.json');
 const { ACQUISITION, CAPTURE_CHECKLIST, CONSENT_VERSION } = require('../config/domain');
 const { seededRandom, round, uuid } = require('../utils/random');
 
 const DEMO_DIR = path.join(__dirname, '..', '..', 'public', 'demo');
-const DEMO_VARIANTS = 6;
 const DAY = 86400000;
 
 function daysAgo(now, days, hour = 9, minute = 30) {
@@ -69,13 +69,13 @@ async function seedDemoData({ repos, authProvider, predictor }, options = {}) {
     daysAgo(now, 200, 8, 0),
   );
 
-  let imageIndex = 0;
   let nota = 0;
   for (const p of PATIENTS) {
     if (await repos.patients.findByCodigo(p.codigo)) continue;
     const medico = staff[p.medico];
-    const { tomas, medico: _m, personal, hba1cDias, lesion, ...clinical } = p;
-    const alta = daysAgo(now, (tomas[0]?.dias || 20) + 5, 8, 45);
+    const { estudio, medico: _m, personal, hba1cDias, lesion, ...clinical } = p;
+    const diasToma1 = estudio ? estudio.dias + estudio.intervalo : 33;
+    const alta = daysAgo(now, diasToma1 + 1, 8, 45);
 
     const userId = await identity(personal.email);
     const user = await repos.users.create({
@@ -123,72 +123,95 @@ async function seedDemoData({ repos, authProvider, predictor }, options = {}) {
     );
     log(`paciente ${patient.codigo}`);
 
-    for (let i = 0; i < tomas.length; i += 1) {
-      const t = tomas[i];
-      const isLast = i === tomas.length - 1;
-      const fecha = daysAgo(now, t.dias, 9 + Math.floor(rnd() * 3), Math.floor(rnd() * 4) * 15);
-      const variant = (imageIndex % DEMO_VARIANTS) + 1;
-      imageIndex += 1;
-      const studyId = uuid();
-      const images = await demoImages({ repos, patient, studyId, variant, upload: options.uploadImages });
-      const publicado = t.publicado ?? true;
-
-      const study = await repos.studies.create({
-        id: studyId,
-        patientId: patient.id,
-        medicoId: medico.id,
-        toma: i + 1,
-        fechaHora: fecha.toISOString(),
-        centro: p.centro,
-        tempAmbiente: t.temp ?? round(21.6 + rnd() * 2, 1),
-        humedadRelativa: t.humedad ?? Math.round(45 + rnd() * 18),
-        distanciaCm: ACQUISITION.distanciaCm,
-        emisividad: ACQUISITION.emisividad,
-        rangoMin: ACQUISITION.rango.min,
-        rangoMax: ACQUISITION.rango.max,
-        paleta: 'Ironbow',
-        tiempoEstabilizacionMin: 15,
-        fondo: rnd() < 0.6 ? 'Cartulina' : 'Tela',
-        valida: t.valida ?? true,
-        motivoInvalidez: t.motivo || null,
-        checklist: CAPTURE_CHECKLIST.map((c) => c.key),
-        images,
-        estado: 'analizado',
-        notasMedico: rnd() < 0.7 ? NOTAS[nota++ % NOTAS.length] : '',
-        publicado,
-        publicadoAt: publicado ? new Date(fecha.getTime() + 3600000).toISOString() : null,
-        createdAt: fecha.toISOString(),
-      });
-      const output = await predictor.predict({ patient, study, images: [] });
-      const analysis = await repos.analyses.create({
-        ...output,
-        studyId: study.id,
-        createdAt: new Date(fecha.getTime() + 60000).toISOString(),
-      });
-      await audit(
-        {
-          actorId: medico.id,
-          actorEmail: medico.email,
-          action: 'analysis.completed',
-          entity: 'estudio',
-          entityId: study.id,
-          detail: `${patient.codigo} toma ${study.toma}: ${analysis.probabilidad} % · grupo ${analysis.grupo} · ${analysis.predictorVersion}`,
-        },
-        new Date(fecha.getTime() + 60000),
-      );
-
-      // Toma 1 → control a ~40 días (toma 2); última toma → control a 6 semanas.
-      const controlFecha = new Date(fecha.getTime() + (isLast ? 42 : 40) * DAY);
+    if (!estudio) {
+      // Paciente con la toma 1 agendada pero todavía sin estudio comparativo.
       await repos.appointments.create({
         patientId: patient.id,
         medicoId: medico.id,
-        studyId: study.id,
-        fecha: isoDate(controlFecha),
-        motivo: isLast ? 'Control clínico y registro de desenlace' : 'Toma 2 · seguimiento termográfico',
-        estado: isLast ? 'pendiente' : 'realizado',
-        createdAt: fecha.toISOString(),
+        fecha: isoDate(new Date(now.getTime() + 5 * DAY)),
+        motivo: 'Toma 2 · control termográfico',
+        estado: 'pendiente',
+        createdAt: alta.toISOString(),
       });
+      continue;
     }
+
+    const pair = DEMO_PAIRS.find((x) => x.par === estudio.par);
+    const fechaToma1 = daysAgo(now, diasToma1, 9, 15);
+    const fecha = daysAgo(now, estudio.dias, 9 + Math.floor(rnd() * 3), Math.floor(rnd() * 4) * 15);
+    const studyId = uuid();
+    const images = await demoImages({ repos, patient, studyId, pair, upload: options.uploadImages });
+    const publicado = estudio.publicado ?? true;
+
+    const study = await repos.studies.create({
+      id: studyId,
+      patientId: patient.id,
+      medicoId: medico.id,
+      fechaHora: fecha.toISOString(),
+      fechaToma1: fechaToma1.toISOString(),
+      centro: p.centro,
+      tempAmbiente: estudio.temp ?? round(21.6 + rnd() * 2, 1),
+      humedadRelativa: estudio.humedad ?? Math.round(45 + rnd() * 18),
+      tempAmbienteToma1: round(21.8 + rnd() * 1.8, 1),
+      humedadRelativaToma1: Math.round(46 + rnd() * 16),
+      distanciaCm: ACQUISITION.distanciaCm,
+      emisividad: ACQUISITION.emisividad,
+      rangoMin: ACQUISITION.rango.min,
+      rangoMax: ACQUISITION.rango.max,
+      paleta: 'Ironbow',
+      tiempoEstabilizacionMin: 15,
+      fondo: rnd() < 0.6 ? 'Cartulina' : 'Tela',
+      valida: estudio.valida ?? true,
+      motivoInvalidez: estudio.motivo || null,
+      checklist: CAPTURE_CHECKLIST.map((c) => c.key),
+      images,
+      estado: 'analizado',
+      notasMedico: rnd() < 0.7 ? NOTAS[nota++ % NOTAS.length] : '',
+      publicado,
+      publicadoAt: publicado ? new Date(fecha.getTime() + 3600000).toISOString() : null,
+      createdAt: fecha.toISOString(),
+    });
+    const output = await predictor.predict({
+      patient,
+      study,
+      images: [],
+      hints: { toma1: pair.toma1.rois, toma2: pair.toma2.rois, fuente: 'imagen' },
+    });
+    const analysis = await repos.analyses.create({
+      ...output,
+      studyId: study.id,
+      createdAt: new Date(fecha.getTime() + 60000).toISOString(),
+    });
+    await audit(
+      {
+        actorId: medico.id,
+        actorEmail: medico.email,
+        action: 'analysis.completed',
+        entity: 'estudio',
+        entityId: study.id,
+        detail: `${patient.codigo}: ${analysis.probabilidad} % · grupo ${analysis.grupoToma1}→${analysis.grupo} · ${analysis.predictorVersion}`,
+      },
+      new Date(fecha.getTime() + 60000),
+    );
+
+    // Toma 2 realizada (agendada en la toma 1) y control clínico a 6 semanas.
+    await repos.appointments.create({
+      patientId: patient.id,
+      medicoId: medico.id,
+      fecha: isoDate(fecha),
+      motivo: 'Toma 2 · control termográfico',
+      estado: 'realizado',
+      createdAt: fechaToma1.toISOString(),
+    });
+    await repos.appointments.create({
+      patientId: patient.id,
+      medicoId: medico.id,
+      studyId: study.id,
+      fecha: isoDate(new Date(fecha.getTime() + 42 * DAY)),
+      motivo: 'Control clínico y registro de desenlace',
+      estado: 'pendiente',
+      createdAt: fecha.toISOString(),
+    });
   }
 
   await audit(
@@ -205,26 +228,23 @@ async function seedDemoData({ repos, authProvider, predictor }, options = {}) {
   return staff;
 }
 
-async function demoImages({ repos, patient, studyId, variant, upload }) {
-  const n = String(variant).padStart(2, '0');
-  const defs = [
-    { slot: 'termografia', file: `termografia-${n}.png`, originalName: `IR_${1200 + variant * 7}.png` },
-    { slot: 'visible', file: `visible-${n}.png`, originalName: `VIS_${1200 + variant * 7}.png` },
-  ];
+async function demoImages({ repos, patient, studyId, pair, upload }) {
   const out = [];
-  for (const d of defs) {
-    const full = path.join(DEMO_DIR, d.file);
+  for (const slot of ['toma1', 'toma2']) {
+    const file = pair[slot].file;
+    const full = path.join(DEMO_DIR, file);
     const size = fs.existsSync(full) ? fs.statSync(full).size : 0;
+    const originalName = `${slot === 'toma1' ? 'TOMA1' : 'TOMA2'}_par${String(pair.par).padStart(2, '0')}.png`;
     if (upload) {
       const buffer = fs.readFileSync(full);
       const { storagePath } = await repos.files.save({
-        key: `${patient.id}/${studyId}/${d.slot}.png`,
+        key: `${patient.id}/${studyId}/${slot}.png`,
         buffer,
         mime: 'image/png',
       });
-      out.push({ slot: d.slot, storagePath, mime: 'image/png', size, originalName: d.originalName });
+      out.push({ slot, storagePath, mime: 'image/png', size, originalName });
     } else {
-      out.push({ slot: d.slot, publicUrl: `/demo/${d.file}`, mime: 'image/png', size, originalName: d.originalName });
+      out.push({ slot, publicUrl: `/demo/${file}`, mime: 'image/png', size, originalName });
     }
   }
   return out;

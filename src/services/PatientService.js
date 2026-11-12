@@ -175,16 +175,22 @@ class PatientService {
     const analyses = await this.analyses.listByStudyIds(studies.map((s) => s.id));
     const byStudy = new Map(analyses.map((a) => [a.studyId, a]));
     const items = studies.map((study) => ({ study, analysis: byStudy.get(study.id) || null }));
+    // Un punto por toma: ΔT máximo en la toma 1 y en la toma 2; probabilidad en la toma 2.
     const serie = items
       .filter((i) => i.analysis)
       .slice()
       .reverse()
-      .map((i) => ({
-        fecha: i.study.fechaHora,
-        toma: i.study.toma,
-        probabilidad: i.analysis.probabilidad,
-        deltaTMax: Math.abs(i.analysis.deltaTMax),
-      }));
+      .flatMap((i) => [
+        ...(i.study.fechaToma1 && i.analysis.deltaTMaxToma1 !== null
+          ? [{ fecha: i.study.fechaToma1, toma: 1, probabilidad: null, deltaTMax: Math.abs(i.analysis.deltaTMaxToma1) }]
+          : []),
+        {
+          fecha: i.study.fechaHora,
+          toma: 2,
+          probabilidad: i.analysis.probabilidad,
+          deltaTMax: Math.abs(i.analysis.deltaTMax),
+        },
+      ]);
     return { items, serie };
   }
 
@@ -263,7 +269,7 @@ class PatientService {
     for (const patient of patients) {
       const own = studies
         .filter((s) => s.patientId === patient.id && byStudy.has(s.id))
-        .sort((a, b) => a.toma - b.toma || new Date(a.fechaHora) - new Date(b.fechaHora));
+        .sort((a, b) => new Date(a.fechaHora) - new Date(b.fechaHora));
       if (!own.length) rows.push({ patient, study: null, analysis: null });
       for (const study of own) rows.push({ patient, study, analysis: byStudy.get(study.id) });
     }

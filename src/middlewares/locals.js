@@ -30,8 +30,12 @@ function locals(config) {
   return function localsMiddleware(req, res, next) {
     res.locals.fmt = fmt;
     res.locals.thermal = thermal;
-    res.locals.imageUrl = (study, slot) => `/media/estudios/${study.id}/${slot}`;
-    res.locals.canPreview = (img) => Boolean(img && (img.publicUrl || domain.PREVIEWABLE_TYPES.includes(img.mime)));
+    const isIs2 = (img) => img?.mime === 'application/x-fluke-is2';
+    // Los IS2 se muestran como PNG generado en el servidor (?vista=png).
+    res.locals.imageUrl = (study, slot) =>
+      `/media/estudios/${study.id}/${slot}${isIs2(study.image?.(slot)) ? '?vista=png' : ''}`;
+    res.locals.canPreview = (img) =>
+      Boolean(img && (img.publicUrl || isIs2(img) || domain.PREVIEWABLE_TYPES.includes(img.mime)));
     res.locals.domain = domain;
     res.locals.appName = config.appName;
     res.locals.currentPath = req.path;

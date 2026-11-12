@@ -3,10 +3,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { makeApp, loginAs, csrfFrom, extractCsrf } = require('../helpers/agent');
+const { fakeIs2 } = require('../helpers/is2');
 
 const DEMO = path.join(__dirname, '..', '..', 'public', 'demo');
-const thermal = fs.readFileSync(path.join(DEMO, 'termografia-01.png'));
-const visible = fs.readFileSync(path.join(DEMO, 'visible-01.png'));
+const thermal = fs.readFileSync(path.join(DEMO, 'par-05-toma1.png'));
+const visible = fs.readFileSync(path.join(DEMO, 'par-05-toma2.png'));
 
 describe('Flujo del médico: registro de paciente → estudio → resultado → paciente', () => {
   let app;
@@ -61,7 +62,7 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
       .post('/medico/estudios')
       .field('_csrf', csrf)
       .field('patientId', rosa.id)
-      .field('toma', '2')
+      .field('fechaToma1', '2026-10-10')
       .field('fechaHora', '2026-11-10T09:30')
       .field('centro', 'Hospital Córdoba')
       .field('tempAmbiente', '22,8')
@@ -77,8 +78,8 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
       .field('checklist', 'sin_calzado')
       .field('checklist', 'decubito')
       .field('consentimientoVerificado', 'on')
-      .attach('termografia', thermal, { filename: 'IR_0001.png', contentType: 'image/png' })
-      .attach('visible', visible, { filename: 'VIS_0001.png', contentType: 'image/png' });
+      .attach('toma1', thermal, { filename: 'IR_0001.png', contentType: 'image/png' })
+      .attach('toma2', visible, { filename: 'VIS_0001.png', contentType: 'image/png' });
 
     expect(res.status).toBe(303);
     const location = res.headers.location;
@@ -88,11 +89,12 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
     const result = await medico.get(location);
     expect(result.status).toBe(200);
     expect(result.text).toContain('Probabilidad de úlcera');
-    expect(result.text).toContain('Umbral usado');
+    expect(result.text).toContain('Umbral de asimetría');
+    expect(result.text).toContain('Evolución de la asimetría');
     expect(result.text).toContain('Resultado simulado');
 
     // La imagen subida se sirve con control de acceso.
-    const img = await medico.get(`/media/estudios/${studyId}/termografia`);
+    const img = await medico.get(`/media/estudios/${studyId}/toma1`);
     expect(img.status).toBe(200);
     expect(img.headers['content-type']).toBe('image/png');
 
@@ -111,7 +113,7 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
     detail = await paciente.get(`/paciente/estudios/${studyId}`);
     expect(detail.text).not.toContain('todavía está revisando');
     expect(detail.text).not.toContain('AUC'); // sin métricas crudas del modelo
-    expect((await paciente.get(`/media/estudios/${studyId}/visible`)).status).toBe(200);
+    expect((await paciente.get(`/media/estudios/${studyId}/toma2`)).status).toBe(200);
 
     // Exportación del informe y auditoría.
     expect((await medico.get(`/medico/estudios/${studyId}/informe`)).status).toBe(200);
@@ -127,7 +129,7 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
       .post('/medico/estudios')
       .field('_csrf', csrf)
       .field('patientId', rosa.id)
-      .field('toma', '1')
+      .field('fechaToma1', '2026-10-10')
       .field('fechaHora', '2026-11-10T09:30')
       .field('centro', 'Hospital Córdoba')
       .field('tempAmbiente', '22')
@@ -141,15 +143,68 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
       .field('fondo', 'Cartulina')
       .field('valida', 'si')
       .field('consentimientoVerificado', 'on')
-      .attach('termografia', Buffer.from('<script>alert(1)</script>'), { filename: 'x.png', contentType: 'image/png' })
-      .attach('visible', visible, { filename: 'v.png', contentType: 'image/png' });
+      .attach('toma1', Buffer.from('<script>alert(1)</script>'), { filename: 'x.png', contentType: 'image/png' })
+      .attach('toma2', visible, { filename: 'v.png', contentType: 'image/png' });
     expect(res.status).toBe(303);
     expect(res.headers.location).toContain('/medico/estudios/nuevo');
   });
 
+  it('genera la vista previa de un IS2 en el servidor (y sólo para IS2)', async () => {
+    const medico = await loginAs(app, 'medico@demo.com');
+    const csrf = await csrfFrom(medico, '/medico/estudios/nuevo');
+    const ok = await medico
+      .post('/medico/estudios/vista-previa')
+      .set('X-CSRF-Token', csrf)
+      .attach('archivo', fakeIs2(), 'IR_00001.IS2');
+    expect(ok.status).toBe(200);
+    expect(ok.headers['content-type']).toBe('image/png');
+    const png = await medico
+      .post('/medico/estudios/vista-previa')
+      .set('X-CSRF-Token', csrf)
+      .attach('archivo', thermal, 'a.png');
+    expect(png.status).toBe(415);
+    const noCsrf = await medico.post('/medico/estudios/vista-previa').attach('archivo', fakeIs2(), 'x.IS2');
+    expect(noCsrf.status).toBe(403);
+  });
+
+  it('reutiliza la toma 1 de un estudio anterior y analiza IS2 reales', async () => {
+    const medico = await loginAs(app, 'medico@demo.com');
+    const rosa = await container.repos.patients.findByCodigo('DEMO-001');
+    const [previo] = await container.repos.studies.listByPatient(rosa.id);
+    const csrf = await csrfFrom(medico, `/medico/estudios/nuevo?paciente=${rosa.id}`);
+    const res = await medico
+      .post('/medico/estudios')
+      .field('_csrf', csrf)
+      .field('patientId', rosa.id)
+      .field('toma1Origen', previo.id)
+      .field('fechaHora', '2026-11-11T09:30')
+      .field('centro', 'Hospital Córdoba')
+      .field('tempAmbiente', '22')
+      .field('humedadRelativa', '50')
+      .field('distanciaCm', '80')
+      .field('emisividad', '0,98')
+      .field('rangoMin', '24')
+      .field('rangoMax', '35')
+      .field('paleta', 'Ironbow')
+      .field('tiempoEstabilizacionMin', '15')
+      .field('fondo', 'Cartulina')
+      .field('valida', 'si')
+      .field('consentimientoVerificado', 'on')
+      .attach('toma2', fakeIs2({ asym: 200 }), 'IR_00002.IS2');
+    expect(res.status).toBe(303);
+    const studyId = res.headers.location.split('/').pop();
+    const study = await container.repos.studies.findById(studyId);
+    expect(study.toma1OrigenStudyId).toBe(previo.id);
+    expect(study.image('toma1').publicUrl || study.image('toma1').storagePath).toBeTruthy();
+    expect(new Date(study.fechaToma1).getTime()).toBe(new Date(previo.fechaToma1).getTime());
+    const img = await medico.get(`/media/estudios/${studyId}/toma2?vista=png`);
+    expect(img.status).toBe(200);
+    expect(img.headers['content-type']).toBe('image/png');
+  });
+
   it('multipart sin CSRF es rechazado', async () => {
     const medico = await loginAs(app, 'medico@demo.com');
-    const res = await medico.post('/medico/estudios').field('patientId', 'x').attach('termografia', thermal, 'a.png');
+    const res = await medico.post('/medico/estudios').field('patientId', 'x').attach('toma1', thermal, 'a.png');
     expect(res.status).toBe(403);
   });
 

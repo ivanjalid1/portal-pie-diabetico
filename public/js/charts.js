@@ -27,6 +27,7 @@
             borderColor: token('--primary'),
             backgroundColor: token('--primary'),
             yAxisID: 'y',
+            spanGaps: true,
             tension: 0.25,
             pointRadius: 4,
           },

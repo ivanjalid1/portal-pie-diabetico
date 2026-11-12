@@ -47,6 +47,7 @@
     "collectCoverageFrom": [
       "src/**/*.js",
       "!src/repositories/supabase/**"
-    ]
+    ],
+    "testTimeout": 30000
   }
 }

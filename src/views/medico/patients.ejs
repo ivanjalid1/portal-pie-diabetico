@@ -71,7 +71,7 @@
           </td>
           <td class="num"><%= p.edad() %> <span class="muted"><%= p.sexo %></span></td>
           <td>Tipo <%= p.tipoDm %><small class="muted block num"><%= fmt.num(p.aniosEvolucionDm, 1) %> años</small></td>
-          <td><%= r.ultimoEstudio ? fmt.date(r.ultimoEstudio.fechaHora) : '—' %><% if (r.ultimoEstudio) { %><small class="muted block">Toma <%= r.ultimoEstudio.toma %></small><% } %></td>
+          <td><%= r.ultimoEstudio ? fmt.date(r.ultimoEstudio.fechaHora) : '—' %><% if (r.ultimoEstudio) { %><small class="muted block">Toma 1: <%= fmt.date(r.ultimoEstudio.fechaToma1) %></small><% } %></td>
           <td><% if (r.ultimoAnalisis) { %><span class="grupo grupo--<%= r.ultimoAnalisis.grupo %>" title="<%= domain.GRUPOS_TERMICOS[r.ultimoAnalisis.grupo].descripcion %>"><%= r.ultimoAnalisis.grupo %></span><% } else { %>—<% } %></td>
           <td><%- include('../partials/risk-badge', { analysis: r.ultimoAnalisis, showPct: true }) %></td>
           <td><% if (r.proximoControl) { %><span class="<%= r.proximoControl.vencido() ? 'text-warn' : '' %>"><%= fmt.date(r.proximoControl.fecha) %></span><small class="muted block"><%= fmt.relativeDays(r.proximoControl.fecha) %></small><% } else { %>—<% } %></td>

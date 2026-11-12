@@ -9,53 +9,43 @@
  */
 
 /**
- * Las dos imágenes que recibe el análisis. La elección definitiva puede cambiar,
- * por eso se definen presets y se elige uno con la variable IMAGE_SLOTS_PRESET:
- *  - 'termica_visible' (por defecto): termografía + imagen visible / IR-Fusion.
- *  - 'toma1_toma2': termografía basal + termografía de seguimiento (30–45 días).
+ * Las dos imágenes que recibe el análisis: DOS TERMOGRAFÍAS plantares del
+ * mismo paciente, la toma basal y la toma de control (~30 días después).
+ * Las etiquetas se definen sólo aquí; si el protocolo cambia, basta con
+ * editarlas.
  */
-const IMAGE_SLOT_PRESETS = Object.freeze({
-  termica_visible: Object.freeze([
-    Object.freeze({
-      slot: 'termografia',
-      orden: 1,
-      titulo: 'Imagen 1 · Termografía plantar',
-      corto: 'termografía plantar',
-      descripcion: 'Imagen infrarroja de ambos pies en una sola toma (Fluke TiS75, 320×240 px).',
-    }),
-    Object.freeze({
-      slot: 'visible',
-      orden: 2,
-      titulo: 'Imagen 2 · Imagen visible / IR-Fusion',
-      corto: 'imagen visible / IR-Fusion',
-      descripcion: 'Fotografía visible o IR-Fusion de la misma toma (cámara visible de 5 MP).',
-    }),
-  ]),
-  toma1_toma2: Object.freeze([
-    Object.freeze({
-      slot: 'termografia',
-      orden: 1,
-      titulo: 'Imagen 1 · Termografía basal (toma 1)',
-      corto: 'termografía basal',
-      descripcion: 'Termografía plantar de ambos pies en la toma basal.',
-    }),
-    Object.freeze({
-      slot: 'visible',
-      orden: 2,
-      titulo: 'Imagen 2 · Termografía de seguimiento (toma 2)',
-      corto: 'termografía de seguimiento',
-      descripcion: 'Termografía plantar de ambos pies a los 30–45 días.',
-    }),
-  ]),
-});
+const IMAGE_SLOTS = Object.freeze([
+  Object.freeze({
+    slot: 'toma1',
+    toma: 1,
+    orden: 1,
+    titulo: 'Imagen 1 · Termografía basal (toma 1)',
+    corto: 'termografía basal (toma 1)',
+    etiqueta: 'Toma 1 · basal',
+    descripcion: 'Termografía plantar de ambos pies en la primera visita.',
+  }),
+  Object.freeze({
+    slot: 'toma2',
+    toma: 2,
+    orden: 2,
+    titulo: 'Imagen 2 · Termografía de control (toma 2)',
+    corto: 'termografía de control (toma 2)',
+    etiqueta: 'Toma 2 · control',
+    descripcion: 'Termografía plantar de ambos pies en la segunda visita, unos 30 días después.',
+  }),
+]);
 
-const IMAGE_SLOTS = IMAGE_SLOT_PRESETS[process.env.IMAGE_SLOTS_PRESET] || IMAGE_SLOT_PRESETS.termica_visible;
+/** Días esperados entre la toma 1 y la toma 2 del protocolo. */
+const DIAS_ENTRE_TOMAS = Object.freeze({ min: 25, esperado: 30, max: 60 });
+
+/** Cambio de |ΔT| entre tomas (°C) a partir del cual se marca empeoramiento o mejora. */
+const CAMBIO_SIGNIFICATIVO = 0.3;
 
 /**
  * Formatos aceptados. Además de JPG/PNG/TIFF se admite el archivo nativo de
  * la cámara Fluke (.IS2): un ZIP que contiene IR.data (matriz 320×241 uint16)
- * y las imágenes visibles en JPG. Por ahora sólo se almacena; su decodificación
- * se describe en docs/despliegue.md (sección «Conectar el algoritmo real»).
+ * y las imágenes visibles en JPG. El portal decodifica la matriz IR (src/imaging)
+ * para generar la vista previa y estimar las temperaturas por ROI.
  */
 const ACCEPTED_IMAGE_TYPES = Object.freeze({
   'image/jpeg': 'jpg',
@@ -160,12 +150,6 @@ function categoryFor(probabilidad) {
 }
 
 const HORIZONTE_SEMANAS = 6;
-
-/** Tomas del protocolo. */
-const TOMAS = Object.freeze([
-  Object.freeze({ value: 1, nombre: 'Toma 1 · Basal' }),
-  Object.freeze({ value: 2, nombre: 'Toma 2 · Seguimiento (30–45 días)' }),
-]);
 
 /**
  * Centros participantes y prefijo del código anónimo del paciente.
@@ -283,8 +267,9 @@ const DISCLAIMER =
 const INSTITUCIONES = CENTRO_NOMBRES;
 
 module.exports = {
-  IMAGE_SLOT_PRESETS,
   IMAGE_SLOTS,
+  DIAS_ENTRE_TOMAS,
+  CAMBIO_SIGNIFICATIVO,
   ACCEPTED_IMAGE_TYPES,
   PREVIEWABLE_TYPES,
   ROIS,
@@ -300,7 +285,6 @@ module.exports = {
   RISK_CATEGORIES,
   categoryFor,
   HORIZONTE_SEMANAS,
-  TOMAS,
   CENTROS,
   CENTRO_NOMBRES,
   prefijoCentro,

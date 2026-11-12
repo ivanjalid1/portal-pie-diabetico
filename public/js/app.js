@@ -187,3 +187,17 @@
     });
   });
 })();
+
+/* Pestañas simples: [data-tabs="x"] controla [data-tab-panel="x"] (atributo data-show). */
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest && e.target.closest('[data-tabs] [data-tab]');
+  if (!btn) return;
+  const group = btn.closest('[data-tabs]');
+  const panel = document.querySelector(`[data-tab-panel="${group.dataset.tabs}"]`);
+  group.querySelectorAll('[data-tab]').forEach((b) => {
+    const on = b === btn;
+    b.classList.toggle('is-active', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  if (panel) panel.dataset.show = btn.dataset.tab;
+});

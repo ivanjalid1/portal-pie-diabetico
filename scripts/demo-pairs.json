@@ -1,0 +1,15 @@
+{
+  "_descripcion": "Pares toma 1 / toma 2 usados para las imágenes demo. Rutas relativas a tesis-2026info/ (carpeta privada, no versionada). Emparejados por código de paciente y verificados por fecha de captura (28–41 días entre tomas). Sólo códigos: nunca nombres.",
+  "pares": [
+    { "par": 1, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
+    { "par": 2, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
+    { "par": 3, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
+    { "par": 4, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
+    { "par": 5, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
+    { "par": 6, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
+    { "par": 7, "toma1": "<carpeta privada>/<carpeta privada>/HC/DEMO-007/IR_xxxxx.IS2", "toma2": "<privado>" },
+    { "par": 8, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
+    { "par": 9, "toma1": "<carpeta privada>/<carpeta privada>/HC/DEMO-008/IR_xxxxx.IS2", "toma2": "<privado>" },
+    { "par": 10, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" }
+  ]
+}

@@ -2,7 +2,14 @@
 
 const UlcerPredictor = require('./UlcerPredictor');
 const { seededRandom, round } = require('../../utils/random');
-const { ROIS, categoryFor, HORIZONTE_SEMANAS, DELTA_T_UMBRAL, thermalGroup } = require('../../config/domain');
+const {
+  ROIS,
+  categoryFor,
+  HORIZONTE_SEMANAS,
+  DELTA_T_UMBRAL,
+  thermalGroup,
+  CAMBIO_SIGNIFICATIVO,
+} = require('../../config/domain');
 
 /** Desplazamientos térmicos típicos de cada ROI respecto de la media plantar (°C). */
 const ROI_OFFSET = {
@@ -22,24 +29,36 @@ const GRADE_INDEX = { Normal: 0, Leve: 1, Moderada: 2, Grave: 3 };
  * reportados en la Parte 1, para poder validar el flujo completo del portal.
  */
 const COEF = {
-  intercepto: -2.2,
+  intercepto: -2.3,
   tabaquismo: 0.85,
   insulinorequiriente: 0.7,
   aniosDm: 0.04,
   gradoNeuropatia: 0.3,
-  deltaDedoMayor: 0.5,
-  deltaMetatarso: 0.4,
+  deltaDedoMayor: 0.55,
+  deltaMetatarso: 0.45,
+  evolucion: 1.1,
 };
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
+function summarize(rois, umbral) {
+  const regionales = rois.filter((r) => r.roi !== 'general');
+  const maxRow = regionales.reduce((m, r) => (Math.abs(r.deltaT) > Math.abs(m.deltaT) ? r : m), regionales[0]);
+  return { ...thermalGroup(rois, umbral), deltaTMax: maxRow.deltaT, deltaTMaxRoi: maxRow.roi };
+}
+
 /**
- * Estrategia simulada (`mock-v0`).
+ * Estrategia simulada (`mock-v0`) para el análisis comparativo de dos tomas.
  *
- * Ignora el contenido de las imágenes y genera un resultado determinístico a
- * partir del código del paciente y la fecha del estudio: el mismo estudio
- * siempre produce el mismo resultado (reproducibilidad), y pacientes con más
- * factores de riesgo tienden a mostrar asimetrías térmicas mayores.
+ * Las temperaturas por ROI de cada toma se obtienen, por orden de preferencia:
+ *  1. de `hints` (ROIs ya estimadas, p. ej. las de las imágenes demo);
+ *  2. de los archivos .IS2 subidos, con una segmentación simple de la matriz
+ *     IR (src/imaging) — `fuenteRois = 'is2'`;
+ *  3. de una simulación determinística a partir del código del paciente y
+ *     las fechas (`fuenteRois = 'simulada'`).
+ *
+ * La probabilidad es SIEMPRE simulada: combina factores clínicos, la
+ * asimetría de la toma 2 y el empeoramiento de la asimetría entre tomas.
  */
 class MockUlcerPredictor extends UlcerPredictor {
   constructor({ umbral = DELTA_T_UMBRAL } = {}) {
@@ -53,67 +72,129 @@ class MockUlcerPredictor extends UlcerPredictor {
       version: 'mock-v0',
       nombre: 'Predictor simulado',
       descripcion:
-        'Genera temperaturas por ROI y una probabilidad verosímiles y determinísticas. No procesa las imágenes.',
+        'Compara la toma 1 y la toma 2 por ROI. Las temperaturas provienen del IS2 cuando es posible; la probabilidad es simulada.',
     };
   }
 
-  async predict({ patient, study }) {
-    const seed = `${patient.codigo}|${String(study.fechaHora).slice(0, 10)}`;
-    const rnd = seededRandom(seed);
-    const noise = (amp) => (rnd() * 2 - 1) * amp;
-
-    const grade = patient.gradoNeuropatia;
+  /** Riesgo clínico normalizado (0–1) usado para dar verosimilitud a la simulación. */
+  static severity(patient, rnd) {
     const anios = clamp(patient.aniosEvolucionDm || 0, 0, 25);
-    const riesgoClinico =
+    const riesgo =
       (patient.tabaquismo ? 0.55 : 0) +
       (patient.insulinorequiriente ? 0.45 : 0) +
       anios * 0.025 +
-      GRADE_INDEX[grade] * 0.3 +
+      GRADE_INDEX[patient.gradoNeuropatia] * 0.3 +
       (patient.antecedenteUlcera ? 0.5 : 0);
-    const severidad = clamp(riesgoClinico / 2.6 + noise(0.18), 0.05, 1);
+    return clamp(riesgo / 2.6 + (rnd() * 2 - 1) * 0.18, 0.05, 1);
+  }
 
-    // Temperatura plantar media del paciente (influida levemente por el ambiente).
-    const ambiente = Number.isFinite(study.tempAmbiente) && study.tempAmbiente !== null ? study.tempAmbiente : 22.5;
-    const base = 28.4 + (ambiente - 22.5) * 0.4 + noise(1.6);
-
-    // Región "caliente" y lado afectado.
-    const hotspot = rnd() < 0.65 ? 'dedo_mayor' : 'metatarso';
-    const lado = rnd() < 0.5 ? 1 : -1; // +1: pie derecho más caliente.
-    const magnitud = Math.min(2.8, severidad * 2.45);
-
-    const rois = [];
+  static simulateToma(rnd, { magnitud, lado, hotspot, ambiente }) {
+    const noise = (amp) => (rnd() * 2 - 1) * amp;
+    const base = 28.4 + ((ambiente ?? 22.5) - 22.5) * 0.4 + noise(1.4);
+    const rows = [];
     for (const { key } of ROIS) {
       if (key === 'general') continue;
       const izq = clamp(base + ROI_OFFSET[key] + noise(0.35), 23, 33.5);
-      let delta = noise(0.45);
+      let delta = noise(0.4);
       if (key === hotspot) delta = lado * clamp(magnitud + noise(0.15), 0, 2.8);
-      else if ((key === 'metatarso' || key === 'dedo_mayor') && key !== hotspot)
-        delta = lado * magnitud * 0.45 + noise(0.25);
+      else if (key === 'metatarso' || key === 'dedo_mayor') delta = lado * magnitud * 0.45 + noise(0.25);
       else if (key === 'dedos_menores') delta = lado * magnitud * 0.3 + noise(0.3);
       delta = clamp(delta, -2.8, 2.8);
       const der = clamp(izq + delta, 23, 34);
-      rois.push(this.#roiRow(key, der, izq, rnd));
+      const spread = () => 0.8 + rnd() * 0.8;
+      rows.push({
+        roi: key,
+        avgDer: round(der, 2),
+        avgIzq: round(izq, 2),
+        maxDer: round(der + spread(), 2),
+        maxIzq: round(izq + spread(), 2),
+        minDer: round(der - spread() - 0.2, 2),
+        minIzq: round(izq - spread() - 0.2, 2),
+        deltaT: round(der - izq, 2),
+      });
     }
-
-    const mean = (k) => rois.reduce((s, r) => s + r[k], 0) / rois.length;
+    const mean = (k) => rows.reduce((s, r) => s + r[k], 0) / rows.length;
     const general = {
       roi: 'general',
       avgDer: round(mean('avgDer'), 2),
       avgIzq: round(mean('avgIzq'), 2),
-      maxDer: round(Math.max(...rois.map((r) => r.maxDer)), 2),
-      maxIzq: round(Math.max(...rois.map((r) => r.maxIzq)), 2),
-      minDer: round(Math.min(...rois.map((r) => r.minDer)), 2),
-      minIzq: round(Math.min(...rois.map((r) => r.minIzq)), 2),
+      maxDer: round(Math.max(...rows.map((r) => r.maxDer)), 2),
+      maxIzq: round(Math.max(...rows.map((r) => r.maxIzq)), 2),
+      minDer: round(Math.min(...rows.map((r) => r.minDer)), 2),
+      minIzq: round(Math.min(...rows.map((r) => r.minIzq)), 2),
     };
     general.deltaT = round(general.avgDer - general.avgIzq, 2);
-    rois.push(general);
+    rows.push(general);
+    return rows;
+  }
 
-    const regionales = rois.filter((r) => r.roi !== 'general');
-    const maxRow = regionales.reduce((m, r) => (Math.abs(r.deltaT) > Math.abs(m.deltaT) ? r : m));
+  simulate({ patient, study }) {
+    const seed = `${patient.codigo}|${String(study.fechaToma1 || '').slice(0, 10)}|${String(study.fechaHora).slice(0, 10)}`;
+    const rnd = seededRandom(seed);
+    const sev = MockUlcerPredictor.severity(patient, rnd);
+    const hotspot = rnd() < 0.65 ? 'dedo_mayor' : 'metatarso';
+    const lado = rnd() < 0.5 ? 1 : -1;
+    const mag1 = Math.min(2.6, sev * 2.2);
+    // Riesgo alto → la asimetría tiende a crecer entre tomas; bajo → a estabilizarse.
+    const drift = (sev - 0.45) * 0.9 + (rnd() * 2 - 1) * 0.25;
+    const mag2 = clamp(mag1 + drift, 0, 2.8);
+    return {
+      toma1: MockUlcerPredictor.simulateToma(rnd, {
+        magnitud: mag1,
+        lado,
+        hotspot,
+        ambiente: study.tempAmbienteToma1 ?? study.tempAmbiente,
+      }),
+      toma2: MockUlcerPredictor.simulateToma(rnd, { magnitud: mag2, lado, hotspot, ambiente: study.tempAmbiente }),
+    };
+  }
 
-    const dDedo = Math.abs(rois.find((r) => r.roi === 'dedo_mayor').deltaT);
-    const dMeta = Math.abs(rois.find((r) => r.roi === 'metatarso').deltaT);
+  /** Intenta estimar las ROIs desde archivos IS2 (decodificación real de la matriz IR). */
+  static fromIs2(images) {
+    const byslot = Object.fromEntries((images || []).map((i) => [i.slot, i]));
+    const t1 = byslot.toma1;
+    const t2 = byslot.toma2;
+    if (!t1?.buffer || !t2?.buffer || t1.mime !== 'application/x-fluke-is2' || t2.mime !== 'application/x-fluke-is2') {
+      return null;
+    }
+    try {
+      const { decodeIs2 } = require('../../imaging/is2');
+      const { analyzeThermogram, roisInCelsius } = require('../../imaging/thermogram');
+      const a1 = analyzeThermogram(decodeIs2(t1.buffer));
+      const a2 = analyzeThermogram(decodeIs2(t2.buffer));
+      if (!a1.ok || !a2.ok) return null;
+      const r1 = roisInCelsius(a1);
+      const r2 = roisInCelsius(a2);
+      return r1.length === ROIS.length && r2.length === ROIS.length ? { toma1: r1, toma2: r2 } : null;
+    } catch {
+      return null;
+    }
+  }
 
+  async predict({ patient, study, images = [], hints = null }) {
+    let fuenteRois = 'simulada';
+    let tomas = null;
+    if (hints?.toma1?.length && hints?.toma2?.length) {
+      tomas = { toma1: hints.toma1, toma2: hints.toma2 };
+      fuenteRois = hints.fuente || 'imagen';
+    } else {
+      tomas = MockUlcerPredictor.fromIs2(images);
+      if (tomas) fuenteRois = 'is2';
+      else tomas = this.simulate({ patient, study });
+    }
+
+    const s1 = summarize(tomas.toma1, this.umbral);
+    const s2 = summarize(tomas.toma2, this.umbral);
+    const dt = (rois, key) => Math.abs(rois.find((r) => r.roi === key)?.deltaT || 0);
+    const empeoramiento = Math.max(
+      0,
+      ...tomas.toma2.filter((r) => r.roi !== 'general').map((r) => Math.abs(r.deltaT) - dt(tomas.toma1, r.roi)),
+    );
+
+    const grade = patient.gradoNeuropatia;
+    const anios = clamp(patient.aniosEvolucionDm || 0, 0, 25);
+    const dDedo = dt(tomas.toma2, 'dedo_mayor');
+    const dMeta = dt(tomas.toma2, 'metatarso');
     const factores = [
       {
         key: 'tabaquismo',
@@ -129,9 +210,15 @@ class MockUlcerPredictor extends UlcerPredictor {
       },
       {
         key: 'delta_dedo_mayor',
-        nombre: 'ΔT Dedo mayor',
+        nombre: 'ΔT Dedo mayor (toma 2)',
         valor: `${round(dDedo, 1)} °C`,
         contribucion: COEF.deltaDedoMayor * dDedo,
+      },
+      {
+        key: 'evolucion',
+        nombre: 'Aumento de asimetría entre tomas',
+        valor: empeoramiento >= CAMBIO_SIGNIFICATIVO ? `+${round(empeoramiento, 1)} °C` : 'Estable o en mejora',
+        contribucion: COEF.evolucion * (empeoramiento >= CAMBIO_SIGNIFICATIVO ? empeoramiento : 0),
       },
       { key: 'anios_dm', nombre: 'Años de DM', valor: `${round(anios, 1)} años`, contribucion: COEF.aniosDm * anios },
       {
@@ -142,7 +229,7 @@ class MockUlcerPredictor extends UlcerPredictor {
       },
       {
         key: 'delta_metatarso',
-        nombre: 'ΔT Metatarso',
+        nombre: 'ΔT Metatarso (toma 2)',
         valor: `${round(dMeta, 1)} °C`,
         contribucion: COEF.deltaMetatarso * dMeta,
       },
@@ -151,35 +238,25 @@ class MockUlcerPredictor extends UlcerPredictor {
     const logit = COEF.intercepto + factores.reduce((s, f) => s + f.contribucion, 0);
     const probabilidad = round(100 / (1 + Math.exp(-logit)), 1);
 
-    const { grupo, simetrico } = thermalGroup(rois, this.umbral);
-
     return {
       predictorVersion: this.info.version,
-      rois,
-      deltaTMax: maxRow.deltaT,
-      deltaTMaxRoi: maxRow.roi,
+      fuenteRois,
+      rois: tomas.toma2,
+      roisToma1: tomas.toma1,
+      deltaTMax: s2.deltaTMax,
+      deltaTMaxRoi: s2.deltaTMaxRoi,
+      grupo: s2.grupo,
+      simetrico: s2.simetrico,
+      deltaTMaxToma1: s1.deltaTMax,
+      deltaTMaxRoiToma1: s1.deltaTMaxRoi,
+      grupoToma1: s1.grupo,
+      simetricoToma1: s1.simetrico,
       umbral: this.umbral,
-      grupo,
-      simetrico,
       probabilidad,
       categoria: categoryFor(probabilidad),
       horizonteSemanas: HORIZONTE_SEMANAS,
       factores: factores.sort((a, b) => b.contribucion - a.contribucion),
       simulado: true,
-    };
-  }
-
-  #roiRow(roi, der, izq, rnd) {
-    const spread = () => 0.8 + rnd() * 0.8;
-    return {
-      roi,
-      avgDer: round(der, 2),
-      avgIzq: round(izq, 2),
-      maxDer: round(der + spread(), 2),
-      maxIzq: round(izq + spread(), 2),
-      minDer: round(der - spread() - 0.2, 2),
-      minIzq: round(izq - spread() - 0.2, 2),
-      deltaT: round(der - izq, 2),
     };
   }
 }

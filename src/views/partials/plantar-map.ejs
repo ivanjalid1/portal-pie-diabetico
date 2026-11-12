@@ -1,6 +1,6 @@
 <%
   // Mapa plantar esquemático: ambos pies vistos desde la planta (como la cámara),
-  // pie derecho a la izquierda de la imagen. Cada ROI se colorea por |ΔT|.
+  // con la misma orientación que el termograma. Cada ROI se colorea por |ΔT|.
   const byKey = {};
   (rois || []).forEach((r) => { byKey[r.roi] = r; });
   const u = typeof umbral === 'undefined' ? domain.DELTA_T_UMBRAL : umbral;
@@ -24,8 +24,9 @@
   const outside = ['dedos_menores'];
   const outline = 'M95 394 C 62 394 46 368 45 332 C 44 292 40 252 36 212 C 32 172 30 142 36 118 C 44 96 70 90 100 90 C 135 90 160 100 165 125 C 170 152 150 178 140 205 C 130 232 131 262 139 296 C 147 332 140 394 95 394 Z';
   const feet = [
-    { side: 'der', label: 'Pie derecho', transform: 'translate(8 18)' },
-    { side: 'izq', label: 'Pie izquierdo', transform: 'translate(392 18) scale(-1 1)' },
+    // Convención del equipo (como se ve el termograma): pie IZQUIERDO a la izquierda.
+    { side: 'izq', label: 'Pie izquierdo', transform: 'translate(8 18)' },
+    { side: 'der', label: 'Pie derecho', transform: 'translate(392 18) scale(-1 1)' },
   ];
 %>
 <figure class="plantar-map">
@@ -55,12 +56,12 @@
     <% Object.keys(labelPos).forEach((k) => {
          const r = byKey[k]; if (!r) return;
          const [lx, ly] = labelPos[k];
-         const x = foot.side === 'der' ? 8 + lx : 392 - lx;
+         const x = foot.side === 'izq' ? 8 + lx : 392 - lx;
          const fill = thermal.deltaColor(r.deltaT); %>
     <text x="<%= x %>" y="<%= 18 + ly %>" class="pm-value<%= outside.includes(k) ? ' pm-value--outside' : '' %>"<%- outside.includes(k) ? '' : ` fill="${thermal.inkOn(fill)}"` %> text-anchor="middle"><%= foot.side === 'der' ? fmt.num(r.avgDer, 1) : fmt.num(r.avgIzq, 1) %></text>
     <% }) %>
     <% } %>
-    <text x="<%= foot.side === 'der' ? 103 : 297 %>" y="428" class="pm-foot-label" text-anchor="middle"><%= foot.label %></text>
+    <text x="<%= foot.side === 'izq' ? 103 : 297 %>" y="428" class="pm-foot-label" text-anchor="middle"><%= foot.label %></text>
     <% }) %>
   </svg>
   <figcaption class="pm-legend">

@@ -5,17 +5,19 @@
   const A = domain.ACQUISITION;
   const M = domain.REFERENCE_MODEL;
   const maxContrib = a ? Math.max(0.01, ...a.factores.map((f) => Math.abs(f.contribucion))) : 1;
+  const fuente = { imagen: 'estimadas de las termografías', is2: 'calculadas desde los archivos IS2', simulada: 'simuladas' };
+  const tend = { empeora: { label: 'Empeora', cls: 'danger', icon: 'trendUp' }, mejora: { label: 'Mejora', cls: 'ok', icon: 'trendDown' }, estable: { label: 'Estable', cls: 'muted', icon: 'minus' } };
 %>
 <%- include('../partials/page-header', {
-  heading: `${p.codigo}, toma ${s.toma}`,
-  lead: `${p.nombreCompleto}. ${fmt.dateTime(s.fechaHora)}, ${s.centro}.`,
+  heading: `${p.codigo} · comparación de tomas`,
+  lead: `${p.nombreCompleto}. Toma 1: ${fmt.date(s.fechaToma1)} · Toma 2: ${fmt.dateTime(s.fechaHora)}${s.diasEntreTomas !== null ? ` (${s.diasEntreTomas} días)` : ''} · ${s.centro}.`,
   back: { href: `/medico/pacientes/${p.id}`, label: p.codigo },
   actions: `<a class="btn btn--ghost" href="/medico/estudios/${s.id}/informe" target="_blank" rel="noopener">${include('../partials/icon', { name: 'printer', size: 18 })}Exportar informe</a>`
 }) %>
 
 <div class="notice notice--warn disclaimer" role="note">
   <%- include('../partials/icon', { name: 'alert' }) %>
-  <p><strong>Resultado simulado.</strong> <%= domain.DISCLAIMER %></p>
+  <p><strong>Resultado simulado.</strong> <%= domain.DISCLAIMER %><% if (a) { %> Temperaturas por región <%= fuente[a.fuenteRois] || 'simuladas' %>.<% } %></p>
 </div>
 
 <% if (!a) { %>
@@ -25,83 +27,123 @@
   <section class="card result-hero__gauge" aria-labelledby="prob-title">
     <h2 id="prob-title" class="card__title">Probabilidad de úlcera a <%= a.horizonteSemanas %> semanas</h2>
     <%- include('../partials/gauge', { value: a.probabilidad, category: a.categoria }) %>
-    <p class="muted small center">Cortes: <%= domain.RISK_CUTS.moderado %> % (moderado) y <%= domain.RISK_CUTS.alto %> % (alto).</p>
+    <p class="muted small center">Considera la asimetría de la toma 2 y su evolución desde la toma 1. Cortes: <%= domain.RISK_CUTS.moderado %> % y <%= domain.RISK_CUTS.alto %> %.</p>
   </section>
 
   <section class="card result-hero__thermal" aria-labelledby="thermal-title">
-    <h2 id="thermal-title" class="card__title">Clasificación térmica</h2>
-    <div class="metric-row">
-      <div class="metric">
-        <span class="metric__label">ΔT máximo</span>
-        <span class="metric__value num"><%= fmt.signed(a.deltaTMax) %> <small>°C</small></span>
-        <span class="metric__meta"><%= domain.ROI_NAMES[a.deltaTMaxRoi] %>, pie <%= a.deltaTMax >= 0 ? 'derecho' : 'izquierdo' %> más caliente</span>
+    <h2 id="thermal-title" class="card__title">Clasificación térmica por toma</h2>
+    <div class="compare">
+      <div class="compare__col">
+        <span class="compare__label"><span class="toma-dot toma-dot--1"></span>Toma 1 · basal</span>
+        <div class="compare__metrics">
+          <div><small>Grupo</small><span class="grupo grupo--<%= a.grupoToma1 %>"><%= a.grupoToma1 || '—' %></span></div>
+          <div><small>ΔT máx.</small><strong class="num"><%= a.deltaTMaxToma1 !== null ? fmt.signed(a.deltaTMaxToma1) : '—' %> °C</strong></div>
+          <div><small>Simétrico</small><strong><%= a.simetricoToma1 === null ? '—' : a.simetricoToma1 ? 'Sí' : 'No' %></strong></div>
+        </div>
+        <span class="muted small"><%= a.deltaTMaxRoiToma1 ? domain.ROI_NAMES[a.deltaTMaxRoiToma1] : '' %></span>
       </div>
-      <div class="metric">
-        <span class="metric__label">Grupo térmico</span>
-        <span class="metric__value"><span class="grupo grupo--<%= a.grupo %> grupo--lg"><%= a.grupo %></span></span>
-        <span class="metric__meta"><%= domain.GRUPOS_TERMICOS[a.grupo].nombre %></span>
-      </div>
-      <div class="metric">
-        <span class="metric__label">Simétrico</span>
-        <span class="metric__value"><%= a.simetrico ? 'Sí' : 'No' %></span>
-        <span class="metric__meta">|ΔT general| <%= a.simetrico ? '<' : '≥' %> <%= fmt.num(domain.SIMETRIA_CORTE, 1) %> °C</span>
+      <div class="compare__arrow" aria-hidden="true"><%- include('../partials/icon', { name: 'arrowRight', size: 20 }) %></div>
+      <div class="compare__col compare__col--now">
+        <span class="compare__label"><span class="toma-dot toma-dot--2"></span>Toma 2 · control</span>
+        <div class="compare__metrics">
+          <div><small>Grupo</small><span class="grupo grupo--<%= a.grupo %>"><%= a.grupo %></span></div>
+          <div><small>ΔT máx.</small><strong class="num"><%= fmt.signed(a.deltaTMax) %> °C</strong></div>
+          <div><small>Simétrico</small><strong><%= a.simetrico ? 'Sí' : 'No' %></strong></div>
+        </div>
+        <span class="muted small"><%= domain.ROI_NAMES[a.deltaTMaxRoi] %>, pie <%= a.deltaTMax >= 0 ? 'derecho' : 'izquierdo' %> más caliente</span>
       </div>
     </div>
-    <p class="threshold">
-      Umbral usado: <strong class="num"><%= fmt.num(a.umbral, 1) %> °C</strong>
-      (<%= (domain.THRESHOLD_OPTIONS.find((o) => o.value === a.umbral) || { fuente: 'configuración del sistema' }).fuente %>).
-      Referencia bibliográfica: <%= fmt.num(domain.DELTA_T_REFERENCIA, 1) %> °C.
-      Todos los participantes son diabéticos: «C» indica ausencia de asimetría, no un sujeto sano.
-    </p>
-    <div class="over-threshold">
-      <h3 class="card__subtitle">Regiones con |ΔT| ≥ <%= fmt.num(a.umbral, 1) %> °C</h3>
-      <% if (a.roisSobreUmbral.length) { %>
-      <ul class="roi-chips">
-        <% a.roisSobreUmbral.forEach((r) => { %>
-        <li><span class="roi-chips__swatch" style="background: <%= thermal.deltaColor(r.deltaT) %>" aria-hidden="true"></span><%= domain.ROI_NAMES[r.roi] %> <strong class="num"><%= fmt.signed(r.deltaT, 1) %> °C</strong> <span class="muted">pie <%= r.deltaT > 0 ? 'der.' : 'izq.' %> más caliente</span></li>
-        <% }) %>
-      </ul>
+    <div class="evolution-summary">
+      <% if (a.roisQueEmpeoran.length) { %>
+      <p><span class="trend trend--danger"><%- include('../partials/icon', { name: 'trendUp', size: 16 }) %>Asimetría en aumento</span> en <%= a.roisQueEmpeoran.map((e) => domain.ROI_NAMES[e.roi].toLowerCase()).join(', ') %> (máx. +<%= fmt.num(a.maxEmpeoramiento, 1) %> °C).</p>
       <% } else { %>
-      <p class="muted small">Ninguna región supera el umbral.</p>
+      <p><span class="trend trend--ok"><%- include('../partials/icon', { name: 'check', size: 16 }) %>Sin aumento relevante de la asimetría</span> entre tomas (cambio &lt; <%= fmt.num(domain.CAMBIO_SIGNIFICATIVO, 1) %> °C).</p>
       <% } %>
     </div>
+    <p class="threshold">
+      Umbral de asimetría: <strong class="num"><%= fmt.num(a.umbral, 1) %> °C</strong>
+      (<%= (domain.THRESHOLD_OPTIONS.find((o) => o.value === a.umbral) || { fuente: 'configuración del sistema' }).fuente %>; referencia bibliográfica <%= fmt.num(domain.DELTA_T_REFERENCIA, 1) %> °C).
+      Grupo P = alguna región con |ΔT| ≥ umbral. Todos los participantes son diabéticos: «C» indica ausencia de asimetría, no un sujeto sano.
+    </p>
   </section>
 </div>
 
-<div class="grid grid--map">
-  <section class="card" aria-labelledby="map-title">
-    <h2 id="map-title" class="card__title">Mapa plantar por región</h2>
-    <%- include('../partials/plantar-map', { rois: a.rois, umbral: a.umbral, mapId: 'res' }) %>
-  </section>
+<section class="card" aria-labelledby="maps-title">
+  <div class="card__head">
+    <h2 id="maps-title" class="card__title">Mapa plantar por región</h2>
+    <div class="tabs tabs--pill" role="tablist" data-tabs="maps">
+      <button type="button" role="tab" class="tabs__item is-active" aria-selected="true" data-tab="ambas">Ambas tomas</button>
+      <button type="button" role="tab" class="tabs__item" aria-selected="false" data-tab="t1">Toma 1</button>
+      <button type="button" role="tab" class="tabs__item" aria-selected="false" data-tab="t2">Toma 2</button>
+    </div>
+  </div>
+  <div class="maps-compare" data-tab-panel="maps" data-show="ambas">
+    <figure class="maps-compare__item" data-only="t1">
+      <figcaption><span class="toma-dot toma-dot--1"></span>Toma 1 · <%= fmt.date(s.fechaToma1) %></figcaption>
+      <%- include('../partials/plantar-map', { rois: a.roisToma1, umbral: a.umbral, mapId: 'res1' }) %>
+    </figure>
+    <figure class="maps-compare__item" data-only="t2">
+      <figcaption><span class="toma-dot toma-dot--2"></span>Toma 2 · <%= fmt.date(s.fechaHora) %></figcaption>
+      <%- include('../partials/plantar-map', { rois: a.rois, umbral: a.umbral, mapId: 'res2' }) %>
+    </figure>
+  </div>
+</section>
 
-  <section class="card card--flush" aria-labelledby="roi-title">
+<div class="grid grid--map">
+  <section class="card card--flush" aria-labelledby="evo-title">
     <div class="card__head card__head--pad">
-      <h2 id="roi-title" class="card__title">Temperaturas por ROI</h2>
-      <span class="muted small">°C · ΔT = derecho − izquierdo</span>
+      <h2 id="evo-title" class="card__title">Evolución de la asimetría</h2>
+      <span class="muted small">ΔT = derecho − izquierdo (°C)</span>
     </div>
     <div class="table-wrap">
       <table class="table table--num">
-        <thead>
-          <tr><th scope="col">Región</th><th scope="col">Media der.</th><th scope="col">Media izq.</th><th scope="col">ΔT</th><th scope="col">Máx. der./izq.</th><th scope="col">Mín. der./izq.</th></tr>
-        </thead>
+        <thead><tr><th scope="col">Región</th><th scope="col">ΔT toma 1</th><th scope="col">ΔT toma 2</th><th scope="col">Cambio |ΔT|</th><th scope="col">Tendencia</th></tr></thead>
         <tbody>
-          <% a.rois.forEach((r) => { const hot = r.roi !== 'general' && Math.abs(r.deltaT) >= a.umbral; const lit = r.roi !== 'general' && Math.abs(r.deltaT) >= domain.DELTA_T_REFERENCIA; %>
-          <tr class="<%= r.roi === 'general' ? 'row-total' : '' %><%= hot ? ' row-hot' : '' %>">
-            <th scope="row"><%= domain.ROI_NAMES[r.roi] %></th>
-            <td><%= fmt.num(r.avgDer, 2) %></td>
-            <td><%= fmt.num(r.avgIzq, 2) %></td>
-            <td>
-              <span class="delta<%= hot ? ' delta--hot' : '' %>"><%= fmt.signed(r.deltaT, 2) %></span>
-              <% if (lit) { %><span class="tag tag--lit" title="Supera el valor de referencia bibliográfica (no diagnóstico)">≥ <%= fmt.num(domain.DELTA_T_REFERENCIA, 1) %></span><% } %>
-            </td>
-            <td class="muted"><%= fmt.num(r.maxDer, 1) %> / <%= fmt.num(r.maxIzq, 1) %></td>
-            <td class="muted"><%= fmt.num(r.minDer, 1) %> / <%= fmt.num(r.minIzq, 1) %></td>
+          <% a.evolucion.forEach((e) => { const t = tend[e.tendencia]; %>
+          <tr class="<%= e.roi === 'general' ? 'row-total' : '' %><%= e.tendencia === 'empeora' && e.roi !== 'general' ? ' row-hot' : '' %>">
+            <th scope="row"><%= domain.ROI_NAMES[e.roi] %></th>
+            <td><span class="delta<%= Math.abs(e.dt1) >= a.umbral && e.roi !== 'general' ? ' delta--hot' : '' %>"><%= fmt.signed(e.dt1, 2) %></span></td>
+            <td><span class="delta<%= Math.abs(e.dt2) >= a.umbral && e.roi !== 'general' ? ' delta--hot' : '' %>"><%= fmt.signed(e.dt2, 2) %></span></td>
+            <td><%= fmt.signed(e.cambio, 2) %></td>
+            <td><span class="trend trend--<%= t.cls %>"><%- include('../partials/icon', { name: t.icon, size: 14 }) %><%= t.label %></span></td>
           </tr>
           <% }) %>
         </tbody>
       </table>
     </div>
-    <p class="table-note">Filas resaltadas: |ΔT| ≥ <%= fmt.num(a.umbral, 1) %> °C (umbral activo). Etiqueta «≥ 2,2»: referencia bibliográfica, no diagnóstica.</p>
+    <p class="table-note">Cambio |ΔT| = |ΔT toma 2| − |ΔT toma 1|. Se marca como empeoramiento a partir de +<%= fmt.num(domain.CAMBIO_SIGNIFICATIVO, 1) %> °C.</p>
+  </section>
+
+  <section class="card card--flush" aria-labelledby="roi-title">
+    <div class="card__head card__head--pad">
+      <h2 id="roi-title" class="card__title">Temperaturas por región</h2>
+      <div class="tabs tabs--pill" role="tablist" data-tabs="rois">
+        <button type="button" role="tab" class="tabs__item" aria-selected="false" data-tab="t1">Toma 1</button>
+        <button type="button" role="tab" class="tabs__item is-active" aria-selected="true" data-tab="t2">Toma 2</button>
+      </div>
+    </div>
+    <div data-tab-panel="rois" data-show="t2">
+      <% [[1, a.roisToma1], [2, a.rois]].forEach(([toma, list]) => { %>
+      <div class="table-wrap" data-only="t<%= toma %>">
+        <table class="table table--num">
+          <caption class="sr-only">Temperaturas medias por región, toma <%= toma %></caption>
+          <thead><tr><th scope="col">Región</th><th scope="col">Media der.</th><th scope="col">Media izq.</th><th scope="col">ΔT</th><th scope="col">Máx. der./izq.</th></tr></thead>
+          <tbody>
+            <% list.forEach((r) => { const hot = r.roi !== 'general' && Math.abs(r.deltaT) >= a.umbral; const lit = r.roi !== 'general' && Math.abs(r.deltaT) >= domain.DELTA_T_REFERENCIA; %>
+            <tr class="<%= r.roi === 'general' ? 'row-total' : '' %><%= hot ? ' row-hot' : '' %>">
+              <th scope="row"><%= domain.ROI_NAMES[r.roi] %></th>
+              <td><%= fmt.num(r.avgDer, 2) %></td>
+              <td><%= fmt.num(r.avgIzq, 2) %></td>
+              <td><span class="delta<%= hot ? ' delta--hot' : '' %>"><%= fmt.signed(r.deltaT, 2) %></span><% if (lit) { %><span class="tag tag--lit" title="Supera la referencia bibliográfica (no diagnóstico)">≥ <%= fmt.num(domain.DELTA_T_REFERENCIA, 1) %></span><% } %></td>
+              <td class="muted"><%= fmt.num(r.maxDer, 1) %> / <%= fmt.num(r.maxIzq, 1) %></td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% }) %>
+    </div>
+    <p class="table-note">Filas resaltadas: |ΔT| ≥ <%= fmt.num(a.umbral, 1) %> °C. Temperaturas <%= fuente[a.fuenteRois] || 'simuladas' %><%= a.fuenteRois !== 'simulada' ? ' (conversión aproximada, sin calibración radiométrica)' : '' %>.</p>
   </section>
 </div>
 
@@ -141,20 +183,21 @@
 
 <div class="grid grid--2">
   <section class="card" aria-labelledby="img-title">
-    <h2 id="img-title" class="card__title">Imágenes de la toma</h2>
+    <h2 id="img-title" class="card__title">Termografías</h2>
     <div class="image-pair">
       <% imageSlots.forEach((sl) => { const img = s.image(sl.slot); %>
       <figure class="image-tile">
         <% if (img && canPreview(img)) { %>
         <button type="button" class="image-tile__btn" data-lightbox="<%= imageUrl(s, sl.slot) %>" data-caption="<%= sl.titulo %>">
-          <img src="<%= imageUrl(s, sl.slot) %>" alt="<%= sl.titulo %> de <%= p.codigo %>" loading="lazy" width="320" height="240">
+          <img src="<%= imageUrl(s, sl.slot) %>" alt="<%= sl.titulo %> de <%= p.codigo %>" loading="lazy" width="480" height="360">
+          <span class="image-tile__badge image-tile__badge--t<%= sl.toma %>"><%= sl.etiqueta %></span>
         </button>
         <% } else if (img) { %>
         <a class="image-tile__file" href="<%= imageUrl(s, sl.slot) %>"><%- include('../partials/icon', { name: 'file', size: 28 }) %><span><%= img.originalName %></span><small>Descargar (<%= fmt.bytes(img.size) %>)</small></a>
         <% } else { %>
         <div class="image-tile__file"><span>Sin imagen</span></div>
         <% } %>
-        <figcaption><%= sl.titulo %></figcaption>
+        <figcaption><%= sl.toma === 1 ? fmt.date(s.fechaToma1) : fmt.date(s.fechaHora) %><%= sl.toma === 1 && s.toma1OrigenStudyId ? ' · reutilizada de un estudio anterior' : '' %></figcaption>
       </figure>
       <% }) %>
     </div>
@@ -162,12 +205,29 @@
 
   <section class="card" aria-labelledby="acq-title">
     <h2 id="acq-title" class="card__title">Condiciones de adquisición</h2>
-    <div class="env-summary">
-      <span class="env-chip <%= s.tempAmbienteOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'thermo', size: 18 }) %>T. ambiente <strong class="num"><%= fmt.num(s.tempAmbiente, 1) %> °C</strong></span>
-      <span class="env-chip env-chip--key <%= s.humedadOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'droplet', size: 18 }) %>Humedad <strong class="num"><%= fmt.num(s.humedadRelativa, 0) %> %</strong></span>
-      <span class="env-chip <%= s.valida ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: s.valida ? 'check' : 'alert', size: 18 }) %><%= s.valida ? 'Imagen válida' : 'Imagen no válida' %></span>
+    <div class="cond-grid">
+      <div>
+        <h3 class="card__subtitle">Toma 2 · control</h3>
+        <div class="env-summary">
+          <span class="env-chip <%= s.tempAmbienteOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'thermo', size: 16 }) %><strong class="num"><%= fmt.num(s.tempAmbiente, 1) %> °C</strong></span>
+          <span class="env-chip env-chip--key <%= s.humedadOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'droplet', size: 16 }) %>HR <strong class="num"><%= fmt.num(s.humedadRelativa, 0) %> %</strong></span>
+        </div>
+      </div>
+      <div>
+        <h3 class="card__subtitle">Toma 1 · basal</h3>
+        <% if (s.tempAmbienteToma1 !== null || s.humedadRelativaToma1 !== null) { %>
+        <div class="env-summary">
+          <span class="env-chip <%= s.condicionesToma1Ok ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'thermo', size: 16 }) %><strong class="num"><%= fmt.num(s.tempAmbienteToma1, 1) %> °C</strong></span>
+          <span class="env-chip env-chip--key <%= s.condicionesToma1Ok ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'droplet', size: 16 }) %>HR <strong class="num"><%= fmt.num(s.humedadRelativaToma1, 0) %> %</strong></span>
+        </div>
+        <% } else { %><p class="muted small">Sin registro.</p><% } %>
+      </div>
     </div>
-    <% if (!s.condicionesOk) { %><p class="text-warn small">Condiciones fuera del rango del protocolo (<%= A.tempAmbiente.min %>–<%= A.tempAmbiente.max %> °C, <%= A.humedadRelativa.min %>–<%= A.humedadRelativa.max %> %). Interpretá el resultado con cautela.</p><% } %>
+    <div class="env-summary">
+      <span class="env-chip <%= s.valida ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: s.valida ? 'check' : 'alert', size: 16 }) %><%= s.valida ? 'Imágenes válidas' : 'Imágenes no válidas' %></span>
+      <span class="env-chip <%= s.intervaloOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'calendar', size: 16 }) %><%= s.diasEntreTomas !== null ? `${s.diasEntreTomas} días entre tomas` : 'Intervalo sin dato' %></span>
+    </div>
+    <% if (!s.condicionesOk) { %><p class="text-warn small">Condiciones de la toma 2 fuera del rango del protocolo (<%= A.tempAmbiente.min %>–<%= A.tempAmbiente.max %> °C, <%= A.humedadRelativa.min %>–<%= A.humedadRelativa.max %> %). Interpretá el resultado con cautela.</p><% } %>
     <% if (!s.valida && s.motivoInvalidez) { %><p class="text-warn small">Motivo: <%= s.motivoInvalidez %></p><% } %>
     <dl class="kv kv--compact kv--2col">
       <div><dt>Distancia</dt><dd class="num"><%= s.distanciaCm %> cm</dd></div>
@@ -176,8 +236,6 @@
       <div><dt>Paleta</dt><dd><%= s.paleta %></dd></div>
       <div><dt>Estabilización</dt><dd class="num"><%= s.tiempoEstabilizacionMin %> min</dd></div>
       <div><dt>Fondo</dt><dd><%= s.fondo %></dd></div>
-      <div><dt>Checklist</dt><dd class="num"><%= s.checklist.length %> de <%= domain.CAPTURE_CHECKLIST.length %> ítems</dd></div>
-      <div><dt>Cámara</dt><dd><%= A.camara %></dd></div>
     </dl>
   </section>
 </div>
@@ -224,11 +282,11 @@
       </div>
       <div class="field field--grow">
         <label for="motivo-control">Motivo</label>
-        <input id="motivo-control" name="motivo" value="<%= s.toma === 1 ? 'Toma 2 · seguimiento termográfico' : 'Control clínico a 6 semanas' %>">
+        <input id="motivo-control" name="motivo" value="Control clínico a 6 semanas">
       </div>
       <button type="submit" class="btn btn--primary btn--sm"><%= proximo ? 'Reprogramar' : 'Programar control' %></button>
     </form>
-    <p class="hint">Sugerido: 6 semanas después de la toma. Un control nuevo reemplaza al pendiente.</p>
+    <p class="hint">Sugerido: 6 semanas después de la toma 2. Un control nuevo reemplaza al pendiente.</p>
   </section>
 
   <section class="card" id="desenlace" aria-labelledby="out-title">

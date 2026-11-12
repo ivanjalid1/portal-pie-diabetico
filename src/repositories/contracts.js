@@ -171,6 +171,11 @@ class FileStorage {
    * Devuelve cómo servir el archivo: `{type:'buffer', buffer, mime}` o
    * `{type:'redirect', url}` (URL firmada de corta duración).
    */
+  /** Contenido binario del archivo (para vistas previas y análisis). */
+  async read(_storagePath) {
+    notImplemented('FileStorage.read');
+  }
+
   async getAccess(_storagePath) {
     notImplemented('FileStorage.getAccess');
   }

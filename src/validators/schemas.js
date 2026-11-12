@@ -142,16 +142,19 @@ function localToIso(v) {
 const studySchema = z
   .object({
     patientId: z.string().uuid('Seleccioná un paciente.'),
-    toma: z.preprocess(
-      (v) => Number(v),
-      z.union([z.literal(1), z.literal(2)], { error: 'Indicá si es la toma 1 o 2.' }),
+    toma1Origen: z.preprocess(
+      (v) => (f.empty(v) || v === 'nueva' ? null : v),
+      z.union([z.null(), z.string().uuid('Estudio de origen inválido.')]),
     ),
+    fechaToma1: f.optionalDate('Fecha de la toma 1', { notFuture: true }),
+    tempAmbienteToma1: f.optionalNumber('Temperatura ambiente de la toma 1', { min: 10, max: 40 }),
+    humedadRelativaToma1: f.optionalNumber('Humedad relativa de la toma 1', { min: 0, max: 100 }),
     fechaHora: z.preprocess(
       localToIso,
       z
         .string()
         .refine((v) => !Number.isNaN(new Date(v).getTime()), 'Fecha y hora inválidas.')
-        .refine((v) => new Date(v).getTime() <= Date.now() + 5 * 60000, 'La fecha de la toma no puede ser futura.'),
+        .refine((v) => new Date(v).getTime() <= Date.now() + 5 * 60000, 'La fecha de la toma 2 no puede ser futura.'),
     ),
     centro: z.enum([...CENTRO_NOMBRES], { error: 'Seleccioná el centro.' }),
     tempAmbiente: f.number('Temperatura ambiente', { min: 10, max: 40 }),
@@ -178,6 +181,12 @@ const studySchema = z
         path: ['motivoInvalidez'],
         message: 'Indicá el motivo por el que la imagen no es válida.',
       });
+    }
+    if (!d.toma1Origen && !d.fechaToma1) {
+      ctx.addIssue({ code: 'custom', path: ['fechaToma1'], message: 'Indicá la fecha de la toma 1.' });
+    }
+    if (d.fechaToma1 && new Date(`${d.fechaToma1}T12:00:00-03:00`) >= new Date(d.fechaHora)) {
+      ctx.addIssue({ code: 'custom', path: ['fechaToma1'], message: 'La toma 1 debe ser anterior a la toma 2.' });
     }
     if (!d.consentimientoVerificado) {
       ctx.addIssue({

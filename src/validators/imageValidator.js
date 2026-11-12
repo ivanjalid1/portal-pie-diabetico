@@ -27,10 +27,10 @@ function sniffImageType(buffer, originalName = '') {
  * @param {Record<string, {buffer: Buffer, originalname: string, size: number}>} filesBySlot
  * @returns {{ok: boolean, errors: Record<string,string>, images: Array}}
  */
-function validateStudyImages(filesBySlot, maxBytes) {
+function validateStudyImages(filesBySlot, maxBytes, slots = IMAGE_SLOTS.map((s) => s.slot)) {
   const errors = {};
   const images = [];
-  for (const { slot, corto } of IMAGE_SLOTS) {
+  for (const { slot, corto } of IMAGE_SLOTS.filter((s) => slots.includes(s.slot))) {
     const file = filesBySlot?.[slot];
     if (!file || !file.buffer?.length) {
       errors[slot] = `Falta cargar la ${corto}.`;

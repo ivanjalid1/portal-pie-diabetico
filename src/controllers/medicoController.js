@@ -3,6 +3,8 @@
 const AppointmentService = require('../services/AppointmentService');
 const { CENTRO_NOMBRES, IMAGE_SLOTS, CENTROS } = require('../config/domain');
 const { buildCsv } = require('../utils/csv');
+const { sniffImageType } = require('../validators/imageValidator');
+const { is2PreviewPng } = require('../imaging/thermogram');
 const { EVENTS } = require('../utils/eventBus');
 
 /** Asocia a un error de negocio la URL del formulario al que debe volver. */
@@ -147,11 +149,16 @@ function createMedicoController({
       const rows = await patientService.listForMedico(req.user.id);
       const selectedId = typeof req.query.paciente === 'string' ? req.query.paciente : res.locals.old.patientId || '';
       const selectedRow = rows.find((r) => r.patient.id === selectedId) || null;
+      // Tomas 1 reutilizables por paciente (para elegir en lugar de volver a subirla).
+      const toma1Options = {};
+      for (const r of rows) {
+        if (r.estudios) toma1Options[r.patient.id] = await studyService.toma1Options(r.patient.id, req.user.id);
+      }
       res.render('medico/study-wizard', {
         title: 'Nuevo estudio termográfico',
         rows,
         selected: selectedRow?.patient || null,
-        tomaSugerida: selectedRow && selectedRow.estudios > 0 ? 2 : 1,
+        toma1Options,
         centros: CENTRO_NOMBRES,
         defaultCentro: selectedRow?.patient.centro || defaultCentro(req),
         imageSlots: IMAGE_SLOTS,
@@ -172,13 +179,28 @@ function createMedicoController({
     async studyDetail(req, res) {
       const data = await studyService.getForMedico(req.params.id, req.user.id);
       res.render('medico/study-result', {
-        title: `Estudio ${data.patient.codigo} · toma ${data.study.toma}`,
+        title: `Estudio ${data.patient.codigo}`,
         ...data,
         proximo: data.appointments.find((a) => a.estado === 'pendiente') || null,
         defaultControl: AppointmentService.defaultDate(data.study.fechaHora),
         imageSlots: IMAGE_SLOTS,
         predictorInfo: studyService.analysisService.predictorInfo,
       });
+    },
+
+    /** Vista previa PNG de un archivo IS2 (el navegador no puede mostrarlo). */
+    async previewUpload(req, res) {
+      const file = req.file;
+      if (!file || sniffImageType(file.buffer, file.originalname) !== 'application/x-fluke-is2') {
+        return res.status(415).json({ error: 'Sólo se genera vista previa para archivos IS2.' });
+      }
+      try {
+        const png = is2PreviewPng(file.buffer, { width: 640, height: 480 });
+        res.set('Cache-Control', 'no-store');
+        return res.type('image/png').send(png);
+      } catch {
+        return res.status(422).json({ error: 'No se pudo leer la imagen infrarroja del archivo IS2.' });
+      }
     },
 
     async saveNotes(req, res) {

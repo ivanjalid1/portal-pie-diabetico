@@ -3,8 +3,9 @@
 const { ROIS } = require('../config/domain');
 
 /**
- * Exportación CSV con las mismas columnas que la planilla del equipo de
- * investigación. Separador `;` y coma decimal para abrirse directamente en
+ * Exportación CSV con las columnas de la planilla del equipo de investigación,
+ * repetidas para la toma 1 (T1) y la toma 2 (T2), más la variación entre tomas.
+ * Separador `;` y coma decimal para abrirse directamente en
  * Excel/LibreOffice con configuración regional es-AR. Sólo incluye el código
  * anónimo del paciente (sin nombre, correo ni DNI).
  */
@@ -46,22 +47,38 @@ const BASE_COLUMNS = [
   ['GENERÓ LESIÓN', ({ patient }) => yesNo(patient.generoLesion)],
 ];
 
-const ROI_COLUMNS = ROIS.flatMap((r) => [
-  [`AVG DER ${r.csv}`, ({ analysis }) => num(analysis?.roi(r.key)?.avgDer)],
-  [`AVG IZQ ${r.csv}`, ({ analysis }) => num(analysis?.roi(r.key)?.avgIzq)],
-  [`DIF REG ${r.csv}`, ({ analysis }) => num(analysis?.roi(r.key)?.deltaT)],
+/** Columnas por ROI y clasificación térmica de una toma (prefijo T1/T2). */
+function tomaColumns(toma) {
+  const p = `T${toma}`;
+  const grupo = ({ analysis }) => (toma === 1 ? analysis?.grupoToma1 : analysis?.grupo) || '';
+  const sim = ({ analysis }) => yesNo(toma === 1 ? analysis?.simetricoToma1 : analysis?.simetrico);
+  return [
+    ...ROIS.flatMap((r) => [
+      [`${p} AVG DER ${r.csv}`, ({ analysis }) => num(analysis?.roi(r.key, toma)?.avgDer)],
+      [`${p} AVG IZQ ${r.csv}`, ({ analysis }) => num(analysis?.roi(r.key, toma)?.avgIzq)],
+      [`${p} DIF REG ${r.csv}`, ({ analysis }) => num(analysis?.roi(r.key, toma)?.deltaT)],
+    ]),
+    [`${p} GRUPO (P/C)`, grupo],
+    [`${p} SIMETRICO`, sim],
+  ];
+}
+
+/** Variación de la asimetría entre tomas: |ΔT T2| − |ΔT T1| por ROI. */
+const EVOLUTION_COLUMNS = ROIS.map((r) => [
+  `VARIACION |DIF| ${r.csv}`,
+  ({ analysis }) => num(analysis?.evolucion.find((e) => e.roi === r.key)?.cambio),
 ]);
 
 const TAIL_COLUMNS = [
-  ['GRUPO (P/C)', ({ analysis }) => analysis?.grupo || ''],
-  ['SIMETRICO', ({ analysis }) => yesNo(analysis?.simetrico)],
   // Columnas adicionales del portal (no están en la planilla original).
-  ['TOMA', ({ study }) => study?.toma ?? ''],
-  ['FECHA ESTUDIO', ({ study }) => (study ? study.fechaHora.slice(0, 10) : '')],
+  ['FECHA TOMA 1', ({ study }) => (study?.fechaToma1 ? study.fechaToma1.slice(0, 10) : '')],
+  ['FECHA TOMA 2', ({ study }) => (study ? study.fechaHora.slice(0, 10) : '')],
+  ['DIAS ENTRE TOMAS', ({ study }) => study?.diasEntreTomas ?? ''],
   ['UMBRAL ΔT (°C)', ({ analysis }) => num(analysis?.umbral, 1)],
+  ['PROBABILIDAD (%) SIMULADA', ({ analysis }) => num(analysis?.probabilidad, 1)],
 ];
 
-const COLUMNS = [...BASE_COLUMNS, ...ROI_COLUMNS, ...TAIL_COLUMNS];
+const COLUMNS = [...BASE_COLUMNS, ...tomaColumns(1), ...tomaColumns(2), ...EVOLUTION_COLUMNS, ...TAIL_COLUMNS];
 
 function buildCsv(rows) {
   const lines = [COLUMNS.map(([h]) => escape(h)).join(';')];

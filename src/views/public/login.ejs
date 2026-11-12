@@ -1,44 +1,81 @@
-<section class="auth">
-  <div class="auth__panel">
-    <h1>Ingresar</h1>
-    <p class="muted">Usá el correo con el que te registró tu médico (por ejemplo, tu cuenta de Gmail).</p>
-    <form method="post" action="/login" class="form" novalidate>
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <input type="hidden" name="next" value="<%= next %>">
-      <div class="field<%= errors.email ? ' has-error' : '' %>">
-        <label for="email">Correo electrónico</label>
-        <input id="email" name="email" type="email" autocomplete="username" inputmode="email" required value="<%= old.email || '' %>" placeholder="nombre@gmail.com"<%- errors.email ? ' aria-invalid="true" aria-describedby="email-error"' : '' %>>
-        <% if (errors.email) { %><p class="field__error" id="email-error"><%= errors.email %></p><% } %>
+<% const P = domain.PROJECT;
+  const demoRois = [
+    { roi: 'dedo_mayor', avgDer: 30.4, avgIzq: 29.2, deltaT: 1.2 },
+    { roi: 'dedos_menores', avgDer: 28.6, avgIzq: 28.3, deltaT: 0.3 },
+    { roi: 'metatarso', avgDer: 30.1, avgIzq: 29.6, deltaT: 0.5 },
+    { roi: 'arco_interno', avgDer: 30.7, avgIzq: 30.6, deltaT: 0.1 },
+    { roi: 'arco_externo', avgDer: 29.8, avgIzq: 29.9, deltaT: -0.1 },
+    { roi: 'talon', avgDer: 29.1, avgIzq: 29.3, deltaT: -0.2 },
+  ]; %>
+<div class="auth-split">
+  <section class="auth-brand" aria-labelledby="brand-title">
+    <div class="auth-brand__top">
+      <a href="/login" class="brand brand--on-color">
+        <img src="/img/logo.svg" alt="" width="38" height="38">
+        <span class="brand__text"><strong><%= appName %></strong><small>Termografía plantar</small></span>
+      </a>
+    </div>
+    <div class="auth-brand__body">
+      <p class="auth-brand__kicker"><%= P.universidad %> · FCEFyN · <%= P.carrera %></p>
+      <h1 id="brand-title">Detección temprana del riesgo de pie diabético con termografía plantar</h1>
+      <p class="auth-brand__lead"><%= P.titulo %>.</p>
+      <div class="auth-brand__map" aria-hidden="true">
+        <%- include('../partials/plantar-map', { rois: demoRois, umbral: domain.DELTA_T_UMBRAL, mapId: 'auth', values: false }) %>
       </div>
-      <div class="field<%= errors.password ? ' has-error' : '' %>">
-        <label for="password">Contraseña</label>
-        <div class="input-group">
-          <input id="password" name="password" type="password" autocomplete="current-password" required<%- errors.password ? ' aria-invalid="true"' : '' %>>
-          <button type="button" class="icon-btn" data-toggle-password="password" aria-label="Mostrar contraseña"><%- include('../partials/icon', { name: 'eye', size: 18 }) %></button>
-        </div>
-        <% if (errors.password) { %><p class="field__error"><%= errors.password %></p><% } %>
-      </div>
-      <button type="submit" class="btn btn--primary btn--block btn--lg">Ingresar</button>
-      <p class="hint">El ingreso con Google estará disponible en una próxima versión.</p>
-    </form>
-  </div>
+    </div>
+    <dl class="auth-brand__credits">
+      <div><dt>Alumna</dt><dd><%= P.alumna %></dd></div>
+      <div><dt>Asesor</dt><dd><%= P.asesor %></dd></div>
+      <div><dt>Co-asesoras</dt><dd><%= P.coasesoras.join(', ') %></dd></div>
+    </dl>
+  </section>
 
-  <% if (demoAccounts.length) { %>
-  <aside class="demo-box" aria-labelledby="demo-title">
-    <h2 id="demo-title">Cuentas demo</h2>
-    <p class="muted">Contraseña para todas: <code class="copyable">Demo1234!</code></p>
-    <ul>
-      <% demoAccounts.forEach((acc) => { %>
-      <li>
-        <button type="button" class="demo-account" data-fill-login data-email="<%= acc.email %>" data-password="Demo1234!">
-          <span class="demo-account__role"><%= acc.rol %></span>
-          <span class="demo-account__email"><%= acc.email %></span>
-          <span class="demo-account__desc"><%= acc.descripcion %></span>
-        </button>
-      </li>
-      <% }) %>
-    </ul>
-    <p class="hint">Tocá una cuenta para completar el formulario.</p>
-  </aside>
-  <% } %>
-</section>
+  <section class="auth-form" aria-labelledby="login-title">
+    <div class="auth-form__top"><%- include('../partials/theme-toggle') %></div>
+    <div class="auth-form__inner">
+      <h2 id="login-title">Ingresá a tu cuenta</h2>
+      <p class="muted">Usá el correo con el que te registró tu médico (por ejemplo, tu cuenta de Gmail).</p>
+      <form method="post" action="/login" class="form" novalidate>
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="next" value="<%= next %>">
+        <div class="field<%= errors.email ? ' has-error' : '' %>">
+          <label for="email">Correo electrónico</label>
+          <input id="email" name="email" type="email" autocomplete="username" inputmode="email" required value="<%= old.email || '' %>" placeholder="nombre@gmail.com"<%- errors.email ? ' aria-invalid="true" aria-describedby="email-error"' : '' %>>
+          <% if (errors.email) { %><p class="field__error" id="email-error"><%= errors.email %></p><% } %>
+        </div>
+        <div class="field<%= errors.password ? ' has-error' : '' %>">
+          <label for="password">Contraseña</label>
+          <div class="input-group">
+            <input id="password" name="password" type="password" autocomplete="current-password" required<%- errors.password ? ' aria-invalid="true"' : '' %>>
+            <button type="button" class="icon-btn" data-toggle-password="password" aria-label="Mostrar contraseña"><%- include('../partials/icon', { name: 'eye', size: 18 }) %></button>
+          </div>
+          <% if (errors.password) { %><p class="field__error"><%= errors.password %></p><% } %>
+        </div>
+        <button type="submit" class="btn btn--primary btn--block btn--lg">Ingresar</button>
+        <p class="hint">El ingreso con Google estará disponible en una próxima versión.</p>
+      </form>
+
+      <% if (demoAccounts.length) { %>
+      <aside class="demo-box" aria-labelledby="demo-title">
+        <div class="demo-box__head">
+          <h3 id="demo-title">Cuentas demo</h3>
+          <span class="muted small">Contraseña: <code>Demo1234!</code></span>
+        </div>
+        <ul>
+          <% demoAccounts.forEach((acc) => { %>
+          <li>
+            <button type="button" class="demo-account" data-fill-login data-email="<%= acc.email %>" data-password="Demo1234!">
+              <span class="demo-account__role"><%= acc.rol %></span>
+              <span class="demo-account__email"><%= acc.email %></span>
+              <span class="demo-account__desc"><%= acc.descripcion %></span>
+            </button>
+          </li>
+          <% }) %>
+        </ul>
+        <p class="hint">Tocá una cuenta para completar el formulario.</p>
+      </aside>
+      <% } %>
+      <p class="auth-form__disclaimer"><%= domain.DISCLAIMER %></p>
+    </div>
+  </section>
+</div>

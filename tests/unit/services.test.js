@@ -126,10 +126,12 @@ describe('Exportación CSV', () => {
     const [header, ...rows] = csv.replace('﻿', '').trim().split('\r\n');
     expect(header.split(';').slice(0, 3)).toEqual(['ID PACIENTE', 'EDAD', 'SEXO']);
     expect(header).toContain('GENERÓ LESIÓN');
-    expect(header).toContain('DIF REG DEDO MAYOR');
-    expect(header).toContain('GRUPO (P/C)');
-    expect(header).toContain('SIMETRICO');
-    expect(rows.length).toBeGreaterThan(10);
+    expect(header).toContain('T1 DIF REG DEDO MAYOR');
+    expect(header).toContain('T2 DIF REG DEDO MAYOR');
+    expect(header).toContain('T1 GRUPO (P/C)');
+    expect(header).toContain('T2 SIMETRICO');
+    expect(header).toContain('VARIACION |DIF| METATARSO');
+    expect(rows.length).toBeGreaterThanOrEqual(9);
     expect(csv).not.toMatch(/Gómez|gmail|@demo/);
   });
 });

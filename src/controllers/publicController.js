@@ -1,13 +1,12 @@
 'use strict';
 
+const { ROLE_HOME } = require('../models/roles');
+
 function createPublicController({ config, analysisService }) {
   return {
-    landing(req, res) {
-      res.render('public/landing', {
-        layout: 'public',
-        title: 'Termografía plantar y riesgo de úlcera',
-        predictor: analysisService.predictorInfo,
-      });
+    /** Sin landing: la raíz lleva al login o al panel del rol si ya hay sesión. */
+    home(req, res) {
+      res.redirect(302, req.user ? ROLE_HOME[req.user.role] || '/login' : '/login');
     },
 
     health(_req, res) {

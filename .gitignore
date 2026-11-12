@@ -16,3 +16,7 @@ tesis-2026info/
 *.xls
 *.exe
 *.msi
+
+.vercel
+.env*
+!.env.example

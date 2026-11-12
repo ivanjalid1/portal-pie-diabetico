@@ -1,0 +1,14 @@
+tesis-2026info/
+*.pdf
+*.xlsx
+*.xls
+*.IS2
+*.exe
+*.msi
+.db-password.local
+.env
+.env.*
+node_modules/
+tests/
+docs/screenshots/
+supabase/.temp/

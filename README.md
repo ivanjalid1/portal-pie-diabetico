@@ -19,15 +19,15 @@ Portal médico–paciente para la **estimación del riesgo de úlcera de pie dia
 
 ## Capturas
 
-| Landing | Resultado del análisis |
+| Ingreso | Resultado comparativo (toma 1 vs toma 2) |
 | --- | --- |
-| ![Landing](docs/screenshots/01-landing.png) | ![Resultado](docs/screenshots/06-resultado.png) |
-| **Tablero del médico** | **Asistente de estudio** |
-| ![Tablero](docs/screenshots/03-medico-dashboard.png) | ![Asistente](docs/screenshots/07-wizard.png) |
+| ![Ingreso](docs/screenshots/01-login.png) | ![Resultado](docs/screenshots/04-resultado.png) |
+| **Tablero del médico** | **Asistente con vistas previas (PNG e IS2)** |
+| ![Tablero](docs/screenshots/02-dashboard.png) | ![Asistente](docs/screenshots/03-wizard-previews.png) |
 | **Ficha del paciente** | **Portal del paciente** |
-| ![Ficha](docs/screenshots/05-paciente-detalle.png) | ![Paciente](docs/screenshots/08-paciente-home.png) |
-| **Modo oscuro** | **Móvil** |
-| ![Oscuro](docs/screenshots/10-resultado-dark.png) | ![Móvil](docs/screenshots/11-mobile-dashboard.png) |
+| ![Ficha](docs/screenshots/05-paciente-detalle.png) | ![Paciente](docs/screenshots/07-paciente-estudio.png) |
+| **Tema oscuro (opcional)** | **Móvil: menú a la derecha** |
+| ![Oscuro](docs/screenshots/09-resultado-dark.png) | ![Móvil](docs/screenshots/11-mobile-menu.png) |
 
 ## Funcionalidades
 
@@ -35,8 +35,8 @@ Portal médico–paciente para la **estimación del riesgo de úlcera de pie dia
 - Tablero con KPIs (pacientes, estudios del mes, alto riesgo, controles pendientes), últimos análisis y agenda.
 - Registro de pacientes por su **correo (Gmail)**: verifica criterios de exclusión y consentimiento, crea la cuenta con contraseña temporal (se muestra una sola vez) y asigna el **código anónimo** (`DEMO-002`, `DEMO-005`, `DEMO-011`).
 - Ficha clínica completa (DM, HbA1c con alerta >12 meses o imputada, tabaquismo «a consultar», neuropatía con puntaje y grado, vibratoria 0–50 / «>50», antecedentes, hallazgos, campos futuros) con gráfico de evolución.
-- **Asistente de estudio en 4 pasos** que sigue el protocolo: paciente y consentimiento → condiciones ambientales (T 21–24 °C, HR 40–70 %, la humedad resaltada) y checklist de cámara → carga de **2 imágenes** (JPG/PNG/TIFF/IS2, arrastrar y soltar, vista previa) → análisis.
-- Resultado: probabilidad a 6 semanas (gauge con cortes 50/70 %), temperaturas absolutas por ROI (6 por pie + general), ΔT, **grupo térmico P/C** con el umbral usado (1,0 °C por defecto; 2,2 °C de la literatura), **simetría**, mapa plantar SVG, factores contribuyentes y ficha del modelo de referencia.
+- **Asistente de estudio en 4 pasos** que sigue el protocolo: paciente, fechas de ambas tomas y consentimiento → condiciones ambientales (T 21–24 °C, HR 40–70 %, la humedad resaltada) y checklist de cámara → carga de **dos termografías: toma 1 (basal) y toma 2 (control ~30 días después)** (JPG/PNG/TIFF/IS2, arrastrar y soltar, vista previa; los IS2 de Fluke se previsualizan decodificando la matriz infrarroja en el servidor; la toma 1 puede reutilizarse de un estudio anterior) → análisis.
+- Resultado **comparativo**: probabilidad a 6 semanas que considera la evolución (gauge con cortes 50/70 %), temperaturas absolutas por ROI de cada toma (6 por pie + general), ΔT por toma y **variación de la asimetría** (regiones que empeoran), **grupo térmico P/C y simetría de cada toma** con el umbral usado (1,0 °C por defecto; 2,2 °C de la literatura), mapas plantares lado a lado, factores contribuyentes y ficha del modelo de referencia.
 - Notas, publicación del resultado al paciente, control a 6 semanas, **desenlace real** (¿generó lesión?, pie, ROI), informe imprimible («Guardar como PDF») y **exportación CSV** anonimizada con las columnas de la planilla del equipo.
 - Gestión del **consentimiento informado** (historial, revocación).
 
@@ -59,7 +59,9 @@ npm run dev          # http://localhost:3000 (driver memory con datos demo)
 | Paciente | `paciente@demo.com` (y 11 pacientes `*.demo@gmail.com`, p. ej. `maria.gomez.demo@gmail.com`) |
 | Administrador/a | `admin@demo.com` |
 
-Todos los datos e imágenes de demostración son **ficticios y sintéticos** (las termografías se generan con `npm run generate:images`).
+Los pacientes y datos clínicos de demostración son **ficticios**. Las termografías demo son **termogramas reales anonimizados** del estudio (usados con autorización del equipo): sólo la matriz infrarroja de las plantas, renderizada con paleta ironbow, sin fotos visibles, texto ni metadatos (ver `scripts/generate-demo-images.js`).
+
+El tema por defecto es **claro**; el oscuro se activa con el botón ☀/☾ y se recuerda en el navegador.
 
 ## Scripts
 
@@ -71,7 +73,7 @@ Todos los datos e imágenes de demostración son **ficticios y sintéticos** (la
 | `SUPABASE_E2E=1 npm test -- tests/supabase` | Pruebas de extremo a extremo contra un proyecto Supabase real. |
 | `npm run lint` | ESLint. |
 | `npm run format` / `format:check` | Prettier. |
-| `npm run generate:images` | Regenera las termografías sintéticas de `public/demo`. |
+| `npm run generate:images` | Regenera las termografías demo de `public/demo` a partir de los IS2 de la carpeta privada `tesis-2026info/` (no versionada). |
 | `npm run seed:supabase` | Carga la semilla demo en Supabase (Auth + DB + Storage). Admite `-- --reset`. |
 
 ## Arquitectura en una línea

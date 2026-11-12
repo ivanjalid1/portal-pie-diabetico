@@ -21,7 +21,6 @@ Con `DATA_DRIVER=memory` la aplicación arranca con la semilla de demostración 
 | `DATA_DRIVER` | `memory` | `memory` o `supabase`. |
 | `PREDICTOR` | `mock` | Estrategia de predicción: `mock`, `logreg`, `cnn`. |
 | `ASYMMETRY_THRESHOLD` | `1.0` | Umbral |ΔT| (°C) del grupo P/C. `2.2` = referencia bibliográfica. |
-| `IMAGE_SLOTS_PRESET` | `termica_visible` | Par de imágenes: `termica_visible` o `toma1_toma2`. |
 | `SESSION_SECRET` | — | **Obligatorio en producción.** Secreto de firma de la cookie. |
 | `SESSION_MAX_AGE_HOURS` | `8` | Duración de la sesión. |
 | `COOKIE_SECURE` | `true` en producción | Cookie sólo por HTTPS. |
@@ -47,7 +46,7 @@ Con `DATA_DRIVER=memory` la aplicación arranca con la semilla de demostración 
 
    Se crean: tipos, tablas, índices, triggers `updated_at`, **políticas RLS por rol** y el bucket privado `estudios` con sus políticas.
 3. Obtener las claves (`supabase projects api-keys --project-ref <ref>`) y completar `.env` con `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY`.
-4. Cargar la semilla demo (usuarios en Auth, datos y las imágenes sintéticas en Storage):
+4. Cargar la semilla demo (usuarios en Auth, datos y las termografías demo en Storage):
 
    ```bash
    npm run seed:supabase            # idempotente
@@ -85,7 +84,8 @@ El análisis está aislado detrás de la interfaz `UlcerPredictor` (`src/service
 class MiPredictor extends UlcerPredictor {
   get info() { return { id: 'logreg', version: 'logreg-v1', nombre: 'Regresión logística', descripcion: '…' }; }
   async predict({ patient, study, images }) {
-    // images: [{ slot: 'termografia' | 'visible', buffer, mime, originalName }]
+    // images: [{ slot: 'toma1' | 'toma2', buffer, mime, originalName }]
+    // Devuelve rois (toma 2) y roisToma1, más la clasificación de cada toma.
     return { predictorVersion, rois, deltaTMax, deltaTMaxRoi, umbral, grupo, simetrico,
              probabilidad, categoria, horizonteSemanas: 6, factores, simulado: false };
   }
@@ -98,19 +98,27 @@ class MiPredictor extends UlcerPredictor {
 
 Si el procesamiento se hace en Python (OpenCV, scikit-learn, PyTorch), la estrategia puede llamar a un microservicio HTTP (`CNN_ENDPOINT_URL`) enviando las imágenes y recibiendo el mismo contrato de salida.
 
-### Decodificación del archivo `.IS2` (Fluke)
+### Archivos `.IS2` (Fluke): decodificación implementada
 
-El portal ya acepta `.IS2` (se valida que sea un contenedor ZIP con extensión `.is2`) y lo guarda tal cual. Para procesarlo:
+El portal ya decodifica la imagen infrarroja de los `.IS2` (`src/imaging/`):
 
-1. Abrir el ZIP (p. ej. `adm-zip` en Node o `zipfile` en Python).
-2. Leer `Images/Main/IR.data` (o ruta equivalente según el firmware): matriz de **320 × 241 valores `uint16`** little-endian; la última fila contiene metadatos y se descarta → 320 × 240 píxeles.
-3. Convertir cuentas a temperatura con los parámetros de calibración del propio archivo (`CalibrationData`, emisividad, temperatura reflejada y transmisión registradas en los XML/INI del contenedor). Validar contra el valor que muestra Fluke SmartView para algunos píxeles.
-4. Las imágenes visibles (`*.jpg`) del contenedor permiten la segmentación de los pies (IR-Fusion).
-5. Con la matriz de temperaturas: segmentar ambos pies, ubicar las 6 ROIs por pie, calcular media/máximo/mínimo y ΔT, y aplicar el modelo.
+1. El `.IS2` es un ZIP (`src/imaging/zip.js`, lector sin dependencias). Se valida la firma `PK` y la extensión.
+2. `Images/Main/IR.data` contiene **320 × 241 valores `uint16` little-endian**; la primera fila (640 bytes) es cabecera y se saltea → 320 × 240 píxeles de **cuentas crudas** (`src/imaging/is2.js`).
+3. Sólo se lee la matriz IR: nunca las fotos visibles (`Images/Main/*.jpg`) ni la miniatura `Thumbnails/014000F0.jpg`, que tiene impresos fecha, hora y emisividad.
+4. **Vista previa**: normalización por percentiles (2–99,7 %), paleta ironbow, ampliación bicúbica y barra de color (`renderThermogram`). Se usa en `POST /medico/estudios/vista-previa` (asistente) y en `/media/estudios/:id/:slot?vista=png`.
+5. **ROIs aproximadas** (`analyzeThermogram`): umbral de Otsu + componentes conexas para separar ambos pies (el pie izquierdo del paciente aparece a la izquierda de la imagen, convención validada contra las mediciones del equipo), bandas por longitud del pie (dedos 0–20 %, metatarso 20–42 %, arco 42–70 %, talón 70–100 %) y división medial/lateral.
+6. **Cuentas → °C**: `T ≈ −32,97 + 0,012978 · cuentas`, ajuste lineal entre cuentas medias por ROI y las temperaturas medidas por el equipo con el software del fabricante (34 termogramas, r = 0,88). Es una aproximación: la conversión exacta usa la calibración radiométrica de la cámara (`CalibrationData.gpbenc`), pendiente de implementar.
+
+Cuando se suben **ambas tomas en IS2**, el predictor `mock-v0` usa estas temperaturas reales por ROI (`fuente_rois = 'is2'`); la probabilidad sigue siendo simulada.
+
+### Imágenes demo a partir de termogramas reales
+
+`npm run generate:images` lee los pares definidos en `scripts/demo-pairs.json` desde la carpeta privada `tesis-2026info/` (excluida de git y de Vercel) y genera `public/demo/par-NN-toma{1,2}.png` (960 × 720, sin metadatos) y `src/seed/demoImages.json` (temperaturas por ROI estimadas de cada imagen, que la semilla usa para que los valores sean coherentes con lo que se ve).
+
+**Emparejamiento toma 1 / toma 2**: por código de paciente (`P.HC0xx` en la primera toma ↔ carpeta `2PHC.0xx` de la segunda) y verificado con la fecha de captura de cada IS2 (entre 28 y 41 días entre tomas en los 10 pares elegidos; se descartaron los pares con el reloj de la cámara desfasado, las carpetas con imágenes duplicadas y las identificadas sólo por nombre). Se eligieron imágenes con ambos pies completos y buen contraste. Los datos clínicos de la demo son ficticios y no corresponden a esos códigos.
 
 ## 7. Seguridad operativa
 
 - Nunca exponer `SUPABASE_SERVICE_ROLE_KEY` al navegador ni subir `.env` al repositorio (está en `.gitignore`).
 - Rotar `SESSION_SECRET` invalida todas las sesiones.
 - Con datos reales: `SHOW_DEMO_ACCOUNTS=false`, eliminar los usuarios demo (Authentication → Users en el panel de Supabase; las fichas asociadas deben borrarse antes por la restricción de clave foránea del médico) y definir las políticas de retención.
-- La estructura interna exacta del `.IS2` (nombres de archivo y calibración) debe verificarse con archivos reales de la cámara antes de implementar el decodificador.

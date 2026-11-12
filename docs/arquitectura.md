@@ -45,6 +45,7 @@ flowchart LR
 | Aplicación (Servicios) | `src/services` | Casos de uso: registrar paciente, crear estudio + análisis, publicar, etc. |
 | Dominio | `src/models`, `src/config/domain.js` | Entidades, reglas derivadas (edad, grado de neuropatía, grupo térmico) y constantes del protocolo. |
 | Infraestructura | `src/repositories`, `src/config/supabase.js`, `src/services/auth/*Provider.js` | Persistencia, almacenamiento de archivos y proveedores de identidad. |
+| Procesamiento de imágenes | `src/imaging` | Lectura de IS2 (ZIP + matriz IR 320×240), segmentación de ambos pies, ROIs aproximadas, conversión cuentas→°C y renderizado ironbow (vistas previas). |
 
 ## 2. Patrones de diseño
 
@@ -169,7 +170,7 @@ sequenceDiagram
   participant EV as DomainEventBus
   participant AU as AuditService
 
-  M->>R: POST /medico/estudios (multipart, 2 imágenes)
+  M->>R: POST /medico/estudios (multipart: termografía toma 1 + toma 2)
   R->>R: requireAuth → requireRole(medico) → multer → verifyCsrf → validate(studySchema)
   R->>C: createStudy(req.validated, files)
   C->>S: createWithAnalysis(patientId, adquisición, archivos)

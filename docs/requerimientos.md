@@ -8,8 +8,8 @@
 | RF-02 | Tres roles (administrador, médico, paciente) con permisos diferenciados. | Alta | Hecho |
 | RF-03 | Registro de pacientes con verificación de criterios de exclusión y consentimiento informado. | Alta | Hecho |
 | RF-04 | Ficha clínica con todas las variables del protocolo (DM, HbA1c, tabaquismo, neuropatía, vibratoria, antecedentes, hallazgos) y campos futuros. | Alta | Hecho |
-| RF-05 | Asistente de toma con condiciones ambientales, checklist de cámara y carga de 2 imágenes (JPG, PNG, TIFF, IS2). | Alta | Hecho |
-| RF-06 | Análisis por ROI (6 por pie + general) con temperaturas absolutas, ΔT, grupo P/C con umbral configurable, simetría y probabilidad a 6 semanas. | Alta | Hecho (simulado) |
+| RF-05 | Asistente con condiciones ambientales, checklist de cámara y carga de dos termografías (toma 1 basal y toma 2 de control; JPG, PNG, TIFF, IS2), con reutilización de una toma 1 anterior. | Alta | Hecho |
+| RF-06 | Análisis comparativo por ROI (6 por pie + general) con temperaturas absolutas de cada toma, ΔT, variación de la asimetría, grupo P/C y simetría por toma con umbral configurable, y probabilidad a 6 semanas. | Alta | Hecho (probabilidad simulada; ROIs desde IS2 por segmentación simple) |
 | RF-07 | Publicación del resultado al paciente. | Alta | Hecho |
 | RF-08 | Programación de controles y registro del desenlace (¿generó lesión?). | Alta | Hecho |
 | RF-09 | Informe imprimible y exportación CSV anonimizada con las columnas de la planilla. | Media | Hecho |
@@ -29,7 +29,7 @@
 | RNF-04 | Trazabilidad | Registro de auditoría de accesos y acciones relevantes. |
 | RNF-05 | Usabilidad | Interfaz en español rioplatense, lenguaje simple para pacientes, estados vacíos con acción sugerida. |
 | RNF-06 | Accesibilidad | Etiquetas en todos los campos, foco visible, contraste AA, navegación por teclado, `prefers-reduced-motion`, textos alternativos y tabla accesible para el gráfico. |
-| RNF-07 | Adaptabilidad | Diseño responsive (desde 360 px) y modo oscuro automático. |
+| RNF-07 | Adaptabilidad | Diseño responsive (desde 360 px), tema claro por defecto y oscuro opcional con selector manual. |
 | RNF-08 | Portabilidad | Despliegue serverless en Vercel sin disco persistente; persistencia intercambiable por configuración. |
 | RNF-09 | Mantenibilidad | Arquitectura en capas, patrones documentados, ESLint + Prettier, pruebas automatizadas. |
 | RNF-10 | Rendimiento | Páginas renderizadas en servidor; JS mínimo; Chart.js sólo donde se usa. |

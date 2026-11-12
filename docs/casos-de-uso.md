@@ -53,7 +53,7 @@ flowchart LR
 | UC-03 | Registrar paciente | Médico/a | — | Verifica criterios de exclusión, completa identificación (correo Gmail), datos clínicos y consentimiento → se crea la cuenta y se muestra la contraseña temporal una única vez. | Criterio de exclusión marcado: no se permite el alta. Código o DNI duplicado: error. |
 | UC-04 | Editar ficha clínica | Médico/a | Paciente propio | Modifica datos clínicos y de contacto. | Código y correo no editables. |
 | UC-05 | Gestionar consentimiento | Médico/a | Paciente propio | Registra firma (versión vigente) o revocación con motivo. | Sin consentimiento vigente no se pueden cargar estudios. |
-| UC-06 | Cargar estudio y analizar | Médico/a | Paciente propio con consentimiento | Asistente de 4 pasos: paciente/toma → condiciones ambientales y checklist → 2 imágenes → análisis. | Condiciones fuera de rango: advertencia (no bloquea). Imagen no válida: motivo obligatorio. Archivo inválido: se rechaza por firma binaria. |
+| UC-06 | Cargar estudio comparativo y analizar | Médico/a | Paciente propio con consentimiento | Asistente de 4 pasos: paciente y fechas de las tomas → condiciones ambientales y checklist → **termografía de la toma 1 (basal) y de la toma 2 (control ~30 días después)** → análisis comparativo. | La toma 1 puede reutilizarse de un estudio anterior del mismo paciente. Condiciones fuera de rango: advertencia (no bloquea). Imagen no válida: motivo obligatorio. Archivo inválido: se rechaza por firma binaria. Los IS2 se previsualizan en el servidor. |
 | UC-07 | Revisar resultado | Médico/a | Estudio analizado | Ve probabilidad, ROIs con temperaturas, ΔT, grupo P/C y umbral usado, simetría, mapa plantar, factores y ficha del modelo. | — |
 | UC-08 | Publicar resultado | Médico/a | Estudio analizado | Hace visible el resultado para el paciente (o lo oculta). | — |
 | UC-09 | Programar control | Médico/a | Paciente propio | Fecha sugerida a 6 semanas; reemplaza el control pendiente. | Puede marcarse realizado o cancelado. |
@@ -76,13 +76,16 @@ Como médica, quiero registrar a un paciente con su correo de Gmail para que pue
 Como médico, quiero un asistente que siga el protocolo para no omitir pasos de la captura.
 - El asistente muestra 4 pasos y no avanza si faltan datos obligatorios.
 - La temperatura (21–24 °C) y la humedad (40–70 %) muestran «Dentro del protocolo» o «Fuera de rango» mientras escribo; la humedad aparece destacada.
-- Puedo arrastrar las 2 imágenes y veo la vista previa (JPG/PNG) o una tarjeta de archivo (TIFF/IS2).
+- Puedo arrastrar las 2 termografías (toma 1 y toma 2) y veo la vista previa: JPG/PNG en el navegador; IS2 generada por el servidor desde la matriz infrarroja; TIFF como tarjeta de archivo.
+- Si el paciente ya tiene una toma 1 cargada, puedo elegirla en lugar de volver a subirla.
 
 **HU-03 · Resultado interpretable**
 Como médica, quiero ver qué regiones superan el umbral de asimetría para orientar la inspección clínica.
-- La tabla muestra temperatura media derecha e izquierda y ΔT por ROI; las filas con |ΔT| ≥ umbral se resaltan.
+- La tabla muestra temperatura media derecha e izquierda y ΔT por ROI de cada toma; las filas con |ΔT| ≥ umbral se resaltan.
+- La evolución indica en qué regiones aumentó la asimetría entre la toma 1 y la toma 2 (|ΔT₂| − |ΔT₁| ≥ 0,3 °C) y la probabilidad lo tiene en cuenta.
+- Veo los mapas plantares de ambas tomas lado a lado o de a uno.
 - El resultado indica el umbral usado (1,0 °C por defecto) y la referencia bibliográfica (2,2 °C).
-- Se informa el grupo térmico P/C y si el estudio es simétrico.
+- Se informa el grupo térmico P/C y la simetría de cada toma.
 - El aviso «resultado simulado, no diagnóstico» es siempre visible.
 
 **HU-04 · Resultado para el paciente**

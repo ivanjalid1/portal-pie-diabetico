@@ -60,7 +60,8 @@ erDiagram
     uuid id PK
     uuid patient_id FK
     uuid medico_id FK
-    smallint toma "1 basal, 2 seguimiento"
+    timestamptz fecha_toma1 "toma basal"
+    uuid toma1_origen_study_id "toma 1 reutilizada"
     timestamptz fecha_hora
     numeric temp_ambiente
     numeric humedad_relativa
@@ -167,12 +168,15 @@ erDiagram
 
 Historial de firmas y revocaciones (`version`, `fecha_firma`, `registrado_por`, `revocado_at`, `motivo_revocacion`).
 
-### `studies` (toma)
+### `studies` (estudio comparativo toma 1 / toma 2)
 
 | Columna | Tipo | Descripción / regla |
 | --- | --- | --- |
-| `toma` | smallint 1–2 | 1 = basal; 2 = seguimiento a 30–45 días. |
-| `fecha_hora`, `centro` | | |
+| `fecha_hora` | timestamptz | Fecha de la **toma 2** (control, visita actual). |
+| `fecha_toma1` | timestamptz | Fecha de la **toma 1** (basal); debe ser anterior a la toma 2. |
+| `toma1_origen_study_id` | uuid → `studies` | Si la toma 1 se reutilizó de un estudio anterior. |
+| `temp_ambiente_toma1`, `humedad_relativa_toma1` | numeric | Condiciones de la toma 1 (opcionales). |
+| `centro` | text | |
 | `temp_ambiente` | numeric(4,1) | Válido 21–24 °C (badge verde/ámbar). |
 | `humedad_relativa` | numeric(4,1) | Válido 40–70 %. Factor ambiental más influyente: se resalta. |
 | `distancia_cm`, `emisividad`, `rango_min/max`, `paleta`, `tiempo_estabilizacion_min` | | 80 cm, 0,98, 24–35 °C, Ironbow, 15 min por defecto. |
@@ -183,11 +187,11 @@ Historial de firmas y revocaciones (`version`, `fecha_firma`, `registrado_por`, 
 
 ### `study_images`
 
-Una fila por imagen (`slot` = `termografia` / `visible`), con `storage_path` (bucket `estudios`, ruta `<patient_id>/<study_id>/<slot>.<ext>`) o `public_url` (sólo imágenes demo), `mime`, `size_bytes`, `original_name`.
+Una fila por imagen (`slot` = `toma1` / `toma2`, ambas termografías), con `storage_path` (bucket `estudios`, ruta `<patient_id>/<study_id>/<slot>.<ext>`) o `public_url` (sólo imágenes demo), `mime`, `size_bytes`, `original_name`.
 
 ### `analysis_results` y `roi_mediciones`
 
-`analysis_results` guarda la salida del predictor: versión, ΔT máximo y su ROI, **umbral usado**, grupo térmico `P`/`C` (P = alguna ROI con |ΔT| ≥ umbral), `simetrico` (|ΔT general| < 1 °C), probabilidad, categoría, horizonte (6 semanas) y factores (jsonb). `roi_mediciones` guarda las **temperaturas absolutas** por ROI (`avg_der`, `avg_izq`, `max_*`, `min_*`) y `dt` = der − izq.
+`analysis_results` guarda la salida del predictor: versión, origen de las temperaturas (`fuente_rois`: `imagen`, `is2` o `simulada`), **umbral usado**, ΔT máximo, ROI, grupo térmico `P`/`C` (P = alguna ROI con |ΔT| ≥ umbral) y `simetrico` (|ΔT general| < 1 °C) **de la toma 2 y de la toma 1** (`*_toma1`), probabilidad (considera la evolución), categoría, horizonte (6 semanas) y factores (jsonb). `roi_mediciones` guarda, **por toma** (`toma` 1 o 2), las temperaturas absolutas por ROI (`avg_der`, `avg_izq`, `max_*`, `min_*`) y `dt` = der − izq. La variación de la asimetría (|ΔT₂| − |ΔT₁|) se calcula en la entidad `AnalysisResult`.
 
 ### `appointments`, `audit_log`
 
@@ -195,4 +199,4 @@ Controles de seguimiento (un control nuevo reprograma el pendiente) y registro d
 
 ## Exportación CSV
 
-`GET /medico/pacientes/exportar.csv` genera una fila por estudio analizado con las columnas de la planilla del equipo: `ID PACIENTE, EDAD, SEXO, AÑOS DE PREEXISTENCIA DE DIABETES, TIPO DE DIABETES, INSULINO REQUIRIENTE, HbA1c, TABAQUISMO, NEUROPATIA, GRADO DE NEUROPATÍA, VIBRATORIA PIE DERECHO/IZQUIERDO, ANTECEDENTES DE ULCERAS PIE DERECHO/IZQUIERDO, ISQUEMIA, AMPOLLAS, HIPERQUERATOSIS, ERITEMAS, HEMATOMAS, GENERÓ LESIÓN, AVG DER / AVG IZQ / DIF REG por ROI, GRUPO (P/C), SIMETRICO`, más tres columnas propias del portal al final (`TOMA`, `FECHA ESTUDIO`, `UMBRAL ΔT`). Separador `;`, coma decimal y BOM UTF-8 para Excel es-AR. No incluye nombre, correo ni DNI.
+`GET /medico/pacientes/exportar.csv` genera una fila por estudio analizado con las columnas de la planilla del equipo: `ID PACIENTE, EDAD, SEXO, AÑOS DE PREEXISTENCIA DE DIABETES, TIPO DE DIABETES, INSULINO REQUIRIENTE, HbA1c, TABAQUISMO, NEUROPATIA, GRADO DE NEUROPATÍA, VIBRATORIA PIE DERECHO/IZQUIERDO, ANTECEDENTES DE ULCERAS PIE DERECHO/IZQUIERDO, ISQUEMIA, AMPOLLAS, HIPERQUERATOSIS, ERITEMAS, HEMATOMAS, GENERÓ LESIÓN`; luego, **para cada toma** (prefijos `T1` y `T2`), `AVG DER / AVG IZQ / DIF REG` por ROI, `GRUPO (P/C)` y `SIMETRICO`; después la `VARIACION |DIF|` por ROI (|ΔT₂| − |ΔT₁|) y, al final, columnas propias del portal (`FECHA TOMA 1`, `FECHA TOMA 2`, `DIAS ENTRE TOMAS`, `UMBRAL ΔT`, `PROBABILIDAD (%) SIMULADA`). Separador `;`, coma decimal y BOM UTF-8 para Excel es-AR. No incluye nombre, correo ni DNI.

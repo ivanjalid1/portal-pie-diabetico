@@ -110,7 +110,7 @@
       <% recientes.filter((r) => r.patient).forEach(({ study, patient, analysis }) => {
         const img = study.image?.('toma2');
         const cambio = analysis && analysis.deltaTMaxToma1 !== null ? Math.abs(analysis.deltaTMax) - Math.abs(analysis.deltaTMaxToma1) : 0;
-        const dir = !analysis || Math.abs(cambio) < domain.CAMBIO_SIGNIFICATIVO ? 'flat' : cambio > 0 ? 'up' : 'down';
+        const dir = !analysis || Math.abs(cambio) < paramsOf(analysis).cambioRelevante ? 'flat' : cambio > 0 ? 'up' : 'down';
       %>
       <li>
         <a class="study-list__item" href="/medico/estudios/<%= study.id %>">
@@ -132,7 +132,7 @@
   <section class="card dash-grid__worse" aria-labelledby="worse-title">
     <div class="card__head">
       <h2 id="worse-title" class="card__title">Asimetría en aumento</h2>
-      <span class="help-dot" tabindex="0" title="Pacientes cuyo último estudio muestra al menos una región donde |ΔT| creció <%= fmt.num(domain.CAMBIO_SIGNIFICATIVO, 1) %> °C o más entre la toma 1 y la toma 2.">?</span>
+      <span class="help-dot" tabindex="0" title="Pacientes cuyo último estudio muestra al menos una región donde |ΔT| creció <%= fmt.num(settings.cambioRelevante, 1) %> °C o más entre la toma 1 y la toma 2.">?</span>
     </div>
     <% if (!empeorando.length) { %>
     <p class="muted small">Ningún paciente empeoró entre tomas.</p>

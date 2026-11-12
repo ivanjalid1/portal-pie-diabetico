@@ -32,6 +32,8 @@ const EVENTS = Object.freeze({
   DATA_EXPORTED: 'data.exported',
   CONSENT_SIGNED: 'consent.signed',
   CONSENT_REVOKED: 'consent.revoked',
+  SETTINGS_UPDATED: 'settings.updated',
+  ANALYSES_RECALCULATED: 'analyses.recalculated',
 });
 
 class DomainEventBus extends EventEmitter {

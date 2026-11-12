@@ -16,7 +16,7 @@
         <img src="/demo/par-08-toma2.png" alt="Termografía plantar de ambos pies (imagen anonimizada del estudio)" width="800" height="600" decoding="async">
         <figcaption>
           <span class="auth-thermo__chip">Termografía real anonimizada · toma de control</span>
-          <span class="auth-thermo__scale" aria-hidden="true"><span style="background: <%= thermal.PALETTE_CSS[thermal.DEFAULT_PALETTE] %>"></span><small class="num"><%= thermal.CAMERA_RANGE.min %> °C</small><small class="num"><%= thermal.CAMERA_RANGE.max %> °C</small></span>
+          <span class="auth-thermo__scale" aria-hidden="true"><span style="background: <%= thermal.PALETTE_CSS[paletaDefecto()] %>"></span><small class="num"><%= settings.rangoCamaraMin %> °C</small><small class="num"><%= settings.rangoCamaraMax %> °C</small></span>
         </figcaption>
       </figure>
     </div>

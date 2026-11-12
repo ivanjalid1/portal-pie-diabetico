@@ -3,6 +3,7 @@
 const domain = require('../config/domain');
 const { fmt } = require('../utils/format');
 const thermal = require('../utils/thermal');
+const settingsConfig = require('../config/settings');
 const { ROLE_LABELS, ROLE_HOME } = require('../models/roles');
 
 /** Navegación lateral por rol (íconos definidos en partials/icon.ejs). */
@@ -11,12 +12,14 @@ const NAV = {
     { href: '/admin', label: 'Resumen', icon: 'gauge', exact: true },
     { href: '/admin/usuarios', label: 'Usuarios', icon: 'users' },
     { href: '/admin/auditoria', label: 'Auditoría', icon: 'list' },
+    { href: '/configuracion', label: 'Configuración', icon: 'sliders' },
   ],
   medico: [
     { href: '/medico', label: 'Tablero', icon: 'gauge', exact: true },
     { href: '/medico/pacientes', label: 'Pacientes', icon: 'users' },
     { href: '/medico/estudios', label: 'Estudios realizados', icon: 'list' },
     { href: '/medico/controles', label: 'Controles', icon: 'calendar' },
+    { href: '/configuracion', label: 'Configuración', icon: 'sliders' },
   ],
   paciente: [
     { href: '/paciente', label: 'Inicio', icon: 'home', exact: true },
@@ -38,6 +41,17 @@ function locals(config) {
     res.locals.canPreview = (img) =>
       Boolean(img && (img.publicUrl || isIs2(img) || domain.PREVIEWABLE_TYPES.includes(img.mime)));
     /** Variantes de paleta disponibles para una imagen (demo pre-renderizada o IS2). */
+    /** Configuración vigente (la carga un middleware previo; si no, valores por defecto). */
+    const cfg = () => res.locals.settings || settingsConfig.DEFAULTS;
+    res.locals.settingsConfig = settingsConfig;
+    res.locals.paletaDefecto = () =>
+      thermal.PALETTES[cfg().paletaDefecto] ? cfg().paletaDefecto : thermal.DEFAULT_PALETTE;
+    res.locals.protocolo = () => settingsConfig.protocolRanges(cfg());
+    /** Nombre configurable de cada imagen (Imagen 1 / Imagen 2). */
+    res.locals.slotTitulo = (sl) =>
+      sl.toma === 1 ? cfg().tituloImagen1 : sl.toma === 2 ? cfg().tituloImagen2 : sl.titulo;
+    /** Parámetros de un análisis (su snapshot) o, si no hay análisis, los vigentes. */
+    res.locals.paramsOf = (a) => a?.parametros || settingsConfig.analysisParams(cfg());
     res.locals.imagePalettes = (study, slot) => {
       const img = study.image?.(slot);
       if (!img) return null;
@@ -58,7 +72,7 @@ function locals(config) {
     };
     /** Etiqueta clara del grupo térmico (P/C se mantiene sólo en el CSV). */
     res.locals.grupoLabel = (g) => (g === 'P' ? 'Con asimetría (P)' : g === 'C' ? 'Sin asimetría (C)' : 'Sin dato');
-    res.locals.grupoAyuda = (umbral = domain.DELTA_T_UMBRAL) =>
+    res.locals.grupoAyuda = (umbral = cfg().umbralAsimetria) =>
       `P = Problema: alguna región supera el umbral de ΔT (${fmt.num(umbral, 1)} °C). C = Control: ninguna región lo supera. No significa sano o enfermo: todos los participantes son diabéticos.`;
     /** «Toma 1: con asimetría → Toma 2: sin asimetría (mejoró)». */
     res.locals.transicionGrupo = (a) => {

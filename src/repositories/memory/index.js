@@ -131,8 +131,29 @@ class MemoryAnalysisRepository extends contracts.AnalysisRepository {
   async create(result) {
     return this.col.insert(result);
   }
+  async update(id, patch) {
+    return this.col.patch(id, patch);
+  }
   async count() {
     return this.col.size;
+  }
+}
+
+class MemorySettingsRepository extends contracts.SettingsRepository {
+  constructor() {
+    super();
+    this.state = { values: {}, updatedAt: null, updatedBy: null };
+  }
+  async get() {
+    return { ...this.state, values: { ...this.state.values } };
+  }
+  async save(values, actorId = null) {
+    this.state = {
+      values: { ...this.state.values, ...values },
+      updatedAt: new Date().toISOString(),
+      updatedBy: actorId,
+    };
+    return this.get();
   }
 }
 
@@ -237,6 +258,7 @@ function createMemoryRepositories() {
     patients: new MemoryPatientRepository(),
     studies: new MemoryStudyRepository(),
     analyses: new MemoryAnalysisRepository(),
+    settings: new MemorySettingsRepository(),
     appointments: new MemoryAppointmentRepository(),
     audit: new MemoryAuditRepository(),
     consents: new MemoryConsentRepository(),
@@ -251,6 +273,7 @@ module.exports = {
   MemoryPatientRepository,
   MemoryStudyRepository,
   MemoryAnalysisRepository,
+  MemorySettingsRepository,
   MemoryAppointmentRepository,
   MemoryAuditRepository,
   MemoryConsentRepository,

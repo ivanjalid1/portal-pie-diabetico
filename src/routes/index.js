@@ -15,6 +15,7 @@ const { createAdminController } = require('../controllers/adminController');
 const { createMedicoController } = require('../controllers/medicoController');
 const { createPacienteController } = require('../controllers/pacienteController');
 const { createMediaController } = require('../controllers/mediaController');
+const { createSettingsController } = require('../controllers/settingsController');
 
 /**
  * Definición de rutas. Cada ruta protegida arma su cadena de responsabilidad:
@@ -30,6 +31,7 @@ function buildRoutes(container) {
   const medico = createMedicoController({ ...services, events, config });
   const paciente = createPacienteController(services);
   const media = createMediaController(services);
+  const settings = createSettingsController(services);
 
   const loginLimiter = rateLimit({
     windowMs: config.security.loginRateLimitWindowMs,
@@ -150,6 +152,15 @@ function buildRoutes(container) {
   m.get('/controles/exportar.csv', medico.exportControles);
   m.post('/controles/:id/estado', validate(schemas.appointmentStatusSchema), medico.setAppointmentStatus);
   router.use('/medico', m);
+
+  /* ---------- Configuración del análisis (médico/a y administrador/a) ---------- */
+  const c = express.Router();
+  c.use(requireAuth, requireRole(ROLES.MEDICO, ROLES.ADMIN));
+  c.get('/', settings.show);
+  c.post('/', settings.save);
+  c.post('/vista-previa', settings.preview);
+  c.post('/recalcular', settings.recalculate);
+  router.use('/configuracion', c);
 
   /* ---------- Paciente ---------- */
   const p = express.Router();

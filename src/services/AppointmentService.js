@@ -16,10 +16,10 @@ class AppointmentService {
     this.events = events;
   }
 
-  /** Fecha por defecto: 6 semanas después de la fecha de referencia. */
-  static defaultDate(from = new Date()) {
+  /** Fecha por defecto: los días configurados (42 por defecto) después de la fecha de referencia. */
+  static defaultDate(from = new Date(), dias = HORIZONTE_SEMANAS * 7) {
     const d = new Date(from);
-    d.setDate(d.getDate() + HORIZONTE_SEMANAS * 7);
+    d.setDate(d.getDate() + dias);
     return d.toISOString().slice(0, 10);
   }
 

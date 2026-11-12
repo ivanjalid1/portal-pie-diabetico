@@ -1,12 +1,12 @@
 <%
-  // Indicador semicircular de probabilidad con cortes en 50 % y 70 %.
+  // Indicador semicircular de probabilidad con los cortes de riesgo del análisis.
   // El arco de progreso y la aguja se animan con CSS al cargar (respetando
   // prefers-reduced-motion).
   const p = Math.max(0, Math.min(100, Number(value)));
   const R = 80, cx = 100, cy = 100;
   const pt = (v, r = R) => { const a = Math.PI * (1 - v / 100); return [cx + r * Math.cos(a), cy - r * Math.sin(a)]; };
   const arc = (from, to, r = R) => { const [x1, y1] = pt(from, r); const [x2, y2] = pt(to, r); return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`; };
-  const cuts = domain.RISK_CUTS;
+  const cuts = typeof cortes !== 'undefined' && cortes ? cortes : { moderado: settings.corteModerado, alto: settings.corteAlto };
   const cat = domain.RISK_CATEGORIES[category];
   const angle = (p / 100) * 180;
 %>

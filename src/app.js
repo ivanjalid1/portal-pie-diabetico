@@ -71,6 +71,17 @@ function createApp(container = buildContainer()) {
     next();
   });
 
+  // Configuración vigente del análisis (con caché corta) para vistas y controladores.
+  app.use(async (req, res, next) => {
+    try {
+      res.locals.settings = await services.settingsService.get();
+      req.settings = res.locals.settings;
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // Cadena de responsabilidad global: locals → layout → flash → CSRF → usuario.
   app.use(locals(config));
   app.use(layouts);

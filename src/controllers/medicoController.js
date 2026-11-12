@@ -203,7 +203,7 @@ function createMedicoController({
         title: `Estudio ${data.patient.codigo}`,
         ...data,
         proximo: data.appointments.find((a) => a.estado === 'pendiente') || null,
-        defaultControl: AppointmentService.defaultDate(data.study.fechaHora),
+        defaultControl: AppointmentService.defaultDate(data.study.fechaHora, req.settings?.diasControl),
         imageSlots: IMAGE_SLOTS,
         predictorInfo: studyService.analysisService.predictorInfo,
       });

@@ -26,6 +26,10 @@ function check({ data, error, count }, context) {
 
 const uniqueViolation = (err) => err?.code === '23505';
 
+/** Columna o tabla inexistente (migración pendiente). */
+const missingColumn = (err, name) => Boolean(err && err.code === 'PGRST204' && String(err.message).includes(name));
+const missingTable = (err) => Boolean(err && (err.code === 'PGRST205' || err.code === '42P01'));
+
 class SupabaseBase {
   constructor(db, table, Entity) {
     this.db = db;
@@ -262,10 +266,13 @@ class SupabaseAnalysisRepository extends contracts.AnalysisRepository {
     return data.map((r) => this.entity(r));
   }
   async create(result) {
-    const row = check(
-      await this.db.from('analysis_results').insert(toRow('analysis_results', result)).select().single(),
-      'analysis_results.insert',
-    );
+    let res = await this.db.from('analysis_results').insert(toRow('analysis_results', result)).select().single();
+    // Compatibilidad: si la migración de «parametros» todavía no se aplicó, se guarda sin el snapshot.
+    if (missingColumn(res.error, 'parametros')) {
+      const { parametros: _p, ...rest } = toRow('analysis_results', result);
+      res = await this.db.from('analysis_results').insert(rest).select().single();
+    }
+    const row = check(res, 'analysis_results.insert');
     const rois = [
       ...(result.roisToma1 || []).map((r) => toRow('roi_mediciones', { ...r, toma: 1, analysisId: row.id })),
       ...(result.rois || []).map((r) => toRow('roi_mediciones', { ...r, toma: 2, analysisId: row.id })),
@@ -273,8 +280,44 @@ class SupabaseAnalysisRepository extends contracts.AnalysisRepository {
     if (rois.length) check(await this.db.from('roi_mediciones').insert(rois), 'roi_mediciones.insert');
     return this.findByStudyId(row.study_id);
   }
+  async update(id, patch) {
+    const { rois: _r, roisToma1: _r1, ...fields } = patch;
+    let res = await this.db.from('analysis_results').update(toRow('analysis_results', fields)).eq('id', id).select().single();
+    if (missingColumn(res.error, 'parametros')) {
+      const { parametros: _p, ...rest } = toRow('analysis_results', fields);
+      res = await this.db.from('analysis_results').update(rest).eq('id', id).select().single();
+    }
+    const row = check(res, 'analysis_results.update');
+    return this.findByStudyId(row.study_id);
+  }
   async count() {
     return check(await this.db.from('analysis_results').select('*', { count: 'exact', head: true }), 'analysis.count') || 0;
+  }
+}
+
+/* ---------- Configuración ---------- */
+class SupabaseSettingsRepository extends contracts.SettingsRepository {
+  constructor(db) {
+    super();
+    this.db = db;
+  }
+  async get() {
+    const { data, error } = await this.db.from('settings').select('*');
+    // Sin la migración aplicada se usan los valores por defecto.
+    if (missingTable(error)) return { values: {}, updatedAt: null, updatedBy: null };
+    const rows = check({ data, error }, 'settings.get');
+    const latest = rows.reduce((m, r) => (!m || r.updated_at > m.updated_at ? r : m), null);
+    return {
+      values: Object.fromEntries(rows.map((r) => [r.key, r.value])),
+      updatedAt: latest?.updated_at || null,
+      updatedBy: latest?.updated_by || null,
+    };
+  }
+  async save(values, actorId = null) {
+    const now = new Date().toISOString();
+    const rows = Object.entries(values).map(([key, value]) => ({ key, value, updated_at: now, updated_by: actorId }));
+    if (rows.length) check(await this.db.from('settings').upsert(rows, { onConflict: 'key' }), 'settings.save');
+    return this.get();
   }
 }
 
@@ -393,6 +436,7 @@ function createSupabaseRepositories(db, config) {
     patients: new SupabasePatientRepository(db),
     studies: new SupabaseStudyRepository(db),
     analyses: new SupabaseAnalysisRepository(db),
+    settings: new SupabaseSettingsRepository(db),
     appointments: new SupabaseAppointmentRepository(db),
     consents: new SupabaseConsentRepository(db),
     audit: new SupabaseAuditRepository(db),
@@ -406,6 +450,7 @@ module.exports = {
   SupabasePatientRepository,
   SupabaseStudyRepository,
   SupabaseAnalysisRepository,
+  SupabaseSettingsRepository,
   SupabaseAppointmentRepository,
   SupabaseConsentRepository,
   SupabaseAuditRepository,

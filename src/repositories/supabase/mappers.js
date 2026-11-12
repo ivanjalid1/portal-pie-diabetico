@@ -118,6 +118,7 @@ const COLUMNS = {
     'probabilidad',
     'categoria',
     'horizonteSemanas',
+    'parametros',
     'factores',
     'simulado',
     'createdAt',

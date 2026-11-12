@@ -35,7 +35,7 @@
       <li><span class="dot dot--<%= cat.tono %>" aria-hidden="true"></span><%= cat.nombre %> <strong class="num"><%= stats.categorias[k] %></strong> <span class="muted num">(<%= Math.round((stats.categorias[k] / totalCat) * 100) %> %)</span></li>
       <% }) %>
     </ul>
-    <p class="muted small">Grupo térmico: <strong class="num"><%= stats.grupos.P %></strong> estudios P y <strong class="num"><%= stats.grupos.C %></strong> C (umbral <%= fmt.num(domain.DELTA_T_UMBRAL, 1) %> °C).</p>
+    <p class="muted small">Grupo térmico: <strong class="num"><%= stats.grupos.P %></strong> estudios P y <strong class="num"><%= stats.grupos.C %></strong> C (umbral <%= fmt.num(settings.umbralAsimetria, 1) %> °C).</p>
   </section>
 </div>
 
@@ -61,7 +61,7 @@
     <dl class="kv">
       <div><dt>Persistencia</dt><dd><code><%= stats.sistema.driver %></code><%= stats.sistema.driver === 'memory' ? ' (demostración, se reinicia)' : '' %></dd></div>
       <div><dt>Predictor</dt><dd><code><%= stats.sistema.predictor.version %></code> <%= stats.sistema.predictor.nombre %></dd></div>
-      <div><dt>Umbral de asimetría</dt><dd><%= fmt.num(domain.DELTA_T_UMBRAL, 1) %> °C</dd></div>
+      <div><dt>Umbral de asimetría</dt><dd><%= fmt.num(settings.umbralAsimetria, 1) %> °C</dd></div>
       <div><dt>Imágenes por estudio</dt><dd><%= domain.IMAGE_SLOTS.map((s) => s.corto).join(' + ') %></dd></div>
       <div><dt>Entorno</dt><dd><%= stats.sistema.entorno %>, Node <%= stats.sistema.node %></dd></div>
       <div><dt>Registros de auditoría</dt><dd class="num"><%= stats.auditCount %></dd></div>

@@ -2,14 +2,8 @@
 
 const UlcerPredictor = require('./UlcerPredictor');
 const { seededRandom, round } = require('../../utils/random');
-const {
-  ROIS,
-  categoryFor,
-  HORIZONTE_SEMANAS,
-  DELTA_T_UMBRAL,
-  thermalGroup,
-  CAMBIO_SIGNIFICATIVO,
-} = require('../../config/domain');
+const { ROIS, categoryFor, DELTA_T_UMBRAL, thermalGroup } = require('../../config/domain');
+const { DEFAULT_PARAMS } = require('../../config/settings');
 
 /** Desplazamientos térmicos típicos de cada ROI respecto de la media plantar (°C). */
 const ROI_OFFSET = {
@@ -41,10 +35,10 @@ const COEF = {
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-function summarize(rois, umbral) {
+function summarize(rois, umbral, corteSimetria) {
   const regionales = rois.filter((r) => r.roi !== 'general');
   const maxRow = regionales.reduce((m, r) => (Math.abs(r.deltaT) > Math.abs(m.deltaT) ? r : m), regionales[0]);
-  return { ...thermalGroup(rois, umbral), deltaTMax: maxRow.deltaT, deltaTMaxRoi: maxRow.roi };
+  return { ...thermalGroup(rois, umbral, corteSimetria), deltaTMax: maxRow.deltaT, deltaTMaxRoi: maxRow.roi };
 }
 
 /**
@@ -171,7 +165,9 @@ class MockUlcerPredictor extends UlcerPredictor {
     }
   }
 
-  async predict({ patient, study, images = [], hints = null }) {
+  async predict({ patient, study, images = [], hints = null, params = null }) {
+    // Parámetros vigentes (Configuración); sin ellos, los valores por defecto.
+    const p = { ...DEFAULT_PARAMS, umbral: this.umbral, ...(params || {}) };
     let fuenteRois = 'simulada';
     let tomas = null;
     if (hints?.toma1?.length && hints?.toma2?.length) {
@@ -183,8 +179,8 @@ class MockUlcerPredictor extends UlcerPredictor {
       else tomas = this.simulate({ patient, study });
     }
 
-    const s1 = summarize(tomas.toma1, this.umbral);
-    const s2 = summarize(tomas.toma2, this.umbral);
+    const s1 = summarize(tomas.toma1, p.umbral, p.corteSimetria);
+    const s2 = summarize(tomas.toma2, p.umbral, p.corteSimetria);
     const dt = (rois, key) => Math.abs(rois.find((r) => r.roi === key)?.deltaT || 0);
     const empeoramiento = Math.max(
       0,
@@ -217,8 +213,8 @@ class MockUlcerPredictor extends UlcerPredictor {
       {
         key: 'evolucion',
         nombre: 'Aumento de asimetría entre tomas',
-        valor: empeoramiento >= CAMBIO_SIGNIFICATIVO ? `+${round(empeoramiento, 1)} °C` : 'Estable o en mejora',
-        contribucion: COEF.evolucion * (empeoramiento >= CAMBIO_SIGNIFICATIVO ? empeoramiento : 0),
+        valor: empeoramiento >= p.cambioRelevante ? `+${round(empeoramiento, 1)} °C` : 'Estable o en mejora',
+        contribucion: COEF.evolucion * (empeoramiento >= p.cambioRelevante ? empeoramiento : 0),
       },
       { key: 'anios_dm', nombre: 'Años de DM', valor: `${round(anios, 1)} años`, contribucion: COEF.aniosDm * anios },
       {
@@ -251,10 +247,11 @@ class MockUlcerPredictor extends UlcerPredictor {
       deltaTMaxRoiToma1: s1.deltaTMaxRoi,
       grupoToma1: s1.grupo,
       simetricoToma1: s1.simetrico,
-      umbral: this.umbral,
+      umbral: p.umbral,
       probabilidad,
-      categoria: categoryFor(probabilidad),
-      horizonteSemanas: HORIZONTE_SEMANAS,
+      categoria: categoryFor(probabilidad, { moderado: p.corteModerado, alto: p.corteAlto }),
+      horizonteSemanas: p.horizonteSemanas,
+      parametros: p,
       factores: factores.sort((a, b) => b.contribucion - a.contribucion),
       simulado: true,
     };

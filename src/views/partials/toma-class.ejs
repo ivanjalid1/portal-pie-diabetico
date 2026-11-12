@@ -6,8 +6,10 @@
   const gen = a.roi('general', toma);
   const dGen = gen ? Math.abs(gen.deltaT) : null;
   const sim = toma === 1 ? a.simetricoToma1 : a.simetrico;
+  const P = paramsOf(a);
+  const corte = fmt.num(P.corteSimetria, 1);
   const lado = dmax === null ? '' : dmax >= 0 ? 'pie der. más caliente' : 'pie izq. más caliente';
-  const ayudaSim = `Simetría global: compara la temperatura media de todo el pie derecho con la del izquierdo (|ΔT general| < 1,0 °C = simétrica). Es distinta de la clasificación, que mira región por región: un pie puede ser simétrico en conjunto y tener una región con asimetría.`;
+  const ayudaSim = `Simetría global: compara la temperatura media de todo el pie derecho con la del izquierdo (|ΔT general| < ${corte} °C = simétrica). Es distinta de la clasificación, que mira región por región: un pie puede ser simétrico en conjunto y tener una región con asimetría.`;
 %>
 <div class="tclass<%= toma === 2 ? ' tclass--now' : '' %>">
   <span class="tclass__label"><span class="toma-dot toma-dot--<%= toma %>"></span><%= toma === 1 ? 'Toma 1 · basal' : 'Toma 2 · control' %></span>
@@ -19,7 +21,7 @@
     </div>
     <div>
       <dt>Simetría global <button type="button" class="help-dot help-dot--sm" title="<%= ayudaSim %>" aria-label="<%= ayudaSim %>">?</button></dt>
-      <dd><strong><%= sim === null || sim === undefined ? '—' : sim ? 'Simétrica' : 'Asimétrica' %></strong><% if (dGen !== null) { %><small class="num">|ΔT general| <%= fmt.num(dGen, 1) %> °C <%= dGen < 1 ? '<' : '≥' %> 1,0</small><% } %></dd>
+      <dd><strong><%= sim === null || sim === undefined ? '—' : sim ? 'Simétrica' : 'Asimétrica' %></strong><% if (dGen !== null) { %><small class="num">|ΔT general| <%= fmt.num(dGen, 1) %> °C <%= dGen < P.corteSimetria ? '<' : '≥' %> <%= corte %></small><% } %></dd>
     </div>
   </dl>
   <span class="tclass__foot"><%= roiMax ? `Mayor diferencia: ${domain.ROI_NAMES[roiMax].toLowerCase()}` : '' %></span>

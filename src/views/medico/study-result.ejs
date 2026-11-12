@@ -2,7 +2,8 @@
   const a = analysis;
   const s = study;
   const p = patient;
-  const A = domain.ACQUISITION;
+  const P = paramsOf(a);
+  const C = s.condiciones(P.protocolo);
   const M = domain.REFERENCE_MODEL;
   const maxContrib = a ? Math.max(0.01, ...a.factores.map((f) => Math.abs(f.contribucion))) : 1;
   const fuente = { imagen: 'estimadas de las termografías', is2: 'calculadas desde los archivos IS2', simulada: 'simuladas' };
@@ -26,8 +27,8 @@
 <div class="result-hero">
   <section class="card result-hero__gauge" aria-labelledby="prob-title">
     <h2 id="prob-title" class="card__title">Probabilidad de úlcera a <%= a.horizonteSemanas %> semanas</h2>
-    <%- include('../partials/gauge', { value: a.probabilidad, category: a.categoria }) %>
-    <p class="muted small center">Considera la asimetría de la toma 2 y su evolución desde la toma 1. Cortes: <%= domain.RISK_CUTS.moderado %> % y <%= domain.RISK_CUTS.alto %> %.</p>
+    <%- include('../partials/gauge', { value: a.probabilidad, category: a.categoria, cortes: { moderado: P.corteModerado, alto: P.corteAlto } }) %>
+    <p class="muted small center">Considera la asimetría de la toma 2 y su evolución desde la toma 1. Cortes: <%= P.corteModerado %> % y <%= P.corteAlto %> %.</p>
   </section>
 
   <section class="card result-hero__thermal" aria-labelledby="thermal-title">
@@ -92,7 +93,7 @@
         </tbody>
       </table>
     </div>
-    <p class="table-note">Cambio |ΔT| = |ΔT toma 2| − |ΔT toma 1|. Se marca como empeoramiento a partir de +<%= fmt.num(domain.CAMBIO_SIGNIFICATIVO, 1) %> °C.</p>
+    <p class="table-note">Cambio |ΔT| = |ΔT toma 2| − |ΔT toma 1|. Se marca como empeoramiento a partir de +<%= fmt.num(P.cambioRelevante, 1) %> °C.</p>
   </section>
 
   <section class="card card--flush" aria-labelledby="roi-title">
@@ -108,12 +109,12 @@
           <caption class="sr-only">Temperaturas medias por región, toma <%= toma %></caption>
           <thead><tr><th scope="col">Región</th><th scope="col">Media der.</th><th scope="col">Media izq.</th><th scope="col">ΔT</th><th scope="col">Máx. der./izq.</th></tr></thead>
           <tbody>
-            <% list.forEach((r) => { const hot = r.roi !== 'general' && Math.abs(r.deltaT) >= a.umbral; const lit = r.roi !== 'general' && Math.abs(r.deltaT) >= domain.DELTA_T_REFERENCIA; %>
+            <% list.forEach((r) => { const hot = r.roi !== 'general' && Math.abs(r.deltaT) >= a.umbral; const lit = r.roi !== 'general' && Math.abs(r.deltaT) >= P.referencia; %>
             <tr class="<%= r.roi === 'general' ? 'row-total' : '' %><%= hot ? ' row-hot' : '' %>">
               <th scope="row"><%= domain.ROI_NAMES[r.roi] %></th>
               <td><%= fmt.num(r.avgDer, 2) %></td>
               <td><%= fmt.num(r.avgIzq, 2) %></td>
-              <td><span class="delta<%= hot ? ' delta--hot' : '' %>"><%= fmt.signed(r.deltaT, 2) %></span><% if (lit) { %><span class="tag tag--lit" title="Supera la referencia bibliográfica (no diagnóstico)">≥ <%= fmt.num(domain.DELTA_T_REFERENCIA, 1) %></span><% } %></td>
+              <td><span class="delta<%= hot ? ' delta--hot' : '' %>"><%= fmt.signed(r.deltaT, 2) %></span><% if (lit) { %><span class="tag tag--lit" title="Supera la referencia bibliográfica (no diagnóstico)">≥ <%= fmt.num(P.referencia, 1) %></span><% } %></td>
               <td class="muted"><%= fmt.num(r.maxDer, 1) %> / <%= fmt.num(r.maxIzq, 1) %></td>
             </tr>
             <% }) %>
@@ -177,16 +178,16 @@
       <div>
         <h3 class="card__subtitle">Toma 2 · control</h3>
         <div class="env-summary">
-          <span class="env-chip <%= s.tempAmbienteOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'thermo', size: 16 }) %><strong class="num"><%= fmt.num(s.tempAmbiente, 1) %> °C</strong></span>
-          <span class="env-chip env-chip--key <%= s.humedadOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'droplet', size: 16 }) %>HR <strong class="num"><%= fmt.num(s.humedadRelativa, 0) %> %</strong></span>
+          <span class="env-chip <%= C.tempOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'thermo', size: 16 }) %><strong class="num"><%= fmt.num(s.tempAmbiente, 1) %> °C</strong></span>
+          <span class="env-chip env-chip--key <%= C.humOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'droplet', size: 16 }) %>HR <strong class="num"><%= fmt.num(s.humedadRelativa, 0) %> %</strong></span>
         </div>
       </div>
       <div>
         <h3 class="card__subtitle">Toma 1 · basal</h3>
         <% if (s.tempAmbienteToma1 !== null || s.humedadRelativaToma1 !== null) { %>
         <div class="env-summary">
-          <span class="env-chip <%= s.condicionesToma1Ok ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'thermo', size: 16 }) %><strong class="num"><%= fmt.num(s.tempAmbienteToma1, 1) %> °C</strong></span>
-          <span class="env-chip env-chip--key <%= s.condicionesToma1Ok ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'droplet', size: 16 }) %>HR <strong class="num"><%= fmt.num(s.humedadRelativaToma1, 0) %> %</strong></span>
+          <span class="env-chip <%= C.toma1Ok ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'thermo', size: 16 }) %><strong class="num"><%= fmt.num(s.tempAmbienteToma1, 1) %> °C</strong></span>
+          <span class="env-chip env-chip--key <%= C.toma1Ok ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'droplet', size: 16 }) %>HR <strong class="num"><%= fmt.num(s.humedadRelativaToma1, 0) %> %</strong></span>
         </div>
         <% } else { %><p class="muted small">Sin registro.</p><% } %>
       </div>
@@ -195,7 +196,7 @@
       <span class="env-chip <%= s.valida ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: s.valida ? 'check' : 'alert', size: 16 }) %><%= s.valida ? 'Imágenes válidas' : 'Imágenes no válidas' %></span>
       <span class="env-chip <%= s.intervaloOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'calendar', size: 16 }) %><%= s.diasEntreTomas !== null ? `${s.diasEntreTomas} días entre tomas` : 'Intervalo sin dato' %></span>
     </div>
-    <% if (!s.condicionesOk) { %><p class="text-warn small">Condiciones de la toma 2 fuera del rango del protocolo (<%= A.tempAmbiente.min %>–<%= A.tempAmbiente.max %> °C, <%= A.humedadRelativa.min %>–<%= A.humedadRelativa.max %> %). Interpretá el resultado con cautela.</p><% } %>
+    <% if (!C.ok) { %><p class="text-warn small">Condiciones de la toma 2 fuera del rango del protocolo (<%= fmt.num(C.temp.min, 1) %>–<%= fmt.num(C.temp.max, 1) %> °C, <%= C.hum.min %>–<%= C.hum.max %> %). Interpretá el resultado con cautela.</p><% } %>
     <% if (!s.valida && s.motivoInvalidez) { %><p class="text-warn small">Motivo: <%= s.motivoInvalidez %></p><% } %>
     <dl class="kv kv--compact kv--2col">
       <div><dt>Distancia</dt><dd class="num"><%= s.distanciaCm %> cm</dd></div>
@@ -250,11 +251,11 @@
       </div>
       <div class="field field--grow">
         <label for="motivo-control">Motivo</label>
-        <input id="motivo-control" name="motivo" value="Control clínico a 6 semanas">
+        <input id="motivo-control" name="motivo" value="Control clínico posterior al estudio">
       </div>
       <button type="submit" class="btn btn--primary btn--sm"><%= proximo ? 'Reprogramar' : 'Programar control' %></button>
     </form>
-    <p class="hint">Sugerido: 6 semanas después de la toma 2. Un control nuevo reemplaza al pendiente.</p>
+    <p class="hint">Sugerido: <%= settings.diasControl %> días después de la toma 2. Un control nuevo reemplaza al pendiente.</p>
   </section>
 
   <section class="card" id="desenlace" aria-labelledby="out-title">

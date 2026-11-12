@@ -105,11 +105,11 @@ const GRUPOS_TERMICOS = Object.freeze({
 });
 
 /** Clasificación térmica de un conjunto de ROIs. */
-function thermalGroup(rois, umbral = DELTA_T_UMBRAL) {
+function thermalGroup(rois, umbral = DELTA_T_UMBRAL, corteSimetria = SIMETRIA_CORTE) {
   const regionales = rois.filter((r) => r.roi !== 'general');
   const general = rois.find((r) => r.roi === 'general');
   const grupo = regionales.some((r) => Math.abs(r.deltaT) >= umbral) ? 'P' : 'C';
-  const simetrico = general ? Math.abs(general.deltaT) < SIMETRIA_CORTE : null;
+  const simetrico = general ? Math.abs(general.deltaT) < corteSimetria : null;
   return { grupo, simetrico };
 }
 
@@ -143,9 +143,9 @@ const RISK_CATEGORIES = Object.freeze({
   }),
 });
 
-function categoryFor(probabilidad) {
-  if (probabilidad >= RISK_CUTS.alto) return 'alto';
-  if (probabilidad >= RISK_CUTS.moderado) return 'moderado';
+function categoryFor(probabilidad, cortes = RISK_CUTS) {
+  if (probabilidad >= cortes.alto) return 'alto';
+  if (probabilidad >= cortes.moderado) return 'moderado';
   return 'sin_riesgo';
 }
 

@@ -83,7 +83,7 @@
               <% } %>
               <span class="timeline__tags">
                 <% if (!study.valida) { %><span class="badge badge--warn">Imagen no válida</span><% } %>
-                <% if (!study.condicionesOk) { %><span class="badge badge--warn">Condiciones fuera de rango</span><% } %>
+                <% if (!study.condiciones(paramsOf(analysis).protocolo).ok) { %><span class="badge badge--warn">Condiciones fuera de rango</span><% } %>
                 <% if (study.publicado) { %><span class="badge badge--muted">Visible al paciente</span><% } else { %><span class="badge badge--outline">No publicado</span><% } %>
               </span>
             </span>

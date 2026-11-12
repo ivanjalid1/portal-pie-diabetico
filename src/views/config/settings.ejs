@@ -1,0 +1,65 @@
+<%- include('../partials/page-header', {
+  heading: 'Configuración',
+  lead: 'Parámetros del análisis termográfico. Se aplican a los estudios que se analicen a partir de ahora.',
+}) %>
+
+<div class="notice notice--info cfg-notice">
+  <%- include('../partials/icon', { name: 'info' }) %>
+  <p>
+    <strong>Los estudios ya analizados conservan los parámetros con los que se calcularon.</strong>
+    Cada resultado muestra su propio umbral y sus cortes. Para aplicar la configuración vigente a todos los estudios, usá «Recalcular estudios» al final de la página.
+    <% if (meta.updatedAt) { %><span class="cfg-notice__meta">Última modificación: <%= fmt.dateTime ? fmt.dateTime(meta.updatedAt) : fmt.date(meta.updatedAt) %>.</span><% } %>
+  </p>
+</div>
+
+<form method="post" action="/configuracion" class="cfg-form" id="cfg-form" data-settings-form novalidate>
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <div class="cfg-groups">
+    <div class="cfg-columns">
+      <div class="cfg-col">
+        <%- include('group', { g: groups.find((x) => x.key === 'asimetria'), defs, values, defaults, errors, preview }) %>
+      </div>
+      <div class="cfg-col">
+        <%- include('group', { g: groups.find((x) => x.key === 'riesgo'), defs, values, defaults, errors, preview }) %>
+        <%- include('group', { g: groups.find((x) => x.key === 'seguimiento'), defs, values, defaults, errors, preview }) %>
+      </div>
+    </div>
+    <%- include('group', { g: groups.find((x) => x.key === 'protocolo'), defs, values, defaults, errors, preview }) %>
+    <%- include('group', { g: groups.find((x) => x.key === 'visualizacion'), defs, values, defaults, errors, preview }) %>
+  </div>
+
+  <div class="savebar" data-savebar hidden role="region" aria-label="Cambios sin guardar">
+    <div class="savebar__inner">
+      <span class="savebar__text"><%- include('../partials/icon', { name: 'info', size: 16 }) %><span><strong data-dirty-count>0</strong> cambios sin guardar</span></span>
+      <div class="savebar__actions">
+        <button type="button" class="btn btn--ghost" data-discard>Descartar</button>
+        <button type="submit" class="btn btn--primary">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</form>
+
+<section class="card cfg-recalc" aria-labelledby="recalc-title">
+  <div class="cfg-recalc__text">
+    <h2 id="recalc-title" class="card__title">Recalcular estudios con la configuración actual</h2>
+    <p class="muted small">Vuelve a clasificar los <strong class="num"><%= preview.total %></strong> estudios analizados con los parámetros guardados. Las temperaturas por región no cambian; sí pueden cambiar la clasificación, la simetría global, la evolución y la probabilidad. Queda registrado en la auditoría.</p>
+  </div>
+  <button type="button" class="btn btn--ghost" data-modal-open="recalc-modal"><%- include('../partials/icon', { name: 'refresh', size: 18 }) %>Recalcular estudios</button>
+</section>
+
+<div class="modal" id="recalc-modal" hidden role="dialog" aria-modal="true" aria-labelledby="recalc-modal-title" aria-describedby="recalc-modal-desc">
+  <div class="modal__backdrop" data-modal-close></div>
+  <div class="modal__panel">
+    <h2 id="recalc-modal-title" class="modal__title">¿Recalcular todos los estudios?</h2>
+    <p id="recalc-modal-desc">Se van a volver a clasificar <strong class="num"><%= preview.total %></strong> estudios con la configuración <strong>guardada</strong> (umbral <span class="num"><%= fmt.num(saved.umbralAsimetria, 1) %> °C</span>, simetría &lt; <span class="num"><%= fmt.num(saved.corteSimetria, 1) %> °C</span>, cortes <span class="num"><%= saved.corteModerado %>/<%= saved.corteAlto %> %</span>). Los resultados ya publicados al paciente también se actualizan.</p>
+    <p class="muted small" data-modal-dirty hidden>Tenés cambios sin guardar: no se usan en el recálculo. Guardalos primero si querés aplicarlos.</p>
+    <form method="post" action="/configuracion/recalcular" class="modal__actions">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="button" class="btn btn--ghost" data-modal-close>Cancelar</button>
+      <button type="submit" class="btn btn--primary">Sí, recalcular</button>
+    </form>
+  </div>
+</div>
+
+<script src="/js/settings.js" defer></script>

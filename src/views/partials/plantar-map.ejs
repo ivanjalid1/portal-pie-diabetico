@@ -3,7 +3,7 @@
   // con la misma orientación que el termograma. Cada ROI se colorea por |ΔT|.
   const byKey = {};
   (rois || []).forEach((r) => { byKey[r.roi] = r; });
-  const u = typeof umbral === 'undefined' ? domain.DELTA_T_UMBRAL : umbral;
+  const u = typeof umbral === 'undefined' ? settings.umbralAsimetria : umbral;
   const uid = typeof mapId === 'undefined' ? 'pm' : mapId;
   const showValues = typeof values === 'undefined' ? true : values;
   const shapes = {

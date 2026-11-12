@@ -1,15 +1,16 @@
 <%
-  const A = domain.ACQUISITION;
+  // Rangos y valores sugeridos: los vigentes en Configuración.
+  const A = { ...domain.ACQUISITION, ...protocolo() };
   const hasOld = Object.keys(old).length > 0;
   const v = (k, d) => (hasOld && old[k] !== undefined ? old[k] : d);
   const err = (k) => errors[k] ? `<p class="field__error">${errors[k]}</p>` : '';
   const cls = (k, extra = '') => `field${extra ? ' ' + extra : ''}${errors[k] ? ' has-error' : ''}`;
   const checklistOld = hasOld ? [].concat(old.checklist || []) : [];
   const steps = ['Paciente y tomas', 'Condiciones', 'Termografías', 'Análisis'];
-  const defaultToma1 = new Date(Date.now() - domain.DIAS_ENTRE_TOMAS.esperado * 86400000);
+  const defaultToma1 = new Date(Date.now() - settings.diasEntreTomas * 86400000);
   const [slot1, slot2] = imageSlots;
 %>
-<%- include('../partials/page-header', { heading: 'Nuevo estudio termográfico', lead: 'Compará la termografía basal (toma 1) con la de control (toma 2, ~30 días después). Seguí el protocolo de captura paso a paso.', back: selected ? { href: `/medico/pacientes/${selected.id}`, label: selected.codigo } : { href: '/medico', label: 'Tablero' } }) %>
+<%- include('../partials/page-header', { heading: 'Nuevo estudio termográfico', lead: `Compará la termografía basal (toma 1) con la de control (toma 2, ~${settings.diasEntreTomas} días después). Seguí el protocolo de captura paso a paso.`, back: selected ? { href: `/medico/pacientes/${selected.id}`, label: selected.codigo } : { href: '/medico', label: 'Tablero' } }) %>
 
 <form method="post" action="/medico/estudios" enctype="multipart/form-data" class="wizard" novalidate data-wizard>
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -45,7 +46,7 @@
       <div class="<%= cls('fechaHora') %>">
         <label for="fechaHora">Fecha y hora de la toma 2 (control)</label>
         <input id="fechaHora" name="fechaHora" type="datetime-local" required value="<%= hasOld && old.fechaHora ? old.fechaHora : fmt.inputDateTime(new Date()) %>">
-        <p class="field__hint">Se esperan unos <%= domain.DIAS_ENTRE_TOMAS.esperado %> días entre tomas.</p>
+        <p class="field__hint">Se esperan unos <%= settings.diasEntreTomas %> días entre tomas.</p>
         <%- err('fechaHora') %>
       </div>
       <div class="<%= cls('centro') %>">
@@ -132,7 +133,7 @@
       </div>
       <div class="field">
         <label for="paleta">Paleta</label>
-        <select id="paleta" name="paleta"><% A.paletas.forEach((pal) => { %><option<%= v('paleta', 'High Contrast') === pal ? ' selected' : '' %>><%= pal %></option><% }) %></select>
+        <select id="paleta" name="paleta"><% A.paletas.forEach((pal) => { %><option<%= v('paleta', settingsConfig.PALETA_CAMARA[paletaDefecto()]) === pal ? ' selected' : '' %>><%= pal %></option><% }) %></select>
       </div>
       <fieldset class="<%= cls('fondo') %>">
         <legend>Fondo</legend>
@@ -144,7 +145,7 @@
     <fieldset class="checks">
       <legend>Checklist de captura</legend>
       <% domain.CAPTURE_CHECKLIST.forEach((c) => { %>
-      <label class="check"><input type="checkbox" name="checklist" value="<%= c.key %>"<%= hasOld && checklistOld.includes(c.key) ? ' checked' : '' %>><span><%= c.texto %></span></label>
+      <label class="check"><input type="checkbox" name="checklist" value="<%= c.key %>"<%= hasOld && checklistOld.includes(c.key) ? ' checked' : '' %>><span><%= c.key === 'enfoque' ? `Cámara enfocada, emisividad ${fmt.num(A.emisividad, 2)} y rango ${A.rango.min}–${A.rango.max} °C` : c.texto %></span></label>
       <% }) %>
     </fieldset>
     <p class="muted small">Cámara: <%= A.camara %>.</p>

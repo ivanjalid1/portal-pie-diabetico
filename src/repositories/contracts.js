@@ -116,6 +116,10 @@ class AnalysisRepository {
   async listAll() {
     notImplemented('AnalysisRepository.listAll');
   }
+  /** Actualiza la clasificación de un análisis (recálculo); las temperaturas no cambian. */
+  async update(_id, _patch) {
+    notImplemented('AnalysisRepository.update');
+  }
 }
 
 class AppointmentRepository {
@@ -181,7 +185,20 @@ class FileStorage {
   }
 }
 
+/** Configuración global del sistema (parámetros del análisis), clave → valor. */
+class SettingsRepository {
+  /** @returns {Promise<{ values: object, updatedAt: string|null, updatedBy: string|null }>} */
+  async get() {
+    notImplemented('SettingsRepository.get');
+  }
+  /** Guarda (upsert) los valores indicados. */
+  async save(_values, _actorId) {
+    notImplemented('SettingsRepository.save');
+  }
+}
+
 module.exports = {
+  SettingsRepository,
   UserRepository,
   PatientRepository,
   StudyRepository,

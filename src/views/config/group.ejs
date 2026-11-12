@@ -1,0 +1,97 @@
+<%
+  const fmtVal = (d, v) => (d.type === 'number' ? String(v).replace('.', ',') : v);
+  const byGroup = (k) => defs.filter((d) => d.group === k);
+  const isDefault = (d) => String(values[d.key]) === String(defaults[d.key]);
+  const pct = (n) => (preview.total ? Math.round((n / preview.total) * 100) : 0);
+  const sharedSrc = g.key === 'protocolo' ? byGroup(g.key)[0].fuente : null;
+%>
+<section class="card cfg-card cfg-card--<%= g.key %>" aria-labelledby="cfg-<%= g.key %>">
+  <div class="cfg-card__head">
+    <span class="cfg-card__icon" aria-hidden="true"><%- include('../partials/icon', { name: g.icono, size: 18 }) %></span>
+    <div>
+      <h2 id="cfg-<%= g.key %>" class="card__title"><%= g.titulo %></h2>
+      <p class="muted small"><%= g.descripcion %></p>
+    </div>
+  </div>
+
+  <div class="cfg-fields<%= g.key === 'protocolo' ? ' cfg-fields--grid' : '' %>">
+    <% byGroup(g.key).forEach((d) => { const err = errors[d.key]; %>
+    <div class="cfg-field<%= err ? ' has-error' : '' %><%= d.type === 'text' ? ' cfg-field--wide' : '' %>" data-field="<%= d.key %>" data-default="<%= fmtVal(d, defaults[d.key]) %>">
+      <div class="cfg-field__top">
+        <label for="cfg-<%= d.key %>" class="cfg-field__label"><%= d.label %></label>
+        <button type="button" class="cfg-reset" data-reset="<%= d.key %>"<%= isDefault(d) ? ' hidden' : '' %> title="Volver al valor por defecto (<%= fmtVal(d, defaults[d.key]) %><%= d.unit ? ` ${d.unit}` : '' %>)">
+          <%- include('../partials/icon', { name: 'rotateCcw', size: 14 }) %>Restablecer
+        </button>
+      </div>
+
+      <% if (d.type === 'number') { %>
+      <div class="cfg-input<%= d.unit ? '' : ' cfg-input--nounit' %>">
+        <input id="cfg-<%= d.key %>" name="<%= d.key %>" inputmode="decimal" autocomplete="off" value="<%= fmtVal(d, values[d.key]) %>" data-min="<%= d.min %>" data-max="<%= d.max %>"<%- err ? ` aria-invalid="true" aria-describedby="err-${d.key}"` : '' %>>
+        <% if (d.unit) { %><span class="cfg-input__unit"><%= d.unit %></span><% } %>
+      </div>
+      <% } else if (d.type === 'enum') { %>
+      <div class="cfg-palettes" role="radiogroup" aria-labelledby="cfg-<%= d.key %>-label">
+        <% Object.entries(d.options).forEach(([k, label]) => { %>
+        <label class="cfg-palette">
+          <input type="radio" name="<%= d.key %>" value="<%= k %>"<%= values[d.key] === k ? ' checked' : '' %>>
+          <span class="cfg-palette__swatch" style="background: <%= thermal.PALETTE_CSS[k] %>" aria-hidden="true"></span>
+          <span><%= label %></span>
+        </label>
+        <% }) %>
+      </div>
+      <span id="cfg-<%= d.key %>-label" class="sr-only"><%= d.label %></span>
+      <% } else { %>
+      <input id="cfg-<%= d.key %>" name="<%= d.key %>" maxlength="<%= d.maxLength %>" value="<%= values[d.key] %>"<%- err ? ` aria-invalid="true" aria-describedby="err-${d.key}"` : '' %>>
+      <% } %>
+
+      <% if (d.presets) { %>
+      <div class="cfg-presets" aria-label="Valores sugeridos">
+        <% d.presets.forEach((p) => { %>
+        <button type="button" class="cfg-chip<%= Number(values[d.key]) === p.value ? ' is-active' : '' %>" data-preset="<%= d.key %>" data-value="<%= fmtVal(d, p.value) %>">
+          <strong><%= p.label %></strong><span><%= p.detalle %></span>
+        </button>
+        <% }) %>
+        <span class="cfg-chip cfg-chip--custom<%= d.presets.some((p) => Number(values[d.key]) === p.value) ? '' : ' is-active' %>" data-custom="<%= d.key %>">Personalizado</span>
+      </div>
+      <% } %>
+
+      <% if (err) { %><p class="field__error" id="err-<%= d.key %>"><%= err %></p><% } %>
+      <% if (d.help) { %><p class="cfg-field__help"><%= d.help %></p><% } %>
+      <% if (d.fuente && !sharedSrc) { %><p class="cfg-field__src"><%- include('../partials/icon', { name: 'file', size: 13 }) %><span>Fuente: <%= d.fuente %></span></p><% } %>
+    </div>
+    <% }) %>
+  </div>
+
+  <% if (sharedSrc) { %><p class="cfg-field__src cfg-card__src"><%- include('../partials/icon', { name: 'file', size: 13 }) %><span>Fuente de todos los rangos: <%= sharedSrc %></span></p><% } %>
+
+  <% if (g.key === 'asimetria') { %>
+  <div class="cfg-preview" data-preview="asimetria" aria-live="polite">
+    <div class="cfg-preview__row">
+      <span class="cfg-preview__label">Con este umbral</span>
+      <span><strong class="num" data-pv="conAsimetria"><%= preview.conAsimetria %></strong> de <strong class="num" data-pv="total"><%= preview.total %></strong> estudios serían «Con asimetría» <span class="muted">(hoy: <span class="num"><%= preview.conAsimetriaActual %></span>)</span></span>
+    </div>
+    <div class="cfg-bar" aria-hidden="true"><span data-pv-bar="conAsimetria" style="width: <%= pct(preview.conAsimetria) %>%"></span></div>
+    <div class="cfg-preview__row">
+      <span class="cfg-preview__label">Simetría global</span>
+      <span><strong class="num" data-pv="simetricas"><%= preview.simetricas %></strong> de <span class="num"><%= preview.total %></span> tomas de control serían «Simétricas»</span>
+    </div>
+  </div>
+  <% } %>
+
+  <% if (g.key === 'riesgo') { %>
+  <div class="cfg-preview" data-preview="riesgo" aria-live="polite">
+    <div class="cfg-preview__row">
+      <span class="cfg-preview__label">Con estos cortes</span>
+      <span>los <span class="num"><%= preview.total %></span> estudios quedarían así (misma probabilidad, otra clasificación):</span>
+    </div>
+    <div class="cfg-stack" aria-hidden="true">
+      <% ['sin_riesgo', 'moderado', 'alto'].forEach((k) => { %><span class="cfg-stack__seg cfg-stack__seg--<%= domain.RISK_CATEGORIES[k].tono %>" data-pv-seg="<%= k %>" style="flex-grow: <%= preview.riesgo[k] %>"></span><% }) %>
+    </div>
+    <ul class="cfg-legend">
+      <% ['sin_riesgo', 'moderado', 'alto'].forEach((k) => { const c = domain.RISK_CATEGORIES[k]; %>
+      <li><span class="dot dot--<%= c.tono %>" aria-hidden="true"></span><%= c.nombre %> <strong class="num" data-pv-riesgo="<%= k %>"><%= preview.riesgo[k] %></strong></li>
+      <% }) %>
+    </ul>
+  </div>
+  <% } %>
+</section>

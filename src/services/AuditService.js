@@ -24,6 +24,8 @@ const ACTION_LABELS = Object.freeze({
   [EVENTS.DATA_EXPORTED]: 'Exportación CSV anonimizada',
   [EVENTS.CONSENT_SIGNED]: 'Consentimiento informado registrado',
   [EVENTS.CONSENT_REVOKED]: 'Consentimiento informado revocado',
+  [EVENTS.SETTINGS_UPDATED]: 'Configuración del análisis modificada',
+  [EVENTS.ANALYSES_RECALCULATED]: 'Estudios recalculados con la configuración vigente',
 });
 
 /**

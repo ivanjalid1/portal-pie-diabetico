@@ -75,6 +75,11 @@ const TAIL_COLUMNS = [
   ['FECHA TOMA 2', ({ study }) => (study ? study.fechaHora.slice(0, 10) : '')],
   ['DIAS ENTRE TOMAS', ({ study }) => study?.diasEntreTomas ?? ''],
   ['UMBRAL ΔT (°C)', ({ analysis }) => num(analysis?.umbral, 1)],
+  ['CORTE SIMETRIA (°C)', ({ analysis }) => num(analysis?.parametros?.corteSimetria, 1)],
+  [
+    'CORTES RIESGO (%)',
+    ({ analysis }) => (analysis ? `${analysis.parametros.corteModerado}/${analysis.parametros.corteAlto}` : ''),
+  ],
   ['PROBABILIDAD (%) SIMULADA', ({ analysis }) => num(analysis?.probabilidad, 1)],
 ];
 

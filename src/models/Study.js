@@ -75,6 +75,28 @@ class Study {
     );
   }
 
+  /**
+   * Condiciones evaluadas con los rangos indicados (los del snapshot del
+   * análisis o los vigentes de Configuración). Sin rangos: los del protocolo.
+   */
+  condiciones(rangos = null) {
+    const t = rangos?.tempAmbiente || ACQUISITION.tempAmbiente;
+    const h = rangos?.humedadRelativa || ACQUISITION.humedadRelativa;
+    const tempOk = Study.inRange(this.tempAmbiente, t);
+    const humOk = Study.inRange(this.humedadRelativa, h);
+    const sinToma1 = this.tempAmbienteToma1 === null && this.humedadRelativaToma1 === null;
+    return {
+      temp: t,
+      hum: h,
+      tempOk,
+      humOk,
+      ok: tempOk && humOk,
+      toma1Ok: sinToma1
+        ? null
+        : Study.inRange(this.tempAmbienteToma1, t) && Study.inRange(this.humedadRelativaToma1, h),
+    };
+  }
+
   /** Días transcurridos entre la toma 1 y la toma 2. */
   get diasEntreTomas() {
     if (!this.fechaToma1) return null;

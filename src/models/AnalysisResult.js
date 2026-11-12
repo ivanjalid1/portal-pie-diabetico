@@ -1,6 +1,6 @@
 'use strict';
 
-const { CAMBIO_SIGNIFICATIVO } = require('../config/domain');
+const { DEFAULT_PARAMS } = require('../config/settings');
 
 const ROI_ORDER = ['dedo_mayor', 'dedos_menores', 'metatarso', 'arco_interno', 'arco_externo', 'talon', 'general'];
 
@@ -49,6 +49,16 @@ class AnalysisResult {
     this.categoria = a.categoria;
     this.horizonteSemanas = Number(a.horizonteSemanas);
     this.factores = Array.isArray(a.factores) ? a.factores : [];
+    // Parámetros con los que se calculó (análisis previos a la configuración: valores por defecto).
+    const p = a.parametros && typeof a.parametros === 'object' ? a.parametros : {};
+    this.parametros = {
+      ...DEFAULT_PARAMS,
+      umbral: this.umbral,
+      horizonteSemanas: Number(a.horizonteSemanas ?? DEFAULT_PARAMS.horizonteSemanas),
+      ...Object.fromEntries(
+        Object.entries(p).map(([k, v]) => [k, v !== null && typeof v === 'object' ? v : Number(v)]),
+      ),
+    };
     this.simulado = a.simulado !== false;
     this.createdAt = a.createdAt || new Date().toISOString();
   }
@@ -77,8 +87,8 @@ class AnalysisResult {
       const dt1 = r1 ? r1.deltaT : null;
       const cambio = r1 ? Math.round((Math.abs(r2.deltaT) - Math.abs(dt1)) * 100) / 100 : null;
       let tendencia = 'estable';
-      if (cambio !== null && cambio >= CAMBIO_SIGNIFICATIVO) tendencia = 'empeora';
-      else if (cambio !== null && cambio <= -CAMBIO_SIGNIFICATIVO) tendencia = 'mejora';
+      if (cambio !== null && cambio >= this.parametros.cambioRelevante) tendencia = 'empeora';
+      else if (cambio !== null && cambio <= -this.parametros.cambioRelevante) tendencia = 'mejora';
       return { roi: r2.roi, dt1, dt2: r2.deltaT, cambio, tendencia };
     });
   }

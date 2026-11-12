@@ -2,7 +2,7 @@
   // |ΔT máx| por toma (puntos unidos, etiqueta de valor en cada punto) con la
   // franja por debajo del umbral sombreada. Un solo eje (°C).
   const pts = serie.map((s) => ({ ...s, v: Number(s.deltaTMax) }));
-  const u = typeof umbral === 'undefined' ? domain.DELTA_T_UMBRAL : umbral;
+  const u = typeof umbral === 'undefined' ? settings.umbralAsimetria : umbral;
   const W = 320, H = 190, L = 40, R = 12, T = 22, B = 40, PAD = 44;
   const maxV = Math.max(u + 0.5, 3, ...pts.map((p) => p.v));
   const sx = (i) => (pts.length === 1 ? (L + W - R) / 2 : L + PAD + (i * (W - L - R - 2 * PAD)) / (pts.length - 1));

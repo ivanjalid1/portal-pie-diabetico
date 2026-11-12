@@ -3,7 +3,7 @@
   <label for="file-<%= s.slot %>" class="dropzone__label">
     <span class="dropzone__head">
       <span class="dropzone__badge dropzone__badge--t<%= s.toma %>"><%= s.etiqueta %></span>
-      <span class="dropzone__title"><%= s.titulo.split('·')[1].trim() %></span>
+      <span class="dropzone__title"><%= (slotTitulo(s).split('·')[1] || slotTitulo(s)).trim() %></span>
       <span class="dropzone__desc"><%= s.descripcion %></span>
     </span>
     <span class="dropzone__empty" data-dz-empty>

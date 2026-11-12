@@ -2,7 +2,7 @@
   <div class="lightbox__bar">
     <div class="segmented segmented--dark" role="radiogroup" aria-label="Paleta de color" data-lightbox-palettes hidden>
       <% Object.values(thermal.PALETTES).forEach((p) => { %>
-      <label><input type="radio" name="lb-paleta" value="<%= p.key %>"<%= p.key === thermal.DEFAULT_PALETTE ? ' checked' : '' %>><span><%= p.nombre %></span></label>
+      <label><input type="radio" name="lb-paleta" value="<%= p.key %>"<%= p.key === paletaDefecto() ? ' checked' : '' %>><span><%= p.nombre %></span></label>
       <% }) %>
     </div>
     <button type="button" class="lightbox__close icon-btn" data-lightbox-close aria-label="Cerrar"><%- include('icon', { name: 'x' }) %></button>
@@ -11,7 +11,7 @@
     <img alt="">
     <div class="tscale tscale--dark" data-lightbox-scale hidden>
       <span class="tscale__bar"></span>
-      <span class="tscale__ticks num"><span><%= thermal.CAMERA_RANGE.min %></span><span>28</span><span>31</span><span><%= thermal.CAMERA_RANGE.max %> °C</span></span>
+      <span class="tscale__ticks num"><% const lr = [settings.rangoCamaraMin, settings.rangoCamaraMax]; %><span><%= lr[0] %></span><span><%= Math.round((lr[0] * 2 + lr[1]) / 3) %></span><span><%= Math.round((lr[0] + lr[1] * 2) / 3) %></span><span><%= lr[1] %> °C</span></span>
     </div>
     <figcaption></figcaption>
   </figure>

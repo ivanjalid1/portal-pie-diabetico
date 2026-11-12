@@ -42,7 +42,7 @@
         <div><dt>Toma 2 (control)</dt><dd><%= fmt.dateTime(s.fechaHora) %><%= s.diasEntreTomas !== null ? ` (${s.diasEntreTomas} días)` : '' %></dd></div>
         <div><dt>Centro</dt><dd><%= s.centro %></dd></div>
         <div><dt>Médico/a</dt><dd><%= medico.nombreCompleto %><%= medico.matricula ? `, ${medico.matricula}` : '' %></dd></div>
-        <div><dt>Ambiente</dt><dd><%= fmt.num(s.tempAmbiente, 1) %> °C, HR <%= fmt.num(s.humedadRelativa, 0) %> % <%= s.condicionesOk ? '(dentro del protocolo)' : '(fuera del protocolo)' %></dd></div>
+        <div><dt>Ambiente</dt><dd><%= fmt.num(s.tempAmbiente, 1) %> °C, HR <%= fmt.num(s.humedadRelativa, 0) %> % <%= s.condiciones(paramsOf(a).protocolo).ok ? '(dentro del protocolo)' : '(fuera del protocolo)' %></dd></div>
         <div><dt>Imagen</dt><dd><%= s.valida ? 'Válida' : `No válida: ${s.motivoInvalidez || ''}` %></dd></div>
       </dl>
     </section>
@@ -62,7 +62,7 @@
       <div class="report__big">
         <span class="label">Asimetría térmica</span>
         <span><%= transicionGrupo(a) %></span>
-        <span><%= a.simetrico ? 'Simétrico' : 'No simétrico' %>, umbral <%= fmt.num(a.umbral, 1) %> °C</span>
+        <span><%= a.simetrico ? 'Simétrica' : 'Asimétrica' %> (|ΔT general| < <%= fmt.num(paramsOf(a).corteSimetria, 1) %> °C), umbral regional <%= fmt.num(a.umbral, 1) %> °C</span>
       </div>
     </section>
 
@@ -89,7 +89,7 @@
 
     <section class="report__images">
       <% imageSlots.forEach((sl) => { const img = s.image(sl.slot); if (img && canPreview(img)) { %>
-      <figure><img src="<%= imageUrl(s, sl.slot) %>" alt="<%= sl.titulo %>"><figcaption><%= sl.titulo %></figcaption></figure>
+      <figure><img src="<%= imageUrl(s, sl.slot) %>" alt="<%= slotTitulo(sl) %>"><figcaption><%= slotTitulo(sl) %></figcaption></figure>
       <% } }) %>
     </section>
 

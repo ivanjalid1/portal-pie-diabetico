@@ -62,8 +62,8 @@
       <span class="small muted">Probabilidad estimada de úlcera en las próximas <%= a.horizonteSemanas %> semanas</span>
       <div class="prob-bar" role="img" aria-label="<%= fmt.num(a.probabilidad, 0) %> por ciento, nivel <%= nivel[a.categoria] %>">
         <span class="prob-bar__fill prob-bar__fill--<%= cat.tono %>" style="width: <%= Math.max(3, a.probabilidad) %>%"></span>
-        <span class="prob-bar__cut" style="left: <%= domain.RISK_CUTS.moderado %>%"></span>
-        <span class="prob-bar__cut" style="left: <%= domain.RISK_CUTS.alto %>%"></span>
+        <span class="prob-bar__cut" style="left: <%= paramsOf(a).corteModerado %>%"></span>
+        <span class="prob-bar__cut" style="left: <%= paramsOf(a).corteAlto %>%"></span>
       </div>
       <div class="prob-bar__legend small"><span>Bajo</span><span>Moderado</span><span>Alto</span></div>
       <p class="report-card__big"><strong class="num"><%= fmt.num(a.probabilidad, 0) %> %</strong> <span class="badge badge--<%= cat.tono %>">Nivel <%= nivel[a.categoria] %></span></p>

@@ -1,0 +1,143 @@
+'use strict';
+
+const { EVENTS } = require('../utils/eventBus');
+const { ValidationError } = require('../utils/errors');
+const {
+  DEFAULTS,
+  DEFINITIONS,
+  BY_KEY,
+  settingsSchema,
+  withDefaults,
+  analysisParams,
+  describe,
+} = require('../config/settings');
+const { thermalGroup, categoryFor } = require('../config/domain');
+
+/**
+ * Configuración global del análisis (parámetros editables).
+ *
+ * Lee del repositorio y guarda en caché por un tiempo corto: en serverless
+ * cada instancia tiene su propia caché, por eso no se usa una caché eterna.
+ * Cada cambio publica un evento con el valor anterior y el nuevo, que el
+ * `AuditService` registra.
+ */
+class SettingsService {
+  constructor({ settings, analyses, events, ttlMs = 15000 }) {
+    this.repo = settings;
+    this.analyses = analyses;
+    this.events = events;
+    this.ttlMs = ttlMs;
+    this.cache = null;
+    this.cachedAt = 0;
+  }
+
+  invalidate() {
+    this.cache = null;
+    this.cachedAt = 0;
+  }
+
+  /** Configuración vigente completa (con valores por defecto) y metadatos. */
+  async load() {
+    if (this.cache && Date.now() - this.cachedAt < this.ttlMs) return this.cache;
+    const stored = await this.repo.get();
+    this.cache = {
+      values: withDefaults(stored.values),
+      updatedAt: stored.updatedAt,
+      updatedBy: stored.updatedBy,
+      overridden: Object.keys(stored.values || {}).filter((k) => BY_KEY[k] && stored.values[k] !== DEFAULTS[k]),
+    };
+    this.cachedAt = Date.now();
+    return this.cache;
+  }
+
+  async get() {
+    return (await this.load()).values;
+  }
+
+  async params() {
+    return analysisParams(await this.get());
+  }
+
+  /** Valida sin guardar. Devuelve los valores normalizados o lanza ValidationError. */
+  validate(input) {
+    const merged = {};
+    for (const d of DEFINITIONS) merged[d.key] = input?.[d.key] ?? DEFAULTS[d.key];
+    const r = settingsSchema.safeParse(merged);
+    if (!r.success) {
+      const fields = {};
+      for (const issue of r.error.issues) {
+        const k = issue.path[0];
+        if (k && !fields[k]) fields[k] = issue.message;
+      }
+      throw new ValidationError('Revisá los valores marcados.', fields);
+    }
+    return r.data;
+  }
+
+  /**
+   * Guarda los valores modificados. Devuelve la lista de cambios
+   * `{ key, label, antes, despues }` (vacía si no hubo cambios).
+   */
+  async update(input, actor) {
+    const next = this.validate(input);
+    const current = await this.get();
+    const changes = DEFINITIONS.filter((d) => next[d.key] !== current[d.key]).map((d) => ({
+      key: d.key,
+      label: d.label,
+      antes: current[d.key],
+      despues: next[d.key],
+    }));
+    if (!changes.length) return [];
+    await this.repo.save(Object.fromEntries(changes.map((c) => [c.key, c.despues])), actor?.id || null);
+    this.invalidate();
+    this.events.publish(EVENTS.SETTINGS_UPDATED, {
+      actor,
+      entity: 'configuracion',
+      entityId: 'global',
+      detail: changes.map((c) => `${c.label}: ${describe(c.key, c.antes)} → ${describe(c.key, c.despues)}`).join('; '),
+    });
+    return changes;
+  }
+
+  /**
+   * Efecto de una configuración sobre los estudios existentes (sin guardar):
+   * cuántos quedarían «Con asimetría», «Simétricos» y en cada nivel de riesgo.
+   * La probabilidad no se recalcula aquí (sólo se reclasifica con los cortes).
+   */
+  async preview(input) {
+    const v = withDefaults({ ...(await this.get()), ...this.validatePartial(input) });
+    const all = await this.analyses.listAll();
+    // Un análisis por estudio (el más reciente).
+    const latest = new Map();
+    for (const a of all) {
+      const prev = latest.get(a.studyId);
+      if (!prev || new Date(a.createdAt) > new Date(prev.createdAt)) latest.set(a.studyId, a);
+    }
+    const list = [...latest.values()];
+    let conAsimetria = 0;
+    let conAsimetriaActual = 0;
+    let simetricas = 0;
+    const riesgo = { sin_riesgo: 0, moderado: 0, alto: 0 };
+    for (const a of list) {
+      const g = thermalGroup(a.rois, v.umbralAsimetria, v.corteSimetria);
+      if (g.grupo === 'P') conAsimetria += 1;
+      if (a.grupo === 'P') conAsimetriaActual += 1;
+      if (g.simetrico) simetricas += 1;
+      riesgo[categoryFor(a.probabilidad, { moderado: v.corteModerado, alto: v.corteAlto })] += 1;
+    }
+    return { total: list.length, conAsimetria, conAsimetriaActual, simetricas, riesgo };
+  }
+
+  /** Validación tolerante para la vista previa: ignora los campos inválidos. */
+  validatePartial(input = {}) {
+    const out = {};
+    for (const d of DEFINITIONS) {
+      if (input[d.key] === undefined || input[d.key] === '') continue;
+      const one = settingsSchema.shape[d.key].safeParse(input[d.key]);
+      if (one.success) out[d.key] = one.data;
+    }
+    return out;
+  }
+}
+
+module.exports = SettingsService;

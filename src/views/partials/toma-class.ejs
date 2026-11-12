@@ -1,0 +1,26 @@
+<%
+  // Mini-card de clasificación térmica de una toma: chip arriba, dos métricas, región al pie.
+  const g = toma === 1 ? a.grupoToma1 : a.grupo;
+  const dmax = toma === 1 ? a.deltaTMaxToma1 : a.deltaTMax;
+  const roiMax = toma === 1 ? a.deltaTMaxRoiToma1 : a.deltaTMaxRoi;
+  const gen = a.roi('general', toma);
+  const dGen = gen ? Math.abs(gen.deltaT) : null;
+  const sim = toma === 1 ? a.simetricoToma1 : a.simetrico;
+  const lado = dmax === null ? '' : dmax >= 0 ? 'pie der. más caliente' : 'pie izq. más caliente';
+  const ayudaSim = `Simetría global: compara la temperatura media de todo el pie derecho con la del izquierdo (|ΔT general| < 1,0 °C = simétrica). Es distinta de la clasificación, que mira región por región: un pie puede ser simétrico en conjunto y tener una región con asimetría.`;
+%>
+<div class="tclass<%= toma === 2 ? ' tclass--now' : '' %>">
+  <span class="tclass__label"><span class="toma-dot toma-dot--<%= toma %>"></span><%= toma === 1 ? 'Toma 1 · basal' : 'Toma 2 · control' %></span>
+  <div class="tclass__chip"><%- include('grupo', { value: g, umbral: a.umbral }) %></div>
+  <dl class="tclass__metrics">
+    <div>
+      <dt>ΔT máx.</dt>
+      <dd><strong class="num"><%= dmax === null ? '—' : `${fmt.num(Math.abs(dmax), 1)} °C` %></strong><small><%= lado %></small></dd>
+    </div>
+    <div>
+      <dt>Simetría global <button type="button" class="help-dot help-dot--sm" title="<%= ayudaSim %>" aria-label="<%= ayudaSim %>">?</button></dt>
+      <dd><strong><%= sim === null || sim === undefined ? '—' : sim ? 'Simétrica' : 'Asimétrica' %></strong><% if (dGen !== null) { %><small class="num">|ΔT general| <%= fmt.num(dGen, 1) %> °C <%= dGen < 1 ? '<' : '≥' %> 1,0</small><% } %></dd>
+    </div>
+  </dl>
+  <span class="tclass__foot"><%= roiMax ? `Mayor diferencia: ${domain.ROI_NAMES[roiMax].toLowerCase()}` : '' %></span>
+</div>

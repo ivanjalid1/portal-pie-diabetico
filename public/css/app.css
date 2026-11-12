@@ -6490,3 +6490,313 @@ body.is-locked {
     display: block;
   }
 }
+
+/* ---------- Clasificación térmica por toma (mini-cards) ---------- */
+.result-hero__thermal {
+  container-type: inline-size;
+}
+
+.tclass-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tclass {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.tclass--now {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.tclass__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.tclass__chip .grupo-chip {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.tclass__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.tclass__metrics > div {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tclass__metrics dt {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.tclass__metrics dd {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  min-width: 0;
+}
+
+.tclass__metrics strong {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 680;
+  line-height: 1.15;
+}
+
+.tclass__metrics small {
+  font-size: 0.76rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.tclass__foot {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.help-dot--sm {
+  width: 16px;
+  height: 16px;
+  font-size: 0.66rem;
+}
+
+.help-dot--sm::before {
+  inset: -14px;
+}
+
+@container (max-width: 520px) {
+  .tclass-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (max-width: 300px) {
+  .tclass__metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Banner único de evolución entre tomas */
+.evo-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.evo-banner__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-3);
+}
+
+.evo-banner__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.evo-banner__text strong {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.evo-banner__text small {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.evo-banner--ok .evo-banner__icon {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.evo-banner--danger .evo-banner__icon {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.evo-banner--neutral .evo-banner__icon {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 560;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: help;
+}
+
+/* Panel de marca sin créditos: el contenido queda centrado verticalmente. */
+.auth-brand__body {
+  margin: auto 0;
+}
+
+/* ---------- Correcciones de la auditoría de solapamientos ---------- */
+.model-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+}
+
+.model-metrics small {
+  overflow-wrap: anywhere;
+}
+
+.form--inline .field {
+  flex: 1 1 170px;
+  min-width: 168px;
+}
+
+.form--inline .field input {
+  width: 100%;
+  min-width: 0;
+}
+
+.control-card {
+  grid-template-columns: 64px minmax(0, 1fr) minmax(200px, 280px);
+}
+
+.control-card__date {
+  gap: 3px;
+  line-height: 1.25;
+  padding: 8px 2px;
+}
+
+.control-card .grupo-chip {
+  white-space: normal;
+}
+
+/* Ficha: el resultado de cada estudio va en su propia fila bajo el detalle. */
+.timeline__link {
+  grid-template-columns: 120px minmax(0, 1fr);
+}
+
+.timeline__result {
+  grid-column: 2;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.timeline__tags .badge {
+  white-space: normal;
+}
+
+@media (max-width: 860px) {
+  .control-card {
+    grid-template-columns: 60px minmax(0, 1fr);
+  }
+
+  .control-card__day {
+    font-size: 1.08rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .timeline__link {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .timeline__result {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .study-list__item {
+    grid-template-rows: auto auto auto;
+  }
+
+  .study-list__thumb {
+    grid-row: 1 / span 3;
+  }
+
+  .study-list__dt {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .study-list__risk {
+    grid-column: 2 / -1;
+    grid-row: 3;
+  }
+}
+
+/* Temperaturas por región: ambas tomas, sin selector. */
+.roi-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+  gap: 8px 20px;
+}
+
+.roi-pair__item {
+  min-width: 0;
+}
+
+.roi-pair__title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 8px 22px 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.maps-compare__item figcaption {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.field input,
+.field select,
+.field textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.result-tables {
+  margin-block: 18px;
+}

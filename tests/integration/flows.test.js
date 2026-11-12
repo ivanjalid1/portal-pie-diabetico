@@ -89,7 +89,7 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
     const result = await medico.get(location);
     expect(result.status).toBe(200);
     expect(result.text).toContain('Probabilidad de úlcera');
-    expect(result.text).toContain('Umbral de asimetría');
+    expect(result.text).toContain('Clasificación térmica por toma');
     expect(result.text).toContain('Evolución de la asimetría');
     expect(result.text).toContain('Resultado simulado');
 

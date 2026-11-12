@@ -147,4 +147,34 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
       expect(res.text).toContain('name="lb-paleta"');
     });
   });
+
+  describe('resultado y login', () => {
+    it('la clasificación por toma muestra magnitudes, simetría global y ambas tomas sin selectores', async () => {
+      const studies = await container.repos.studies.listByMedico(medicoUser.id);
+      const res = await medico.get(`/medico/estudios/${studies[0].id}`);
+      expect(res.text).toContain('Simetría global');
+      expect(res.text).toMatch(/pie (izq|der)\. más caliente/);
+      expect(res.text).toContain('evo-banner');
+      expect(res.text).not.toContain('data-tabs=');
+      expect(res.text).not.toContain('Umbral de asimetría');
+      expect((res.text.match(/class="roi-pair__item"/g) || []).length).toBe(2);
+    });
+
+    it('el menú no duplica «Nuevo estudio» y lo agrupa en Estudios realizados', async () => {
+      const res = await medico.get('/medico/estudios/nuevo');
+      expect(res.status).toBe(200);
+      expect(res.text).not.toMatch(
+        /class="nav__link[^"]*" ?[^>]*href="\/medico\/estudios\/nuevo"|href="\/medico\/estudios\/nuevo" class="nav__link/,
+      );
+      expect(res.text).toMatch(/href="\/medico\/estudios" class="nav__link is-active" aria-current="page"/);
+      const lista = await medico.get('/medico/estudios');
+      expect(lista.text).toMatch(/href="\/medico\/estudios\/nuevo"[^>]*>[\s\S]{0,400}Nuevo estudio/);
+    });
+
+    it('el login no muestra el bloque de créditos', async () => {
+      const res = await require('supertest')(app).get('/login');
+      expect(res.status).toBe(200);
+      expect(res.text).not.toMatch(/Co-asesoras|Alumna/);
+    });
+  });
 });

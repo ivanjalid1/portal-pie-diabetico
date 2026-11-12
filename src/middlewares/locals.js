@@ -15,8 +15,7 @@ const NAV = {
   medico: [
     { href: '/medico', label: 'Tablero', icon: 'gauge', exact: true },
     { href: '/medico/pacientes', label: 'Pacientes', icon: 'users' },
-    { href: '/medico/estudios', label: 'Estudios realizados', icon: 'list', exact: true },
-    { href: '/medico/estudios/nuevo', label: 'Nuevo estudio', icon: 'scan' },
+    { href: '/medico/estudios', label: 'Estudios realizados', icon: 'list' },
     { href: '/medico/controles', label: 'Controles', icon: 'calendar' },
   ],
   paciente: [
@@ -77,8 +76,10 @@ function locals(config) {
     res.locals.ROLE_LABELS = ROLE_LABELS;
     res.locals.ROLE_HOME = ROLE_HOME;
     res.locals.title = config.appName;
+    // Se captura la ruta completa ahora: dentro de un router montado, req.path pierde el prefijo.
+    const fullPath = req.path;
     res.locals.isActive = (item) =>
-      item.exact ? req.path === item.href : req.path === item.href || req.path.startsWith(`${item.href}/`);
+      item.exact ? fullPath === item.href : fullPath === item.href || fullPath.startsWith(`${item.href}/`);
     res.locals.navFor = (role) => NAV[role] || [];
     res.locals.dataDriver = config.dataDriver;
     next();

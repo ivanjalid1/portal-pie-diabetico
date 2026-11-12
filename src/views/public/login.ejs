@@ -20,11 +20,6 @@
         </figcaption>
       </figure>
     </div>
-    <dl class="auth-brand__credits">
-      <div><dt>Alumna</dt><dd><%= P.alumna %></dd></div>
-      <div><dt>Asesor</dt><dd><%= P.asesor %></dd></div>
-      <div><dt>Co-asesoras</dt><dd><%= P.coasesoras.join(', ') %></dd></div>
-    </dl>
   </section>
 
   <section class="auth-form" aria-labelledby="login-title">
@@ -71,7 +66,6 @@
         </ul>
               </aside>
       <% } %>
-      <p class="auth-form__credits"><%= P.alumna %> · Asesor: <%= P.asesor %> · <%= P.universidad %>, FCEFyN</p>
       <p class="auth-form__disclaimer"><%= domain.DISCLAIMER %></p>
     </div>
   </section>

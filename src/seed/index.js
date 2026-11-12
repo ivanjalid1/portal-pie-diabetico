@@ -95,7 +95,11 @@ async function seedDemoData({ repos, authProvider, predictor }, options = {}) {
       hba1cFecha: hba1cDias ? isoDate(daysAgo(now, hba1cDias)) : null,
       consentimientoFirmado: true,
       consentimientoFecha: isoDate(alta),
-      lesionFecha: lesion ? isoDate(daysAgo(now, lesion.dias)) : null,
+      lesionFecha: lesion
+        ? isoDate(daysAgo(now, lesion.dias))
+        : p.generoLesion === false
+          ? isoDate(daysAgo(now, Math.max(1, (estudio?.dias ?? 10) - 3)))
+          : null,
       lesionPie: lesion?.pie || null,
       lesionRoi: lesion?.roi || null,
       lesionNotas: lesion ? 'Lesión confirmada en el control clínico de seguimiento.' : null,

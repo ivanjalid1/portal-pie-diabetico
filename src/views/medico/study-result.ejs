@@ -89,7 +89,7 @@
   </div>
 </section>
 
-<div class="grid grid--map">
+<div class="grid grid--2">
   <section class="card card--flush" aria-labelledby="evo-title">
     <div class="card__head card__head--pad">
       <h2 id="evo-title" class="card__title">Evolución de la asimetría</h2>
@@ -189,7 +189,7 @@
       <figure class="image-tile">
         <% if (img && canPreview(img)) { %>
         <button type="button" class="image-tile__btn" data-lightbox="<%= imageUrl(s, sl.slot) %>" data-caption="<%= sl.titulo %>">
-          <img src="<%= imageUrl(s, sl.slot) %>" alt="<%= sl.titulo %> de <%= p.codigo %>" loading="lazy" width="480" height="360">
+          <img src="<%= imageUrl(s, sl.slot) %>" alt="<%= sl.titulo %> de <%= p.codigo %>" width="480" height="360" decoding="async">
           <span class="image-tile__badge image-tile__badge--t<%= sl.toma %>"><%= sl.etiqueta %></span>
         </button>
         <% } else if (img) { %>

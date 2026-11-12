@@ -41,7 +41,7 @@
     <figure class="image-tile">
       <% if (img && canPreview(img)) { %>
       <button type="button" class="image-tile__btn" data-lightbox="<%= imageUrl(study, sl.slot) %>" data-caption="<%= sl.titulo %>">
-        <img src="<%= imageUrl(study, sl.slot) %>" alt="<%= sl.titulo %>" loading="lazy" width="320" height="240">
+        <img src="<%= imageUrl(study, sl.slot) %>" alt="<%= sl.titulo %>" decoding="async" width="320" height="240">
       </button>
       <% } else if (img) { %>
       <a class="image-tile__file" href="<%= imageUrl(study, sl.slot) %>"><%- include('../partials/icon', { name: 'file', size: 28 }) %><span>Descargar archivo</span></a>

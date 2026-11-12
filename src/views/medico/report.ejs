@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %> · <%= appName %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400..700&display=swap">
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/print.css">
+  <script src="/js/report.js" defer></script>
+</head>
+<body class="report">
+  <div class="report__toolbar no-print">
+    <button type="button" class="btn btn--primary" data-print><%- include('../partials/icon', { name: 'printer', size: 18 }) %>Imprimir o guardar como PDF</button>
+    <a class="btn btn--ghost" href="/medico/estudios/<%= study.id %>">Volver al estudio</a>
+  </div>
+  <% const a = analysis; const s = study; const p = patient; const M = domain.REFERENCE_MODEL; %>
+  <article class="report__page">
+    <header class="report__head">
+      <div class="brand"><img src="/img/logo.svg" alt="" width="36" height="36"><span class="brand__text"><strong><%= appName %></strong><small><%= domain.PROJECT.facultad %>, <%= domain.PROJECT.universidad %></small></span></div>
+      <div class="report__meta">
+        <strong>Informe de termografía plantar</strong>
+        <span>Generado el <%= fmt.dateTime(generado) %></span>
+      </div>
+    </header>
+
+    <p class="report__disclaimer"><%= domain.DISCLAIMER %></p>
+
+    <section class="report__grid">
+      <dl class="kv kv--compact">
+        <div><dt>Paciente</dt><dd><strong><%= p.codigo %></strong>, <%= p.nombreCompleto %></dd></div>
+        <div><dt>Edad / sexo</dt><dd><%= p.edad(new Date(s.fechaHora)) %> años, <%= p.sexo %></dd></div>
+        <div><dt>Diabetes</dt><dd>Tipo <%= p.tipoDm %>, <%= fmt.num(p.aniosEvolucionDm, 1) %> años<%= p.insulinorequiriente ? ', insulinorequiriente' : '' %></dd></div>
+        <div><dt>HbA1c</dt><dd><%= p.hba1c !== null ? `${fmt.num(p.hba1c, 1)} % (${fmt.date(p.hba1cFecha)})` : '—' %></dd></div>
+        <div><dt>Neuropatía</dt><dd><%= p.gradoNeuropatia %></dd></div>
+      </dl>
+      <dl class="kv kv--compact">
+        <div><dt>Toma</dt><dd><%= s.toma === 1 ? '1 (basal)' : '2 (seguimiento)' %>, <%= fmt.dateTime(s.fechaHora) %></dd></div>
+        <div><dt>Centro</dt><dd><%= s.centro %></dd></div>
+        <div><dt>Médico/a</dt><dd><%= medico.nombreCompleto %><%= medico.matricula ? `, ${medico.matricula}` : '' %></dd></div>
+        <div><dt>Ambiente</dt><dd><%= fmt.num(s.tempAmbiente, 1) %> °C, HR <%= fmt.num(s.humedadRelativa, 0) %> % <%= s.condicionesOk ? '(dentro del protocolo)' : '(fuera del protocolo)' %></dd></div>
+        <div><dt>Imagen</dt><dd><%= s.valida ? 'Válida' : `No válida: ${s.motivoInvalidez || ''}` %></dd></div>
+      </dl>
+    </section>
+
+    <% if (a) { %>
+    <section class="report__result">
+      <div class="report__big">
+        <span class="label">Probabilidad estimada (<%= a.horizonteSemanas %> semanas)</span>
+        <span class="num report__pct"><%= fmt.num(a.probabilidad, 1) %> %</span>
+        <span class="badge badge--<%= domain.RISK_CATEGORIES[a.categoria].tono %>"><%= domain.RISK_CATEGORIES[a.categoria].nombre %></span>
+      </div>
+      <div class="report__big">
+        <span class="label">ΔT máximo</span>
+        <span class="num report__pct"><%= fmt.signed(a.deltaTMax) %> °C</span>
+        <span><%= domain.ROI_NAMES[a.deltaTMaxRoi] %></span>
+      </div>
+      <div class="report__big">
+        <span class="label">Grupo térmico / simetría</span>
+        <span class="report__pct"><%= a.grupo %></span>
+        <span><%= a.simetrico ? 'Simétrico' : 'No simétrico' %>, umbral <%= fmt.num(a.umbral, 1) %> °C</span>
+      </div>
+    </section>
+
+    <section class="report__grid report__grid--map">
+      <%- include('../partials/plantar-map', { rois: a.rois, umbral: a.umbral, mapId: 'rep' }) %>
+      <table class="table table--num table--dense">
+        <thead><tr><th scope="col">Región</th><th scope="col">Der.</th><th scope="col">Izq.</th><th scope="col">ΔT</th></tr></thead>
+        <tbody>
+          <% a.rois.forEach((r) => { const hot = r.roi !== 'general' && Math.abs(r.deltaT) >= a.umbral; %>
+          <tr class="<%= hot ? 'row-hot' : '' %><%= r.roi === 'general' ? ' row-total' : '' %>"><th scope="row"><%= domain.ROI_NAMES[r.roi] %></th><td><%= fmt.num(r.avgDer, 2) %></td><td><%= fmt.num(r.avgIzq, 2) %></td><td><%= fmt.signed(r.deltaT, 2) %></td></tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Factores principales</h2>
+      <p><%= a.factores.slice(0, 4).map((f) => `${f.nombre} (${f.valor})`).join('; ') %>.</p>
+    </section>
+    <% } %>
+
+    <section class="report__images">
+      <% imageSlots.forEach((sl) => { const img = s.image(sl.slot); if (img && canPreview(img)) { %>
+      <figure><img src="<%= imageUrl(s, sl.slot) %>" alt="<%= sl.titulo %>"><figcaption><%= sl.titulo %></figcaption></figure>
+      <% } }) %>
+    </section>
+
+    <% if (s.notasMedico) { %>
+    <section><h2>Notas del médico</h2><p><%= s.notasMedico %></p></section>
+    <% } %>
+
+    <footer class="report__foot">
+      <p>Predictor <%= a ? a.predictorVersion : '—' %>. Modelo de referencia (Parte 1): <%= M.nombre %>, <%= M.hiperparametros %>, <%= M.validacion %>, n = <%= M.n %>, AUC <%= fmt.num(M.auc, 3) %>, sensibilidad <%= fmt.num(M.sensibilidad, 1) %> %, especificidad <%= fmt.num(M.especificidad, 1) %> %.</p>
+      <p>Documento con datos de salud: tratamiento confidencial según Ley 25.326 y Ley 26.529.</p>
+      <div class="report__sign"><span>Firma y sello</span></div>
+    </footer>
+  </article>
+</body>
+</html>

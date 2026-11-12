@@ -1,0 +1,18 @@
+node_modules/
+coverage/
+.vercel/
+*.log
+
+# Secretos y entorno
+.db-password.local
+.env*
+!.env.example
+
+# Material privado (datos de pacientes reales, documentos, instaladores)
+tesis-2026/
+tesis-2026info/
+*.pdf
+*.xlsx
+*.xls
+*.exe
+*.msi

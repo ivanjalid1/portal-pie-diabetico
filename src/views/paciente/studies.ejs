@@ -1,0 +1,25 @@
+<%- include('../partials/page-header', { heading: 'Mis estudios', lead: 'Cada termografía registra la temperatura de la planta de tus pies.' }) %>
+<% if (!items.length) { %>
+<div class="card">
+  <div class="empty">
+    <%- include('../partials/icon', { name: 'scan', size: 28 }) %>
+    <h2>Todavía no tenés estudios</h2>
+    <p>Cuando tu médico cargue tu primera termografía, va a aparecer aquí.</p>
+  </div>
+</div>
+<% } else { %>
+<ol class="timeline timeline--patient">
+  <% items.forEach(({ study, analysis }) => { %>
+  <li class="timeline__item">
+    <a class="timeline__link card" href="/paciente/estudios/<%= study.id %>">
+      <span class="timeline__date"><strong><%= fmt.dateLong(study.fechaHora) %></strong><small><%= study.toma === 1 ? 'Primer estudio' : 'Estudio de seguimiento' %></small></span>
+      <span class="timeline__body"><%= study.centro %></span>
+      <span class="timeline__result">
+        <% if (analysis) { %><%- include('../partials/risk-badge', { analysis, patientView: true }) %><% } else { %><span class="badge badge--outline">En revisión</span><% } %>
+        <%- include('../partials/icon', { name: 'chevronRight', size: 18 }) %>
+      </span>
+    </a>
+  </li>
+  <% }) %>
+</ol>
+<% } %>

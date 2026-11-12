@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <%- include('../partials/head') %>
+</head>
+<body class="app role-<%= user ? user.role : 'anon' %>">
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar" aria-label="Navegación principal">
+      <div class="sidebar__brand">
+        <a href="<%= user ? ROLE_HOME[user.role] : '/' %>" class="brand">
+          <img src="/img/logo.svg" alt="" width="32" height="32">
+          <span class="brand__text"><strong><%= appName %></strong><small>Termografía plantar</small></span>
+        </a>
+        <button type="button" class="icon-btn sidebar__close" data-sidebar-close aria-label="Cerrar menú"><%- include('../partials/icon', { name: 'x' }) %></button>
+      </div>
+      <% if (user) { %>
+      <nav class="nav">
+        <ul>
+          <% navFor(user.role).forEach((item) => { %>
+          <li>
+            <a href="<%= item.href %>" class="nav__link<%= isActive(item) ? ' is-active' : '' %>"<%- isActive(item) ? ' aria-current="page"' : '' %>>
+              <%- include('../partials/icon', { name: item.icon }) %><span><%= item.label %></span>
+            </a>
+          </li>
+          <% }) %>
+        </ul>
+      </nav>
+      <div class="sidebar__foot">
+        <div class="me">
+          <span class="avatar" aria-hidden="true"><%= user.iniciales %></span>
+          <span class="me__text"><strong><%= user.nombreCompleto %></strong><small><%= ROLE_LABELS[user.role] %></small></span>
+        </div>
+        <div class="sidebar__actions">
+          <a href="/cuenta/password" class="nav__link nav__link--small"><%- include('../partials/icon', { name: 'lock', size: 18 }) %><span>Contraseña</span></a>
+          <form method="post" action="/logout">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="nav__link nav__link--small"><%- include('../partials/icon', { name: 'logout', size: 18 }) %><span>Cerrar sesión</span></button>
+          </form>
+        </div>
+      </div>
+      <% } %>
+    </aside>
+    <div class="sidebar-scrim" data-sidebar-close></div>
+
+    <div class="main">
+      <header class="topbar">
+        <button type="button" class="icon-btn topbar__menu" data-sidebar-open aria-controls="sidebar" aria-label="Abrir menú"><%- include('../partials/icon', { name: 'menu' }) %></button>
+        <a href="<%= user ? ROLE_HOME[user.role] : '/' %>" class="brand brand--compact"><img src="/img/logo.svg" alt="" width="28" height="28"><strong><%= appName %></strong></a>
+        <% if (dataDriver === 'memory') { %>
+        <span class="env-pill" title="Los datos de demostración se reinician periódicamente">Datos de demostración</span>
+        <% } %>
+      </header>
+      <main id="contenido" class="content" tabindex="-1">
+        <%- body %>
+      </main>
+      <footer class="app-footer">
+        <p><%= domain.DISCLAIMER %></p>
+      </footer>
+    </div>
+  </div>
+  <%- include('../partials/flash') %>
+  <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Imagen ampliada">
+    <button type="button" class="lightbox__close icon-btn" data-lightbox-close aria-label="Cerrar"><%- include('../partials/icon', { name: 'x' }) %></button>
+    <figure><img alt=""><figcaption></figcaption></figure>
+  </div>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<%
+  const p = patient;
+  const alertaHb = p.hba1cAlerta();
+  const hbLabels = { imputada: 'Imputada', sin_fecha: 'Sin fecha', desactualizada: 'Más de 12 meses', sin_dato: 'Sin dato' };
+  const last = items.find((i) => i.analysis);
+  const yn = (v) => (v ? 'Sí' : 'No');
+  const vib = (v, m) => (m ? '> 50' : v === null ? '—' : fmt.num(v, 0));
+  const vigente = consents.find((c) => c.vigente);
+%>
+<%- include('../partials/page-header', {
+  heading: p.nombreCompleto,
+  back: { href: '/medico/pacientes', label: 'Pacientes' },
+  actions: `<a class="btn btn--ghost" href="/medico/pacientes/${p.id}/editar">${include('../partials/icon', { name: 'edit', size: 18 })}Editar datos</a>` + (p.consentimientoFirmado ? `<a class="btn btn--primary" href="/medico/estudios/nuevo?paciente=${p.id}">${include('../partials/icon', { name: 'scan', size: 18 })}Nuevo estudio</a>` : '')
+}) %>
+
+<div class="patient-strip">
+  <span class="code code--lg"><%= p.codigo %></span>
+  <span><%= p.edad() %> años, <%= p.sexo === 'F' ? 'femenino' : 'masculino' %></span>
+  <span>DM tipo <%= p.tipoDm %>, <%= fmt.num(p.aniosEvolucionDm, 1) %> años</span>
+  <span><%= p.centro %></span>
+  <% if (last) { %><%- include('../partials/risk-badge', { analysis: last.analysis, showPct: true }) %><span class="grupo grupo--<%= last.analysis.grupo %>">Grupo <%= last.analysis.grupo %></span><% } %>
+  <% if (!p.consentimientoFirmado) { %><span class="badge badge--danger">Sin consentimiento vigente</span><% } %>
+</div>
+
+<div class="grid grid--main">
+  <div class="stack-lg">
+    <section class="card">
+      <div class="card__head">
+        <h2 class="card__title">Evolución</h2>
+        <span class="muted small">Probabilidad estimada y ΔT máximo por toma</span>
+      </div>
+      <% if (serie.length) { %>
+      <div class="chart-box">
+        <canvas id="evolucion" height="220" data-chart="evolucion" data-series="<%= JSON.stringify(serie.map((s) => ({ label: `${fmt.date(s.fecha)} (toma ${s.toma})`, p: s.probabilidad, dt: s.deltaTMax }))) %>" data-umbral="<%= domain.DELTA_T_UMBRAL %>" aria-label="Gráfico de evolución de la probabilidad y del ΔT máximo"></canvas>
+      </div>
+      <table class="sr-only"><caption>Evolución</caption><tr><th>Fecha</th><th>Probabilidad</th><th>ΔT máx.</th></tr><% serie.forEach((s) => { %><tr><td><%= fmt.date(s.fecha) %></td><td><%= s.probabilidad %> %</td><td><%= s.deltaTMax %> °C</td></tr><% }) %></table>
+      <% } else { %>
+      <div class="empty empty--inline">
+        <p>Sin estudios analizados todavía.</p>
+      </div>
+      <% } %>
+    </section>
+
+    <section class="card card--flush">
+      <div class="card__head card__head--pad"><h2 class="card__title">Estudios</h2></div>
+      <% if (!items.length) { %>
+      <div class="empty">
+        <%- include('../partials/icon', { name: 'scan', size: 28 }) %>
+        <h3>Sin estudios</h3>
+        <p>Cargá la toma basal para obtener el primer análisis.</p>
+        <% if (p.consentimientoFirmado) { %><a class="btn btn--primary" href="/medico/estudios/nuevo?paciente=<%= p.id %>">Cargar toma 1</a><% } %>
+      </div>
+      <% } else { %>
+      <ol class="timeline">
+        <% items.forEach(({ study, analysis }) => { %>
+        <li class="timeline__item">
+          <a href="/medico/estudios/<%= study.id %>" class="timeline__link">
+            <span class="timeline__date"><strong><%= fmt.date(study.fechaHora) %></strong><small>Toma <%= study.toma %></small></span>
+            <span class="timeline__body">
+              <% if (analysis) { %>
+              <span>ΔT máx. <strong class="num"><%= fmt.signed(analysis.deltaTMax) %> °C</strong> en <%= domain.ROI_NAMES[analysis.deltaTMaxRoi].toLowerCase() %></span>
+              <% } %>
+              <span class="timeline__tags">
+                <% if (!study.valida) { %><span class="badge badge--warn">Imagen no válida</span><% } %>
+                <% if (!study.condicionesOk) { %><span class="badge badge--warn">Condiciones fuera de rango</span><% } %>
+                <% if (study.publicado) { %><span class="badge badge--muted">Visible al paciente</span><% } else { %><span class="badge badge--outline">No publicado</span><% } %>
+              </span>
+            </span>
+            <span class="timeline__result">
+              <%- include('../partials/risk-badge', { analysis, showPct: true }) %>
+              <% if (analysis) { %><span class="grupo grupo--<%= analysis.grupo %>"><%= analysis.grupo %></span><% } %>
+            </span>
+          </a>
+        </li>
+        <% }) %>
+      </ol>
+      <% } %>
+    </section>
+
+    <section class="card" id="desenlace">
+      <h2 class="card__title">Desenlace del seguimiento</h2>
+      <%- include('../partials/outcome-form', { patient: p }) %>
+    </section>
+  </div>
+
+  <div class="stack-lg">
+    <section class="card">
+      <h2 class="card__title">Resumen clínico</h2>
+      <dl class="kv kv--compact">
+        <div><dt>Insulinorequiriente</dt><dd><%= yn(p.insulinorequiriente) %></dd></div>
+        <div><dt>HbA1c</dt><dd><% if (p.hba1c !== null) { %><span class="num"><%= fmt.num(p.hba1c, 1) %> %</span> <span class="muted small"><%= fmt.date(p.hba1cFecha) %></span><% } else { %>—<% } %><% if (alertaHb) { %> <span class="badge badge--warn"><%= hbLabels[alertaHb] %></span><% } %></dd></div>
+        <% if (p.hba1cNota) { %><div><dt>Nota HbA1c</dt><dd><%= p.hba1cNota %></dd></div><% } %>
+        <div><dt>Tabaquismo</dt><dd><%= p.tabaquismo === null ? 'A consultar' : yn(p.tabaquismo) %></dd></div>
+        <div><dt>Neuropatía</dt><dd><%= p.neuropatia ? `${p.gradoNeuropatia} (${p.neuropatiaPuntaje} pts)` : 'No' %></dd></div>
+        <div><dt>Vibratoria der. / izq.</dt><dd class="num"><span class="<%= p.vibratoriaDerAlterada ? 'text-warn' : '' %>"><%= vib(p.vibratoriaDer, p.vibratoriaDerMas50) %></span> / <span class="<%= p.vibratoriaIzqAlterada ? 'text-warn' : '' %>"><%= vib(p.vibratoriaIzq, p.vibratoriaIzqMas50) %></span> µV</dd></div>
+        <div><dt>Úlcera previa</dt><dd><%= p.ulceraPreviaDer && p.ulceraPreviaIzq ? 'Ambos pies' : p.ulceraPreviaDer ? 'Pie derecho' : p.ulceraPreviaIzq ? 'Pie izquierdo' : 'No' %></dd></div>
+        <div><dt>Isquemia</dt><dd><%= yn(p.isquemia) %></dd></div>
+        <div><dt>Hallazgos</dt><dd>
+          <% const hall = [p.ampollas && 'ampollas', p.hiperqueratosis && 'hiperqueratosis', p.eritema && 'eritema', p.hematomas && 'hematomas'].filter(Boolean); %>
+          <%= hall.length ? hall.join(', ') : 'Sin hallazgos' %>
+          <% if (p.hiperqueratosisLocalizacion) { %><small class="muted block"><%= p.hiperqueratosisLocalizacion %></small><% } %>
+        </dd></div>
+        <% if (p.pesoKg) { %><div><dt>Peso</dt><dd class="num"><%= fmt.num(p.pesoKg, 0) %> kg</dd></div><% } %>
+        <% if (p.indiceTobilloBrazo) { %><div><dt>Índice tobillo-brazo</dt><dd class="num"><%= fmt.num(p.indiceTobilloBrazo, 2) %></dd></div><% } %>
+        <% if (p.cirugiasPrevias) { %><div><dt>Cirugías previas</dt><dd><%= p.cirugiasPrevias %></dd></div><% } %>
+        <% if (p.observaciones) { %><div><dt>Observaciones</dt><dd><%= p.observaciones %></dd></div><% } %>
+      </dl>
+    </section>
+
+    <section class="card">
+      <h2 class="card__title">Contacto</h2>
+      <dl class="kv kv--compact">
+        <div><dt>Usuario</dt><dd><%= p.email %></dd></div>
+        <div><dt>Teléfono</dt><dd><%= p.telefono || '—' %></dd></div>
+        <% if (p.dni) { %><div><dt>DNI</dt><dd class="num"><%= p.dni %></dd></div><% } %>
+      </dl>
+    </section>
+
+    <section class="card">
+      <h2 class="card__title">Controles</h2>
+      <% const pend = appointments.filter((a) => a.estado === 'pendiente'); %>
+      <% if (!pend.length) { %><p class="muted">Sin controles pendientes. Programalo desde el resultado de un estudio.</p><% } %>
+      <ul class="agenda">
+        <% appointments.slice().reverse().slice(0, 5).forEach((a) => { %>
+        <li class="<%= a.vencido() ? 'is-late' : '' %>">
+          <span class="agenda__date"><span class="num"><%= fmt.date(a.fecha) %></span><small><%= a.estado %></small></span>
+          <span class="agenda__what"><%= a.motivo %></span>
+        </li>
+        <% }) %>
+      </ul>
+    </section>
+
+    <section class="card" id="consentimiento">
+      <h2 class="card__title">Consentimiento informado</h2>
+      <% if (vigente) { %>
+      <p class="consent consent--ok"><%- include('../partials/icon', { name: 'shield', size: 18 }) %><span>Vigente: <%= vigente.version %>, firmado el <%= fmt.date(vigente.fechaFirma) %>.</span></p>
+      <details class="disclosure">
+        <summary>Registrar revocación</summary>
+        <form method="post" action="/medico/pacientes/<%= p.id %>/consentimiento/revocar" class="form" data-confirm="¿Registrar la revocación? No se podrán cargar nuevos estudios del paciente.">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <div class="field<%= errors.motivo ? ' has-error' : '' %>">
+            <label for="motivo">Motivo</label>
+            <input id="motivo" name="motivo" required minlength="3">
+            <% if (errors.motivo) { %><p class="field__error"><%= errors.motivo %></p><% } %>
+          </div>
+          <button type="submit" class="btn btn--danger-ghost btn--sm">Registrar revocación</button>
+        </form>
+      </details>
+      <% } else { %>
+      <p class="consent consent--no"><%- include('../partials/icon', { name: 'ban', size: 18 }) %><span>Sin consentimiento vigente: no se pueden cargar estudios.</span></p>
+      <form method="post" action="/medico/pacientes/<%= p.id %>/consentimiento" class="form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="field<%= errors.fechaFirma ? ' has-error' : '' %>">
+          <label for="fechaFirma">Fecha de firma</label>
+          <input id="fechaFirma" name="fechaFirma" type="date" required value="<%= fmt.inputDate(new Date()) %>">
+          <% if (errors.fechaFirma) { %><p class="field__error"><%= errors.fechaFirma %></p><% } %>
+        </div>
+        <label class="check<%= errors.confirmo ? ' has-error' : '' %>"><input type="checkbox" name="confirmo" required><span>El paciente firmó el documento <%= domain.CONSENT_VERSION %></span></label>
+        <button type="submit" class="btn btn--primary btn--sm">Registrar consentimiento</button>
+      </form>
+      <% } %>
+      <% if (consents.length) { %>
+      <h3 class="card__subtitle">Historial</h3>
+      <ul class="history">
+        <% consents.forEach((c) => { %>
+        <li><span class="num"><%= fmt.date(c.fechaFirma) %></span> <%= c.version %><% if (c.revocadoAt) { %> <span class="badge badge--muted">Revocado <%= fmt.date(c.revocadoAt) %></span><small class="muted block"><%= c.motivoRevocacion %></small><% } else { %> <span class="badge badge--ok">Vigente</span><% } %></li>
+        <% }) %>
+      </ul>
+      <% } %>
+    </section>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous" defer></script>
+<script src="/js/charts.js" defer></script>

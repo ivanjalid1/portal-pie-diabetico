@@ -1,0 +1,86 @@
+<%- include('../partials/page-header', {
+  heading: 'Pacientes',
+  lead: 'Pacientes a tu cargo con el resultado de su último estudio.',
+  actions: `<a class="btn btn--ghost" href="/medico/pacientes/exportar.csv">${include('../partials/icon', { name: 'table', size: 18 })}Exportar CSV</a><a class="btn btn--primary" href="/medico/pacientes/nuevo">${include('../partials/icon', { name: 'plus', size: 18 })}Registrar paciente</a>`
+}) %>
+
+<form method="get" action="/medico/pacientes" class="filters" role="search">
+  <div class="field field--inline field--grow">
+    <label for="q" class="sr-only">Buscar paciente</label>
+    <div class="input-icon">
+      <%- include('../partials/icon', { name: 'search', size: 18 }) %>
+      <input id="q" name="q" type="search" placeholder="Buscar por código o nombre" value="<%= q %>">
+    </div>
+  </div>
+  <div class="field field--inline">
+    <label for="riesgo" class="sr-only">Filtrar</label>
+    <select id="riesgo" name="riesgo" data-autosubmit>
+      <option value="">Todos</option>
+      <optgroup label="Riesgo estimado">
+        <option value="alto"<%= riesgo === 'alto' ? ' selected' : '' %>>Alto riesgo</option>
+        <option value="moderado"<%= riesgo === 'moderado' ? ' selected' : '' %>>Riesgo moderado</option>
+        <option value="sin_riesgo"<%= riesgo === 'sin_riesgo' ? ' selected' : '' %>>Sin riesgo</option>
+      </optgroup>
+      <optgroup label="Grupo térmico">
+        <option value="P"<%= riesgo === 'P' ? ' selected' : '' %>>P (Problema)</option>
+        <option value="C"<%= riesgo === 'C' ? ' selected' : '' %>>C (Control)</option>
+      </optgroup>
+      <option value="sin_estudios"<%= riesgo === 'sin_estudios' ? ' selected' : '' %>>Sin estudios</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn--ghost">Filtrar</button>
+</form>
+
+<div class="card card--flush">
+  <% if (!rows.length) { %>
+  <div class="empty">
+    <%- include('../partials/icon', { name: 'users', size: 28 }) %>
+    <% if (q || riesgo) { %>
+    <h2>Ningún paciente coincide con la búsqueda</h2>
+    <p>Revisá el código o quitá el filtro.</p>
+    <a class="btn btn--ghost" href="/medico/pacientes">Ver todos</a>
+    <% } else { %>
+    <h2>Todavía no registraste pacientes</h2>
+    <p>Registralo con su correo de Gmail: se crea su cuenta para que vea sus resultados.</p>
+    <a class="btn btn--primary" href="/medico/pacientes/nuevo">Registrar paciente</a>
+    <% } %>
+  </div>
+  <% } else { %>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Paciente</th>
+          <th scope="col">Edad / sexo</th>
+          <th scope="col">DM</th>
+          <th scope="col">Último estudio</th>
+          <th scope="col">Grupo</th>
+          <th scope="col">Resultado</th>
+          <th scope="col">Próximo control</th>
+          <th scope="col"><span class="sr-only">Abrir</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach((r) => { const p = r.patient; %>
+        <tr class="row-link">
+          <td>
+            <a href="/medico/pacientes/<%= p.id %>" class="person">
+              <span class="code"><%= p.codigo %></span>
+              <span><strong><%= p.nombreCompleto %></strong><small><%= p.centro %></small></span>
+            </a>
+          </td>
+          <td class="num"><%= p.edad() %> <span class="muted"><%= p.sexo %></span></td>
+          <td>Tipo <%= p.tipoDm %><small class="muted block num"><%= fmt.num(p.aniosEvolucionDm, 1) %> años</small></td>
+          <td><%= r.ultimoEstudio ? fmt.date(r.ultimoEstudio.fechaHora) : '—' %><% if (r.ultimoEstudio) { %><small class="muted block">Toma <%= r.ultimoEstudio.toma %></small><% } %></td>
+          <td><% if (r.ultimoAnalisis) { %><span class="grupo grupo--<%= r.ultimoAnalisis.grupo %>" title="<%= domain.GRUPOS_TERMICOS[r.ultimoAnalisis.grupo].descripcion %>"><%= r.ultimoAnalisis.grupo %></span><% } else { %>—<% } %></td>
+          <td><%- include('../partials/risk-badge', { analysis: r.ultimoAnalisis, showPct: true }) %></td>
+          <td><% if (r.proximoControl) { %><span class="<%= r.proximoControl.vencido() ? 'text-warn' : '' %>"><%= fmt.date(r.proximoControl.fecha) %></span><small class="muted block"><%= fmt.relativeDays(r.proximoControl.fecha) %></small><% } else { %>—<% } %></td>
+          <td class="table__chevron"><%- include('../partials/icon', { name: 'chevronRight', size: 18 }) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+<p class="hint">La exportación CSV usa las columnas de la planilla del equipo e identifica a cada paciente sólo por su código.</p>

@@ -1,0 +1,17 @@
+<%- include('../partials/page-header', { heading: `Registraste a ${patient.codigo}`, lead: `${patient.nombreCompleto} ya tiene su cuenta en el portal.` }) %>
+<div class="grid grid--2">
+  <section class="card">
+    <h2 class="card__title">Credenciales de acceso</h2>
+    <p class="muted">Entregáselas al paciente. La contraseña temporal no se vuelve a mostrar; si la pierde, el administrador puede generar una nueva.</p>
+    <%- include('../partials/credential-box', { account, tempPassword }) %>
+    <p class="small muted">Dirección del portal: <code><%= appUrl %></code></p>
+  </section>
+  <section class="card">
+    <h2 class="card__title">Siguiente paso</h2>
+    <p>Con el consentimiento registrado ya podés cargar la toma basal.</p>
+    <div class="stack">
+      <a class="btn btn--primary" href="/medico/estudios/nuevo?paciente=<%= patient.id %>"><%- include('../partials/icon', { name: 'scan', size: 18 }) %>Cargar toma 1 (basal)</a>
+      <a class="btn btn--ghost" href="/medico/pacientes/<%= patient.id %>">Ver ficha del paciente</a>
+    </div>
+  </section>
+</div>

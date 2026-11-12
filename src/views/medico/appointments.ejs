@@ -1,0 +1,39 @@
+<%- include('../partials/page-header', { heading: 'Controles', lead: 'Controles pendientes de tus pacientes, ordenados por fecha.' }) %>
+<div class="card card--flush">
+  <% if (!items.length) { %>
+  <div class="empty">
+    <%- include('../partials/icon', { name: 'calendar', size: 28 }) %>
+    <h2>No hay controles pendientes</h2>
+    <p>Programalos desde el resultado de cada estudio.</p>
+  </div>
+  <% } else { %>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th scope="col">Fecha</th><th scope="col">Paciente</th><th scope="col">Motivo</th><th scope="col">Último resultado</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
+      <tbody>
+        <% items.forEach(({ appt, row }) => { const late = appt.vencido(now); %>
+        <tr>
+          <td class="nowrap"><strong class="num<%= late ? ' text-warn' : '' %>"><%= fmt.date(appt.fecha) %></strong><small class="muted block"><%= late ? 'Vencido, ' : '' %><%= fmt.relativeDays(appt.fecha) %></small></td>
+          <td><a class="person" href="/medico/pacientes/<%= row.patient.id %>"><span class="code"><%= row.patient.codigo %></span><span><strong><%= row.patient.nombreCompleto %></strong></span></a></td>
+          <td><%= appt.motivo %></td>
+          <td><%- include('../partials/risk-badge', { analysis: row.ultimoAnalisis, showPct: true }) %></td>
+          <td class="table__actions">
+            <a class="btn btn--ghost btn--sm" href="/medico/estudios/nuevo?paciente=<%= row.patient.id %>">Cargar toma</a>
+            <form method="post" action="/medico/controles/<%= appt.id %>/estado">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="estado" value="realizado">
+              <button type="submit" class="btn btn--ghost btn--sm">Marcar realizado</button>
+            </form>
+            <form method="post" action="/medico/controles/<%= appt.id %>/estado" data-confirm="¿Cancelar este control?">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="estado" value="cancelado">
+              <button type="submit" class="btn btn--danger-ghost btn--sm">Cancelar</button>
+            </form>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>

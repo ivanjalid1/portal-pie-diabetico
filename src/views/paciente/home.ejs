@@ -1,0 +1,39 @@
+<%- include('../partials/page-header', { heading: `Hola, ${patient.nombre}`, lead: 'Acá encontrás tus estudios de termografía, tu próximo control y consejos para cuidar tus pies.' }) %>
+
+<div class="grid grid--2">
+  <section class="card patient-status<%= ultimo ? ' patient-status--' + domain.RISK_CATEGORIES[ultimo.analysis.categoria].tono : '' %>" aria-labelledby="estado-title">
+    <h2 id="estado-title" class="card__title">Tu último resultado</h2>
+    <% if (ultimo) { const cat = domain.RISK_CATEGORIES[ultimo.analysis.categoria]; %>
+    <p class="patient-status__level"><span class="dot dot--<%= cat.tono %>" aria-hidden="true"></span><%= cat.paciente %></p>
+    <p><%= cat.mensajePaciente %></p>
+    <p class="muted small">Estudio del <%= fmt.dateLong(ultimo.study.fechaHora) %>.</p>
+    <a class="btn btn--ghost" href="/paciente/estudios/<%= ultimo.study.id %>">Ver detalle</a>
+    <% } else if (totalEstudios) { %>
+    <p>Tu médico todavía está revisando tu estudio. Cuando esté listo vas a verlo aquí.</p>
+    <% } else { %>
+    <p>Todavía no tenés estudios. Tu primer control termográfico se hace en el consultorio.</p>
+    <% } %>
+  </section>
+
+  <section class="card next-visit" aria-labelledby="control-title">
+    <h2 id="control-title" class="card__title">Próximo control</h2>
+    <% if (proximo) { %>
+    <p class="next-visit__date"><%- include('../partials/icon', { name: 'calendar', size: 28 }) %><span><strong><%= fmt.dateLong(proximo.fecha) %></strong><small><%= fmt.relativeDays(proximo.fecha) %></small></span></p>
+    <p class="muted"><%= proximo.motivo %>. Asistí sin cremas en los pies y con medias limpias: el día del estudio vas a estar descalzo unos 15 minutos para que la temperatura se estabilice.</p>
+    <% } else { %>
+    <p class="muted">No tenés un control programado. Tu médico te va a avisar la fecha.</p>
+    <% } %>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="tips-title">
+  <div class="card__head">
+    <h2 id="tips-title" class="card__title">Cuidados de todos los días</h2>
+    <a class="link" href="/paciente/autocuidado">Ver todos los consejos</a>
+  </div>
+  <ul class="tips">
+    <% consejos.forEach((c) => { %>
+    <li><span class="tips__icon"><%- include('../partials/icon', { name: c.icon, size: 22 }) %></span><div><h3><%= c.titulo %></h3><p><%= c.texto %></p></div></li>
+    <% }) %>
+  </ul>
+</section>

@@ -1,0 +1,5 @@
+<% if (analysis) { const cat = domain.RISK_CATEGORIES[analysis.categoria]; %>
+<span class="badge badge--<%= cat.tono %>"><span class="dot" aria-hidden="true"></span><%= typeof patientView !== 'undefined' && patientView ? cat.paciente : cat.nombre %><% if (typeof showPct !== 'undefined' && showPct) { %> <span class="num"><%= fmt.num(analysis.probabilidad, 0) %> %</span><% } %></span>
+<% } else { %>
+<span class="badge badge--muted">Sin resultado</span>
+<% } %>

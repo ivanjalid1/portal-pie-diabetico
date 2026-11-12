@@ -1,0 +1,13 @@
+<section class="error-page">
+  <p class="error-page__code num"><%= status %></p>
+  <h1><%= title %></h1>
+  <p class="lead"><%= message %></p>
+  <div class="error-page__actions">
+    <% if (user) { %>
+    <a class="btn btn--primary" href="<%= ROLE_HOME[user.role] %>">Volver a mi panel</a>
+    <% } else { %>
+    <a class="btn btn--primary" href="/login">Ingresar</a>
+    <a class="btn btn--ghost" href="/">Ir al inicio</a>
+    <% } %>
+  </div>
+</section>

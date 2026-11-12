@@ -1,0 +1,107 @@
+<%- include('../partials/page-header', {
+  heading: `Hola, ${user.nombre}`,
+  lead: `${user.institucion || ''}${user.especialidad ? ', ' + user.especialidad : ''}`,
+  actions: `<a class="btn btn--ghost" href="/medico/pacientes/nuevo">${include('../partials/icon', { name: 'plus', size: 18 })}Registrar paciente</a><a class="btn btn--primary" href="/medico/estudios/nuevo">${include('../partials/icon', { name: 'scan', size: 18 })}Nuevo estudio</a>`
+}) %>
+
+<section class="kpis" aria-label="Indicadores">
+  <a class="kpi kpi--link" href="/medico/pacientes">
+    <span class="kpi__label">Pacientes</span>
+    <span class="kpi__value num"><%= kpis.pacientes %></span>
+    <span class="kpi__meta"><%= grupos.P %> en grupo P, <%= grupos.C %> en grupo C</span>
+  </a>
+  <div class="kpi">
+    <span class="kpi__label">Estudios del mes</span>
+    <span class="kpi__value num"><%= kpis.estudiosMes %></span>
+  </div>
+  <a class="kpi kpi--link kpi--danger" href="/medico/pacientes?riesgo=alto">
+    <span class="kpi__label">Alto riesgo</span>
+    <span class="kpi__value num"><%= kpis.altoRiesgo %></span>
+    <span class="kpi__meta">según el último estudio</span>
+  </a>
+  <a class="kpi kpi--link<%= kpis.controlesVencidos ? ' kpi--warn' : '' %>" href="/medico/controles">
+    <span class="kpi__label">Controles pendientes</span>
+    <span class="kpi__value num"><%= kpis.controlesPendientes %></span>
+    <span class="kpi__meta"><%= kpis.controlesVencidos ? `${kpis.controlesVencidos} vencidos` : 'ninguno vencido' %></span>
+  </a>
+</section>
+
+<% if (kpis.sinDesenlace) { %>
+<div class="notice notice--info">
+  <%- include('../partials/icon', { name: 'info' }) %>
+  <p><strong class="num"><%= kpis.sinDesenlace %></strong> pacientes con estudios todavía no tienen registrado si generaron lesión. Registrarlo permite validar el modelo con datos reales.</p>
+</div>
+<% } %>
+
+<div class="grid grid--main">
+  <section class="card card--flush">
+    <div class="card__head card__head--pad">
+      <h2 class="card__title">Últimos análisis</h2>
+      <a class="link" href="/medico/pacientes">Ver pacientes</a>
+    </div>
+    <% if (!recientes.length) { %>
+    <div class="empty">
+      <%- include('../partials/icon', { name: 'scan', size: 28 }) %>
+      <h3>Todavía no hay estudios</h3>
+      <p>Cargá la primera toma de un paciente para ver el análisis por región.</p>
+      <a class="btn btn--primary" href="/medico/estudios/nuevo">Nuevo estudio</a>
+    </div>
+    <% } else { %>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th scope="col">Paciente</th><th scope="col">Toma</th><th scope="col">ΔT máx.</th><th scope="col">Grupo</th><th scope="col">Resultado</th><th scope="col"><span class="sr-only">Abrir</span></th></tr></thead>
+        <tbody>
+          <% recientes.forEach(({ study, patient, analysis }) => { %>
+          <tr class="row-link">
+            <td>
+              <a href="/medico/estudios/<%= study.id %>" class="person">
+                <span class="code"><%= patient.codigo %></span>
+                <span><strong><%= patient.nombreCompleto %></strong><small><%= fmt.date(study.fechaHora) %></small></span>
+              </a>
+            </td>
+            <td class="num"><%= study.toma %></td>
+            <td class="num"><%= analysis ? `${fmt.signed(analysis.deltaTMax)} °C` : '—' %><% if (analysis) { %><small class="muted block"><%= domain.ROI_NAMES[analysis.deltaTMaxRoi] %></small><% } %></td>
+            <td><% if (analysis) { %><span class="grupo grupo--<%= analysis.grupo %>"><%= analysis.grupo %></span><% } %></td>
+            <td><%- include('../partials/risk-badge', { analysis, showPct: true }) %></td>
+            <td class="table__chevron"><%- include('../partials/icon', { name: 'chevronRight', size: 18 }) %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </section>
+
+  <section class="card">
+    <div class="card__head">
+      <h2 class="card__title">Próximos controles</h2>
+      <a class="link" href="/medico/controles">Ver todos</a>
+    </div>
+    <% if (!proximosControles.length) { %>
+    <p class="muted">No hay controles programados.</p>
+    <% } else { %>
+    <ul class="agenda">
+      <% proximosControles.forEach(({ appt, patient }) => { const late = appt.vencido(); %>
+      <li class="<%= late ? 'is-late' : '' %>">
+        <span class="agenda__date"><span class="num"><%= fmt.date(appt.fecha).slice(0, 5) %></span><small><%= fmt.relativeDays(appt.fecha) %></small></span>
+        <span class="agenda__what">
+          <a href="/medico/pacientes/<%= patient.id %>"><strong><%= patient.codigo %></strong> <%= patient.nombreCompleto %></a>
+          <small><%= appt.motivo %></small>
+        </span>
+      </li>
+      <% }) %>
+    </ul>
+    <% } %>
+    <hr>
+    <h3 class="card__subtitle">Riesgo según el último estudio</h3>
+    <% const tot = Math.max(1, distribucion.sin_riesgo + distribucion.moderado + distribucion.alto); %>
+    <div class="stack-bar" role="img" aria-label="Sin riesgo <%= distribucion.sin_riesgo %>, moderado <%= distribucion.moderado %>, alto <%= distribucion.alto %>">
+      <% ['sin_riesgo', 'moderado', 'alto'].forEach((k) => { %><span class="stack-bar__seg stack-bar__seg--<%= domain.RISK_CATEGORIES[k].tono %>" style="flex-grow: <%= distribucion[k] %>"></span><% }) %>
+    </div>
+    <ul class="legend">
+      <% ['sin_riesgo', 'moderado', 'alto'].forEach((k) => { const c = domain.RISK_CATEGORIES[k]; %>
+      <li><a href="/medico/pacientes?riesgo=<%= k %>"><span class="dot dot--<%= c.tono %>" aria-hidden="true"></span><%= c.nombre %> <strong class="num"><%= distribucion[k] %></strong></a></li>
+      <% }) %>
+    </ul>
+  </section>
+</div>

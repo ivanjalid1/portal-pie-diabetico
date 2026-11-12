@@ -1,0 +1,265 @@
+<%
+  const isEdit = mode === 'edit';
+  const hasOld = Object.keys(old).length > 0;
+  const val = (k) => {
+    if (hasOld) return old[k] ?? '';
+    if (!patient) return '';
+    const v = patient[k];
+    return v === null || v === undefined ? '' : v;
+  };
+  const checked = (k) => (hasOld ? Boolean(old[k]) : Boolean(patient && patient[k])) ? ' checked' : '';
+  const exChecked = (k) => (hasOld && old.exclusion && old.exclusion[k]) ? ' checked' : '';
+  const err = (k) => errors[k] ? `<p class="field__error" id="${k}-error">${errors[k]}</p>` : '';
+  const cls = (k, extra = '') => `field${extra ? ' ' + extra : ''}${errors[k] ? ' has-error' : ''}`;
+  const tab = hasOld ? old.tabaquismo : patient ? (patient.tabaquismo === null ? 'a_consultar' : patient.tabaquismo ? 'si' : 'no') : '';
+  const action = isEdit ? `/medico/pacientes/${patient.id}` : '/medico/pacientes';
+  const centroSel = hasOld ? old.centro : centro;
+  const flags = [
+    ['ulceraPreviaDer', 'Antecedente de úlcera, pie derecho'],
+    ['ulceraPreviaIzq', 'Antecedente de úlcera, pie izquierdo'],
+    ['isquemia', 'Isquemia'],
+    ['ampollas', 'Ampollas'],
+    ['eritema', 'Eritema'],
+    ['hematomas', 'Hematomas'],
+  ];
+%>
+<%- include('../partials/page-header', {
+  heading: isEdit ? `Editar ${patient.codigo}` : 'Registrar paciente',
+  lead: isEdit ? 'El correo y el código no se modifican desde aquí.' : 'Adultos con DM tipo 1 o 2 sin lesiones activas. Se crea su cuenta con el correo indicado.',
+  back: isEdit ? { href: `/medico/pacientes/${patient.id}`, label: patient.codigo } : { href: '/medico/pacientes', label: 'Pacientes' }
+}) %>
+
+<form method="post" action="<%= action %>" class="form form--sections" novalidate data-patient-form>
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <% if (!isEdit) { %>
+  <section class="card form-section" aria-labelledby="sec-exclusion">
+    <div class="form-section__head">
+      <h2 id="sec-exclusion">Criterios de exclusión</h2>
+      <p>Si se cumple alguno, el paciente no puede incorporarse al protocolo.</p>
+    </div>
+    <fieldset class="checks<%= errors.exclusion ? ' has-error' : '' %>">
+      <legend class="sr-only">Criterios de exclusión</legend>
+      <% domain.EXCLUSION_CRITERIA.forEach((c) => { %>
+      <label class="check"><input type="checkbox" name="exclusion[<%= c.key %>]" data-exclusion<%= exChecked(c.key) %>><span><%= c.texto %></span></label>
+      <% }) %>
+    </fieldset>
+    <p class="notice notice--danger small" data-exclusion-warning hidden>
+      <%- include('../partials/icon', { name: 'ban', size: 18 }) %>
+      <span>El paciente cumple un criterio de exclusión: no se puede registrar en el protocolo.</span>
+    </p>
+  </section>
+  <% } %>
+
+  <section class="card form-section" aria-labelledby="sec-id">
+    <div class="form-section__head">
+      <h2 id="sec-id">Identificación</h2>
+      <p>Nombre, correo y teléfono se guardan en el perfil de acceso, separados de la ficha clínica, que se identifica sólo por el código.</p>
+    </div>
+    <div class="form-grid">
+      <div class="<%= cls('nombre') %>">
+        <label for="nombre">Nombre</label>
+        <input id="nombre" name="nombre" required value="<%= val('nombre') %>" autocomplete="off">
+        <%- err('nombre') %>
+      </div>
+      <div class="<%= cls('apellido') %>">
+        <label for="apellido">Apellido</label>
+        <input id="apellido" name="apellido" required value="<%= val('apellido') %>" autocomplete="off">
+        <%- err('apellido') %>
+      </div>
+      <% if (!isEdit) { %>
+      <div class="<%= cls('email') %>">
+        <label for="email">Correo (Gmail)</label>
+        <input id="email" name="email" type="email" required value="<%= val('email') %>" placeholder="nombre.apellido@gmail.com" autocomplete="off" aria-describedby="email-hint">
+        <p class="field__hint" id="email-hint">Será su usuario para ingresar al portal.</p>
+        <%- err('email') %>
+      </div>
+      <div class="<%= cls('centro') %>">
+        <label for="centro">Centro</label>
+        <select id="centro" name="centro" required data-codigo-source>
+          <% centros.forEach((c) => { %><option data-codigo="<%= codigosSugeridos[c] %>"<%= centroSel === c ? ' selected' : '' %>><%= c %></option><% }) %>
+        </select>
+        <%- err('centro') %>
+      </div>
+      <div class="<%= cls('codigo') %>">
+        <label for="codigo">Código anónimo</label>
+        <input id="codigo" name="codigo" value="<%= val('codigo') || codigosSugeridos[centroSel] || '' %>" pattern="P\.[A-Z]{2,4}[0-9]{3}" autocomplete="off" aria-describedby="codigo-hint" data-codigo-target>
+        <p class="field__hint" id="codigo-hint">Se sugiere según el centro (DEMO-002, DEMO-005, DEMO-011).</p>
+        <%- err('codigo') %>
+      </div>
+      <% } else { %>
+      <div class="<%= cls('centro') %>">
+        <label for="centro">Centro</label>
+        <select id="centro" name="centro" required>
+          <% centros.forEach((c) => { %><option<%= centroSel === c ? ' selected' : '' %>><%= c %></option><% }) %>
+        </select>
+      </div>
+      <% } %>
+      <div class="<%= cls('telefono') %>">
+        <label for="telefono">Teléfono <span class="optional">opcional</span></label>
+        <input id="telefono" name="telefono" type="tel" value="<%= val('telefono') %>" autocomplete="off">
+      </div>
+      <div class="<%= cls('dni') %>">
+        <label for="dni">DNI <span class="optional">opcional</span></label>
+        <input id="dni" name="dni" inputmode="numeric" value="<%= val('dni') %>" autocomplete="off" aria-describedby="dni-hint">
+        <p class="field__hint" id="dni-hint">No se muestra en listados ni exportaciones.</p>
+        <%- err('dni') %>
+      </div>
+      <div class="<%= cls('fechaNacimiento') %>">
+        <label for="fechaNacimiento">Fecha de nacimiento</label>
+        <input id="fechaNacimiento" name="fechaNacimiento" type="date" required value="<%= hasOld ? val('fechaNacimiento') : fmt.inputDate(val('fechaNacimiento')) %>">
+        <%- err('fechaNacimiento') %>
+      </div>
+      <fieldset class="<%= cls('sexo') %>">
+        <legend>Sexo</legend>
+        <div class="segmented">
+          <label><input type="radio" name="sexo" value="F"<%= val('sexo') === 'F' ? ' checked' : '' %> required><span>F</span></label>
+          <label><input type="radio" name="sexo" value="M"<%= val('sexo') === 'M' ? ' checked' : '' %>><span>M</span></label>
+        </div>
+        <%- err('sexo') %>
+      </fieldset>
+    </div>
+  </section>
+
+  <section class="card form-section" aria-labelledby="sec-dm">
+    <div class="form-section__head">
+      <h2 id="sec-dm">Diabetes y antecedentes</h2>
+    </div>
+    <div class="form-grid form-grid--3">
+      <fieldset class="<%= cls('tipoDm') %>">
+        <legend>Tipo de DM</legend>
+        <div class="segmented">
+          <label><input type="radio" name="tipoDm" value="I"<%= val('tipoDm') === 'I' ? ' checked' : '' %> required><span>Tipo 1</span></label>
+          <label><input type="radio" name="tipoDm" value="II"<%= val('tipoDm') === 'II' ? ' checked' : '' %>><span>Tipo 2</span></label>
+        </div>
+        <%- err('tipoDm') %>
+      </fieldset>
+      <div class="<%= cls('aniosEvolucionDm') %>">
+        <label for="aniosEvolucionDm">Años de evolución</label>
+        <input id="aniosEvolucionDm" name="aniosEvolucionDm" inputmode="decimal" required value="<%= val('aniosEvolucionDm') %>" placeholder="12,5">
+        <%- err('aniosEvolucionDm') %>
+      </div>
+      <fieldset class="<%= cls('tabaquismo') %>">
+        <legend>Tabaquismo</legend>
+        <div class="segmented">
+          <label><input type="radio" name="tabaquismo" value="si"<%= tab === 'si' ? ' checked' : '' %>><span>Sí</span></label>
+          <label><input type="radio" name="tabaquismo" value="no"<%= tab === 'no' ? ' checked' : '' %>><span>No</span></label>
+          <label><input type="radio" name="tabaquismo" value="a_consultar"<%= tab === 'a_consultar' || tab === '' ? ' checked' : '' %>><span>A consultar</span></label>
+        </div>
+      </fieldset>
+      <label class="check check--card"><input type="checkbox" name="insulinorequiriente"<%= checked('insulinorequiriente') %>><span>Insulinorequiriente</span></label>
+    </div>
+    <div class="form-grid form-grid--3">
+      <div class="<%= cls('hba1c') %>">
+        <label for="hba1c">HbA1c (%)</label>
+        <input id="hba1c" name="hba1c" inputmode="decimal" value="<%= val('hba1c') %>" placeholder="7,4">
+        <%- err('hba1c') %>
+      </div>
+      <div class="<%= cls('hba1cFecha') %>">
+        <label for="hba1cFecha">Fecha de medición</label>
+        <input id="hba1cFecha" name="hba1cFecha" type="date" value="<%= hasOld ? val('hba1cFecha') : fmt.inputDate(val('hba1cFecha')) %>" aria-describedby="hba1c-hint">
+        <p class="field__hint" id="hba1c-hint">Se marca si tiene más de 12 meses.</p>
+        <%- err('hba1cFecha') %>
+      </div>
+      <label class="check check--card"><input type="checkbox" name="hba1cImputada"<%= checked('hba1cImputada') %>><span>Valor imputado</span></label>
+      <div class="field field--span3">
+        <label for="hba1cNota">Nota sobre HbA1c <span class="optional">opcional</span></label>
+        <input id="hba1cNota" name="hba1cNota" value="<%= val('hba1cNota') %>" placeholder="Por ejemplo: pedir nuevos estudios">
+      </div>
+    </div>
+  </section>
+
+  <section class="card form-section" aria-labelledby="sec-neuro">
+    <div class="form-section__head">
+      <h2 id="sec-neuro">Neuropatía y sensibilidad</h2>
+      <p>Grado según puntaje: Normal 0, Leve 1–2, Moderada 3–5, Grave 6–10. Vibratoria: ≤ 30 µV conservada, &gt; 30 µV alterada.</p>
+    </div>
+    <div class="form-grid form-grid--3">
+      <label class="check check--card"><input type="checkbox" name="neuropatia"<%= checked('neuropatia') %> data-toggle-target="#neuro-score"><span>Neuropatía</span></label>
+      <div class="<%= cls('neuropatiaPuntaje') %>" id="neuro-score">
+        <label for="neuropatiaPuntaje">Puntaje (0–10)</label>
+        <input id="neuropatiaPuntaje" name="neuropatiaPuntaje" type="number" min="0" max="10" step="1" value="<%= val('neuropatiaPuntaje') %>" data-neuro-score>
+        <p class="field__hint">Grado: <strong data-neuro-grade>—</strong></p>
+        <%- err('neuropatiaPuntaje') %>
+      </div>
+      <div></div>
+      <% [['Der', 'derecho'], ['Izq', 'izquierdo']].forEach(([s, label]) => { const k = `vibratoria${s}`; %>
+      <div class="<%= cls(k) %>">
+        <label for="<%= k %>">Vibratoria pie <%= label %> (µV)</label>
+        <div class="input-addon">
+          <input id="<%= k %>" name="<%= k %>" type="number" min="0" max="<%= domain.VIBRATORIA_MAX %>" step="1" value="<%= val(k) %>" data-vib-input="<%= s %>">
+          <label class="check check--inline"><input type="checkbox" name="<%= k %>Mas50"<%= checked(`${k}Mas50`) %> data-vib-max="<%= s %>"><span>&gt;50</span></label>
+        </div>
+        <%- err(k) %>
+      </div>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="card form-section" aria-labelledby="sec-piel">
+    <div class="form-section__head">
+      <h2 id="sec-piel">Inspección del pie</h2>
+    </div>
+    <div class="checks checks--grid">
+      <% flags.forEach(([k, label]) => { %>
+      <label class="check"><input type="checkbox" name="<%= k %>"<%= checked(k) %>><span><%= label %></span></label>
+      <% }) %>
+      <label class="check"><input type="checkbox" name="hiperqueratosis"<%= checked('hiperqueratosis') %> data-toggle-target="#hq-loc"><span>Hiperqueratosis</span></label>
+    </div>
+    <div class="field" id="hq-loc">
+      <label for="hiperqueratosisLocalizacion">Localización de la hiperqueratosis</label>
+      <input id="hiperqueratosisLocalizacion" name="hiperqueratosisLocalizacion" value="<%= val('hiperqueratosisLocalizacion') %>" placeholder="Por ejemplo: cabeza del 1.er metatarsiano derecho">
+    </div>
+  </section>
+
+  <details class="card form-section form-section--collapsible"<%= (patient && (patient.pesoKg || patient.indiceTobilloBrazo || patient.observaciones)) ? ' open' : '' %>>
+    <summary><h2>Datos complementarios <span class="optional">opcional</span></h2></summary>
+    <div class="form-grid form-grid--3">
+      <div class="<%= cls('pesoKg') %>">
+        <label for="pesoKg">Peso (kg)</label>
+        <input id="pesoKg" name="pesoKg" inputmode="decimal" value="<%= val('pesoKg') %>">
+        <%- err('pesoKg') %>
+      </div>
+      <div class="<%= cls('indiceTobilloBrazo') %>">
+        <label for="indiceTobilloBrazo">Índice tobillo-brazo</label>
+        <input id="indiceTobilloBrazo" name="indiceTobilloBrazo" inputmode="decimal" value="<%= val('indiceTobilloBrazo') %>" placeholder="1,05">
+        <%- err('indiceTobilloBrazo') %>
+      </div>
+      <div></div>
+      <div class="field field--span3">
+        <label for="cirugiasPrevias">Cirugías previas</label>
+        <input id="cirugiasPrevias" name="cirugiasPrevias" value="<%= val('cirugiasPrevias') %>">
+      </div>
+      <div class="field field--span3">
+        <label for="patologiasPrevias">Otras patologías</label>
+        <input id="patologiasPrevias" name="patologiasPrevias" value="<%= val('patologiasPrevias') %>">
+      </div>
+      <div class="field field--span3">
+        <label for="observaciones">Observaciones</label>
+        <textarea id="observaciones" name="observaciones" rows="3"><%= val('observaciones') %></textarea>
+      </div>
+    </div>
+  </details>
+
+  <% if (!isEdit) { %>
+  <section class="card form-section" aria-labelledby="sec-ci">
+    <div class="form-section__head">
+      <h2 id="sec-ci">Consentimiento informado</h2>
+      <p>Documento vigente: <%= domain.CONSENT_VERSION %>. Requerido por la Ley 26.529 y para el tratamiento de datos de salud (Ley 25.326).</p>
+    </div>
+    <div class="form-grid">
+      <label class="check check--card<%= errors.consentimientoFirmado ? ' has-error' : '' %>"><input type="checkbox" name="consentimientoFirmado"<%= checked('consentimientoFirmado') %> required><span>El paciente firmó el consentimiento informado</span></label>
+      <div class="<%= cls('consentimientoFecha') %>">
+        <label for="consentimientoFecha">Fecha de firma</label>
+        <input id="consentimientoFecha" name="consentimientoFecha" type="date" value="<%= val('consentimientoFecha') || fmt.inputDate(new Date()) %>">
+        <%- err('consentimientoFecha') %>
+      </div>
+    </div>
+  </section>
+  <% } %>
+
+  <div class="form__actions form__actions--sticky">
+    <a class="btn btn--ghost" href="<%= isEdit ? `/medico/pacientes/${patient.id}` : '/medico/pacientes' %>">Cancelar</a>
+    <button type="submit" class="btn btn--primary" data-submit-patient><%= isEdit ? 'Guardar cambios' : 'Registrar paciente' %></button>
+  </div>
+</form>

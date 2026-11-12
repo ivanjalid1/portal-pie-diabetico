@@ -1,0 +1,48 @@
+<%- include('../partials/page-header', { heading: `Estudio del ${fmt.dateLong(study.fechaHora)}`, lead: study.toma === 1 ? 'Primer estudio (toma basal).' : 'Estudio de seguimiento.', back: { href: '/paciente/estudios', label: 'Mis estudios' } }) %>
+
+<div class="grid grid--2">
+  <section class="card patient-status<%= analysis ? ' patient-status--' + domain.RISK_CATEGORIES[analysis.categoria].tono : '' %>" aria-labelledby="res-title">
+    <h2 id="res-title" class="card__title">Resultado</h2>
+    <% if (analysis) { const cat = domain.RISK_CATEGORIES[analysis.categoria]; %>
+    <p class="patient-status__level"><span class="dot dot--<%= cat.tono %>" aria-hidden="true"></span><%= cat.paciente %></p>
+    <p><%= cat.mensajePaciente %></p>
+    <% if (analysis.grupo === 'P') { %>
+    <p class="muted">En alguna zona de la planta, un pie estuvo más caliente que el otro. Esto puede indicar inflamación antes de que aparezca una herida, por eso es importante el seguimiento.</p>
+    <% } else { %>
+    <p class="muted">La temperatura de ambos pies fue parecida en todas las zonas medidas.</p>
+    <% } %>
+    <% } else { %>
+    <p>Tu médico todavía está revisando este estudio. Cuando lo habilite vas a ver el resultado aquí.</p>
+    <% } %>
+    <p class="notice notice--info small"><%- include('../partials/icon', { name: 'info', size: 18 }) %><span>Este resultado es orientativo y forma parte de un proyecto de investigación. Tu médico es quien interpreta el estudio junto con tu revisión clínica.</span></p>
+  </section>
+
+  <section class="card" aria-labelledby="next-title">
+    <h2 id="next-title" class="card__title">Próximo control</h2>
+    <% if (proximo) { %>
+    <p class="next-visit__date"><%- include('../partials/icon', { name: 'calendar', size: 28 }) %><span><strong><%= fmt.dateLong(proximo.fecha) %></strong><small><%= fmt.relativeDays(proximo.fecha) %></small></span></p>
+    <% } else { %>
+    <p class="muted">Sin fecha programada.</p>
+    <% } %>
+    <a class="btn btn--ghost" href="/paciente/autocuidado">Ver cuidados de los pies</a>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="img-title">
+  <h2 id="img-title" class="card__title">Tus imágenes</h2>
+  <p class="muted small">Tocá una imagen para verla más grande. En la termografía, los colores claros indican zonas más calientes.</p>
+  <div class="image-pair">
+    <% imageSlots.forEach((sl) => { const img = study.image(sl.slot); %>
+    <figure class="image-tile">
+      <% if (img && canPreview(img)) { %>
+      <button type="button" class="image-tile__btn" data-lightbox="<%= imageUrl(study, sl.slot) %>" data-caption="<%= sl.titulo %>">
+        <img src="<%= imageUrl(study, sl.slot) %>" alt="<%= sl.titulo %>" loading="lazy" width="320" height="240">
+      </button>
+      <% } else if (img) { %>
+      <a class="image-tile__file" href="<%= imageUrl(study, sl.slot) %>"><%- include('../partials/icon', { name: 'file', size: 28 }) %><span>Descargar archivo</span></a>
+      <% } %>
+      <figcaption><%= sl.titulo %></figcaption>
+    </figure>
+    <% }) %>
+  </div>
+</section>

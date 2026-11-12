@@ -1,0 +1,47 @@
+<%- include('../partials/page-header', { heading: 'Auditoría', lead: 'Registro de accesos y acciones sobre datos clínicos (trazabilidad, Ley 26.529).' }) %>
+
+<form method="get" action="/admin/auditoria" class="filters" role="search">
+  <div class="field field--inline">
+    <label for="q" class="sr-only">Buscar</label>
+    <div class="input-icon">
+      <%- include('../partials/icon', { name: 'search', size: 18 }) %>
+      <input id="q" name="q" type="search" placeholder="Buscar por usuario o detalle" value="<%= q %>">
+    </div>
+  </div>
+  <div class="field field--inline">
+    <label for="accion" class="sr-only">Acción</label>
+    <select id="accion" name="accion">
+      <option value="">Todas las acciones</option>
+      <% Object.entries(actions).forEach(([k, label]) => { %><option value="<%= k %>"<%= action === k ? ' selected' : '' %>><%= label %></option><% }) %>
+    </select>
+  </div>
+  <button type="submit" class="btn btn--ghost">Filtrar</button>
+</form>
+
+<div class="card card--flush">
+  <% if (!entries.length) { %>
+  <div class="empty">
+    <%- include('../partials/icon', { name: 'list', size: 28 }) %>
+    <h2>No hay registros con ese filtro</h2>
+    <p>Probá con otra acción o borrá la búsqueda.</p>
+    <a class="btn btn--ghost" href="/admin/auditoria">Ver todo</a>
+  </div>
+  <% } else { %>
+  <div class="table-wrap">
+    <table class="table table--dense">
+      <thead><tr><th scope="col">Fecha y hora</th><th scope="col">Acción</th><th scope="col">Usuario</th><th scope="col">Detalle</th><th scope="col">IP</th></tr></thead>
+      <tbody>
+        <% entries.forEach((e) => { %>
+        <tr>
+          <td class="num nowrap"><%= fmt.dateTime(e.createdAt) %></td>
+          <td><span class="tag tag--<%= e.action.split('.')[0] %>"><%= actionLabel(e.action) %></span></td>
+          <td><%= e.actorEmail %></td>
+          <td class="muted"><%= e.detail || '—' %></td>
+          <td class="muted num"><%= e.ip || '—' %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>

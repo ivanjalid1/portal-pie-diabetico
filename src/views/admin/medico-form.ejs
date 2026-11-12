@@ -1,0 +1,43 @@
+<%- include('../partials/page-header', { heading: 'Nuevo médico/a', lead: 'Se crea la cuenta con una contraseña temporal que deberá cambiar en el primer ingreso.', back: { href: '/admin/usuarios', label: 'Usuarios' } }) %>
+<div class="card card--narrow">
+  <form method="post" action="/admin/usuarios/medicos" class="form" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="form-grid">
+      <div class="field<%= errors.nombre ? ' has-error' : '' %>">
+        <label for="nombre">Nombre</label>
+        <input id="nombre" name="nombre" required value="<%= old.nombre || '' %>" autocomplete="given-name">
+        <% if (errors.nombre) { %><p class="field__error"><%= errors.nombre %></p><% } %>
+      </div>
+      <div class="field<%= errors.apellido ? ' has-error' : '' %>">
+        <label for="apellido">Apellido</label>
+        <input id="apellido" name="apellido" required value="<%= old.apellido || '' %>" autocomplete="family-name">
+        <% if (errors.apellido) { %><p class="field__error"><%= errors.apellido %></p><% } %>
+      </div>
+      <div class="field field--span<%= errors.email ? ' has-error' : '' %>">
+        <label for="email">Correo electrónico</label>
+        <input id="email" name="email" type="email" required value="<%= old.email || '' %>" autocomplete="off">
+        <p class="field__hint">Será su usuario para ingresar.</p>
+        <% if (errors.email) { %><p class="field__error"><%= errors.email %></p><% } %>
+      </div>
+      <div class="field<%= errors.matricula ? ' has-error' : '' %>">
+        <label for="matricula">Matrícula</label>
+        <input id="matricula" name="matricula" required value="<%= old.matricula || '' %>" placeholder="MP 00000">
+        <% if (errors.matricula) { %><p class="field__error"><%= errors.matricula %></p><% } %>
+      </div>
+      <div class="field">
+        <label for="especialidad">Especialidad <span class="optional">opcional</span></label>
+        <input id="especialidad" name="especialidad" value="<%= old.especialidad || '' %>">
+      </div>
+      <div class="field field--span<%= errors.institucion ? ' has-error' : '' %>">
+        <label for="institucion">Centro</label>
+        <select id="institucion" name="institucion" required>
+          <% instituciones.forEach((i) => { %><option<%= old.institucion === i ? ' selected' : '' %>><%= i %></option><% }) %>
+        </select>
+      </div>
+    </div>
+    <div class="form__actions">
+      <a class="btn btn--ghost" href="/admin/usuarios">Cancelar</a>
+      <button type="submit" class="btn btn--primary">Crear cuenta</button>
+    </div>
+  </form>
+</div>

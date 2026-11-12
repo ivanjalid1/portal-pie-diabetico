@@ -1,0 +1,46 @@
+<% const p = patient; const vigente = consents.find((c) => c.vigente); %>
+<%- include('../partials/page-header', { heading: 'Mis datos', lead: 'Si algo no es correcto, avisale a tu médico en el próximo control.' }) %>
+<div class="grid grid--2">
+  <section class="card">
+    <h2 class="card__title">Datos personales</h2>
+    <dl class="kv kv--compact">
+      <div><dt>Nombre</dt><dd><%= p.nombreCompleto %></dd></div>
+      <div><dt>Usuario</dt><dd><%= p.email %></dd></div>
+      <div><dt>Teléfono</dt><dd><%= p.telefono || '—' %></dd></div>
+      <div><dt>Fecha de nacimiento</dt><dd><%= fmt.date(p.fechaNacimiento) %> (<%= p.edad() %> años)</dd></div>
+      <div><dt>Centro</dt><dd><%= p.centro %></dd></div>
+      <div><dt>Código del estudio</dt><dd><code><%= p.codigo %></code></dd></div>
+    </dl>
+  </section>
+  <section class="card">
+    <h2 class="card__title">Tu diabetes</h2>
+    <dl class="kv kv--compact">
+      <div><dt>Tipo</dt><dd>Diabetes tipo <%= p.tipoDm === 'I' ? '1' : '2' %></dd></div>
+      <div><dt>Años desde el diagnóstico</dt><dd class="num"><%= fmt.num(p.aniosEvolucionDm, 1) %></dd></div>
+      <div><dt>Usás insulina</dt><dd><%= p.insulinorequiriente ? 'Sí' : 'No' %></dd></div>
+      <div><dt>Última HbA1c</dt><dd><%= p.hba1c !== null ? `${fmt.num(p.hba1c, 1)} %` : '—' %><%= p.hba1cFecha ? ` (${fmt.date(p.hba1cFecha)})` : '' %></dd></div>
+    </dl>
+  </section>
+</div>
+<section class="card" id="consentimiento">
+  <h2 class="card__title">Consentimiento informado</h2>
+  <% if (vigente) { %>
+  <p class="consent consent--ok"><%- include('../partials/icon', { name: 'shield', size: 18 }) %><span>Firmaste el consentimiento (<%= vigente.version %>) el <%= fmt.dateLong(vigente.fechaFirma) %>.</span></p>
+  <% } else { %>
+  <p class="consent consent--no"><%- include('../partials/icon', { name: 'ban', size: 18 }) %><span>No tenés un consentimiento vigente.</span></p>
+  <% } %>
+  <div class="prose">
+    <p>Participás de un proyecto de investigación de la Facultad de Ciencias Exactas, Físicas y Naturales (UNC) que estudia si la temperatura de la planta de los pies ayuda a anticipar úlceras en personas con diabetes.</p>
+    <ul>
+      <li>Tus datos clínicos se identifican con un código (<code><%= p.codigo %></code>) y se guardan separados de tu nombre y correo.</li>
+      <li>Sólo tu médico tratante ve tu información completa. Los análisis del equipo usan datos anonimizados.</li>
+      <li>Podés pedir acceso, corrección o eliminación de tus datos (Ley 25.326) y retirar tu consentimiento en cualquier momento, sin que afecte tu atención (Ley 26.529).</li>
+    </ul>
+  </div>
+  <% if (consents.length > 1) { %>
+  <h3 class="card__subtitle">Historial</h3>
+  <ul class="history">
+    <% consents.forEach((c) => { %><li><span class="num"><%= fmt.date(c.fechaFirma) %></span> <%= c.version %> <%= c.revocadoAt ? `(revocado el ${fmt.date(c.revocadoAt)})` : '' %></li><% }) %>
+  </ul>
+  <% } %>
+</section>

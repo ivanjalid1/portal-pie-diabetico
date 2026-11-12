@@ -1,0 +1,55 @@
+<%- include('../partials/page-header', {
+  heading: 'Usuarios',
+  lead: 'Las cuentas de pacientes las crea su médico/a al registrarlos. Desde aquí se dan de alta médicos/as y se gestionan accesos.',
+  actions: `<a class="btn btn--primary" href="/admin/usuarios/nuevo-medico">${include('../partials/icon', { name: 'plus', size: 18 })}Nuevo médico/a</a>`
+}) %>
+
+<nav class="tabs" aria-label="Filtrar por rol">
+  <a href="/admin/usuarios" class="tabs__item<%= !role ? ' is-active' : '' %>">Todos <span class="num"><%= (counts.admin || 0) + (counts.medico || 0) + (counts.paciente || 0) %></span></a>
+  <% ['medico', 'paciente', 'admin'].forEach((r) => { %>
+  <a href="/admin/usuarios?rol=<%= r %>" class="tabs__item<%= role === r ? ' is-active' : '' %>"><%= ROLE_LABELS[r] %> <span class="num"><%= counts[r] || 0 %></span></a>
+  <% }) %>
+</nav>
+
+<div class="card card--flush">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th scope="col">Usuario</th><th scope="col">Rol</th><th scope="col">Último ingreso</th><th scope="col">Estado</th><th scope="col"><span class="sr-only">Acciones</span></th></tr>
+      </thead>
+      <tbody>
+        <% users.forEach((u) => { %>
+        <tr>
+          <td>
+            <div class="person">
+              <span class="avatar avatar--sm" aria-hidden="true"><%= u.iniciales %></span>
+              <span><strong><%= u.nombreCompleto %></strong><small><%= u.email %></small></span>
+            </div>
+          </td>
+          <td><%= ROLE_LABELS[u.role] %><% if (u.matricula) { %><small class="muted block"><%= u.matricula %></small><% } %></td>
+          <td><%= u.lastLoginAt ? fmt.dateTime(u.lastLoginAt) : 'Nunca' %></td>
+          <td>
+            <% if (u.activo) { %><span class="badge badge--ok">Activa</span><% } else { %><span class="badge badge--muted">Desactivada</span><% } %>
+            <% if (u.mustChangePassword) { %><span class="badge badge--warn">Contraseña temporal</span><% } %>
+          </td>
+          <td class="table__actions">
+            <% if (u.id !== user.id) { %>
+            <form method="post" action="/admin/usuarios/<%= u.id %>/restablecer" data-confirm="¿Generar una contraseña temporal nueva para <%= u.email %>? La actual dejará de funcionar.">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="btn btn--ghost btn--sm">Restablecer contraseña</button>
+            </form>
+            <form method="post" action="/admin/usuarios/<%= u.id %>/estado" data-confirm="<%= u.activo ? `¿Desactivar la cuenta de ${u.email}? No podrá ingresar.` : `¿Activar la cuenta de ${u.email}?` %>">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="activo" value="<%= u.activo ? 'false' : 'true' %>">
+              <button type="submit" class="btn btn--sm <%= u.activo ? 'btn--danger-ghost' : 'btn--ghost' %>"><%= u.activo ? 'Desactivar' : 'Activar' %></button>
+            </form>
+            <% } else { %>
+            <span class="muted small">Tu cuenta</span>
+            <% } %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>

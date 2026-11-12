@@ -1,0 +1,11 @@
+<% if (flashes && flashes.length) { %>
+<div class="toasts" role="region" aria-label="Notificaciones">
+  <% flashes.forEach((f) => { %>
+  <div class="toast toast--<%= f.type %>" role="<%= f.type === 'error' ? 'alert' : 'status' %>" data-toast>
+    <%- include('icon', { name: f.type === 'error' ? 'alert' : f.type === 'success' ? 'check' : 'info', size: 18 }) %>
+    <p><%= f.message %></p>
+    <button type="button" class="toast__close" data-toast-close aria-label="Cerrar notificación"><%- include('icon', { name: 'x', size: 16 }) %></button>
+  </div>
+  <% }) %>
+</div>
+<% } %>

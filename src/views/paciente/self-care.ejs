@@ -1,0 +1,7 @@
+<%- include('../partials/page-header', { heading: 'Cuidado de los pies', lead: 'Con diabetes, una herida pequeña puede complicarse si no se detecta a tiempo. Estos hábitos ayudan a prevenirlo.' }) %>
+<ul class="tips tips--grid">
+  <% consejos.forEach((c) => { %>
+  <li class="card<%= c.icon === 'alert' ? ' tips__alert' : '' %>"><span class="tips__icon"><%- include('../partials/icon', { name: c.icon, size: 22 }) %></span><div><h2><%= c.titulo %></h2><p><%= c.texto %></p></div></li>
+  <% }) %>
+</ul>
+<p class="hint">Estas recomendaciones son generales. Seguí siempre las indicaciones de tu equipo de salud.</p>

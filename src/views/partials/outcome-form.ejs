@@ -1,0 +1,63 @@
+<%
+  const volverUrl = typeof volver === 'undefined' ? '' : volver;
+  const gl = patient.generoLesion;
+%>
+<% if (gl !== null) { %>
+<div class="outcome outcome--<%= gl ? 'yes' : 'no' %>">
+  <%- include('icon', { name: gl ? 'alert' : 'check', size: 20 }) %>
+  <div>
+    <strong><%= gl ? 'Generó lesión' : 'No generó lesión' %></strong>
+    <p class="small muted">
+      <% if (gl) { %>Pie <%= patient.lesionPie %>, <%= domain.ROI_NAMES[patient.lesionRoi] || patient.lesionRoi %>. <% } %>
+      Registrado el <%= fmt.date(patient.lesionFecha) %>.
+      <%= patient.lesionNotas || '' %>
+    </p>
+  </div>
+</div>
+<details class="disclosure">
+  <summary>Corregir el desenlace</summary>
+<% } %>
+<form method="post" action="/medico/pacientes/<%= patient.id %>/desenlace" class="form" novalidate data-outcome-form>
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <input type="hidden" name="volver" value="<%= volverUrl %>">
+  <fieldset class="field<%= errors.generoLesion ? ' has-error' : '' %>">
+    <legend>¿Generó lesión durante el seguimiento?</legend>
+    <div class="segmented">
+      <label><input type="radio" name="generoLesion" value="si"<%= gl === true ? ' checked' : '' %> data-outcome-yes required><span>Sí</span></label>
+      <label><input type="radio" name="generoLesion" value="no"<%= gl === false ? ' checked' : '' %>><span>No</span></label>
+    </div>
+  </fieldset>
+  <div class="form-grid" data-outcome-detail>
+    <div class="field<%= errors.pie ? ' has-error' : '' %>">
+      <label for="pie-<%= patient.id %>">Pie</label>
+      <select id="pie-<%= patient.id %>" name="pie">
+        <option value="">Elegí</option>
+        <% ['derecho', 'izquierdo', 'ambos'].forEach((p) => { %><option value="<%= p %>"<%= patient.lesionPie === p ? ' selected' : '' %>><%= p[0].toUpperCase() + p.slice(1) %></option><% }) %>
+      </select>
+      <% if (errors.pie) { %><p class="field__error"><%= errors.pie %></p><% } %>
+    </div>
+    <div class="field<%= errors.roi ? ' has-error' : '' %>">
+      <label for="roi-<%= patient.id %>">Región</label>
+      <select id="roi-<%= patient.id %>" name="roi">
+        <option value="">Elegí</option>
+        <% domain.ROIS.filter((r) => r.key !== 'general').forEach((r) => { %><option value="<%= r.key %>"<%= patient.lesionRoi === r.key ? ' selected' : '' %>><%= r.nombre %></option><% }) %>
+      </select>
+      <% if (errors.roi) { %><p class="field__error"><%= errors.roi %></p><% } %>
+    </div>
+  </div>
+  <div class="form-grid">
+    <div class="field<%= errors.fecha ? ' has-error' : '' %>">
+      <label for="fecha-out-<%= patient.id %>">Fecha</label>
+      <input id="fecha-out-<%= patient.id %>" name="fecha" type="date" required value="<%= fmt.inputDate(patient.lesionFecha || new Date()) %>">
+      <% if (errors.fecha) { %><p class="field__error"><%= errors.fecha %></p><% } %>
+    </div>
+    <div class="field">
+      <label for="notas-out-<%= patient.id %>">Notas <span class="optional">opcional</span></label>
+      <input id="notas-out-<%= patient.id %>" name="notas" value="<%= patient.lesionNotas || '' %>">
+    </div>
+  </div>
+  <div class="form__actions">
+    <button type="submit" class="btn btn--primary btn--sm">Guardar desenlace</button>
+  </div>
+</form>
+<% if (gl !== null) { %></details><% } %>

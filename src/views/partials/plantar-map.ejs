@@ -1,0 +1,67 @@
+<%
+  // Mapa plantar esquemático: ambos pies vistos desde la planta (como la cámara),
+  // pie derecho a la izquierda de la imagen. Cada ROI se colorea por |ΔT|.
+  const byKey = {};
+  (rois || []).forEach((r) => { byKey[r.roi] = r; });
+  const u = typeof umbral === 'undefined' ? domain.DELTA_T_UMBRAL : umbral;
+  const uid = typeof mapId === 'undefined' ? 'pm' : mapId;
+  const showValues = typeof values === 'undefined' ? true : values;
+  const shapes = {
+    dedo_mayor: '<ellipse cx="140" cy="58" rx="21" ry="29"/>',
+    dedos_menores: '<circle cx="104" cy="44" r="12.5"/><circle cx="79" cy="52" r="11.5"/><circle cx="58" cy="63" r="10.5"/><circle cx="42" cy="78" r="9.5"/>',
+    metatarso: '<path d="M34 118 C 40 96 70 90 100 90 C 135 90 160 100 165 124 C 167 140 160 156 152 168 L 40 168 C 34 150 32 132 34 118 Z"/>',
+    arco_interno: '<path d="M112 176 L 150 176 C 140 200 130 226 132 258 C 133 278 136 292 140 304 L 112 304 Z"/>',
+    arco_externo: '<path d="M41 176 L 108 176 L 108 304 L 46 304 C 46 270 44 240 41 210 Z"/>',
+    talon: '<path d="M46 312 L 142 312 C 146 330 146 352 138 368 C 128 386 112 393 95 393 C 72 393 52 382 47 358 C 45 344 45 328 46 312 Z"/>',
+  };
+  const labelPos = {
+    dedo_mayor: [140, 62], dedos_menores: [80, 30], metatarso: [100, 133],
+    arco_interno: [128, 244], arco_externo: [76, 244], talon: [95, 352],
+  };
+  const outline = 'M95 394 C 62 394 46 368 45 332 C 44 292 40 252 36 212 C 32 172 30 142 36 118 C 44 96 70 90 100 90 C 135 90 160 100 165 125 C 170 152 150 178 140 205 C 130 232 131 262 139 296 C 147 332 140 394 95 394 Z';
+  const feet = [
+    { side: 'der', label: 'Pie derecho', transform: 'translate(8 18)' },
+    { side: 'izq', label: 'Pie izquierdo', transform: 'translate(392 18) scale(-1 1)' },
+  ];
+%>
+<figure class="plantar-map">
+  <svg viewBox="0 0 400 430" role="img" aria-labelledby="<%= uid %>-title <%= uid %>-desc">
+    <title id="<%= uid %>-title">Mapa plantar esquemático por región de interés</title>
+    <desc id="<%= uid %>-desc">Ambos pies vistos desde la planta. El color de cada región indica la diferencia de temperatura entre pies (ΔT); las regiones con contorno marcado superan el umbral de <%= fmt.num(u, 1) %> °C.</desc>
+    <defs>
+      <clipPath id="<%= uid %>-clip"><path d="<%= outline %>"/></clipPath>
+    </defs>
+    <% feet.forEach((foot) => { %>
+    <g transform="<%= foot.transform %>">
+      <path d="<%= outline %>" class="pm-sole"/>
+      <g clip-path="url(#<%= uid %>-clip)">
+        <% Object.keys(shapes).filter((k) => k !== 'dedo_mayor' && k !== 'dedos_menores').forEach((k) => {
+             const r = byKey[k]; const d = r ? r.deltaT : 0; const hot = Math.abs(d) >= u; %>
+        <g class="pm-roi<%= hot ? ' is-hot' : '' %>" fill="<%= thermal.deltaColor(d) %>"><%- shapes[k] %></g>
+        <% }) %>
+      </g>
+      <% ['dedo_mayor', 'dedos_menores'].forEach((k) => {
+           const r = byKey[k]; const d = r ? r.deltaT : 0; const hot = Math.abs(d) >= u; %>
+      <g class="pm-roi<%= hot ? ' is-hot' : '' %>" fill="<%= thermal.deltaColor(d) %>"><%- shapes[k] %></g>
+      <% }) %>
+      <path d="<%= outline %>" class="pm-outline"/>
+    </g>
+    <% if (showValues) { %>
+    <% Object.keys(labelPos).forEach((k) => {
+         const r = byKey[k]; if (!r) return;
+         const [lx, ly] = labelPos[k];
+         const x = foot.side === 'der' ? 8 + lx : 392 - lx;
+         const fill = thermal.deltaColor(r.deltaT); %>
+    <text x="<%= x %>" y="<%= 18 + ly %>" class="pm-value" fill="<%= thermal.inkOn(fill) %>" text-anchor="middle"><%= foot.side === 'der' ? fmt.num(r.avgDer, 1) : fmt.num(r.avgIzq, 1) %></text>
+    <% }) %>
+    <% } %>
+    <text x="<%= foot.side === 'der' ? 103 : 297 %>" y="428" class="pm-foot-label" text-anchor="middle"><%= foot.label %></text>
+    <% }) %>
+  </svg>
+  <figcaption class="pm-legend">
+    <span>|ΔT| 0 °C</span>
+    <span class="pm-legend__bar" aria-hidden="true"></span>
+    <span>3 °C</span>
+    <span class="pm-legend__note">Contorno marcado: |ΔT| ≥ <%= fmt.num(u, 1) %> °C. Números: temperatura media de la región (°C).</span>
+  </figcaption>
+</figure>

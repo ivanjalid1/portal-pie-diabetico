@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <%- include('../partials/head') %>
+</head>
+<body class="public">
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  <header class="public-header">
+    <a href="/" class="brand">
+      <img src="/img/logo.svg" alt="" width="32" height="32">
+      <span class="brand__text"><strong><%= appName %></strong><small>Termografía plantar</small></span>
+    </a>
+    <nav aria-label="Principal">
+      <% if (user) { %>
+      <a class="btn btn--ghost" href="<%= ROLE_HOME[user.role] %>">Ir a mi panel</a>
+      <% } else if (currentPath !== '/login') { %>
+      <a class="btn btn--primary" href="/login">Ingresar</a>
+      <% } %>
+    </nav>
+  </header>
+  <main id="contenido" tabindex="-1">
+    <%- body %>
+  </main>
+  <footer class="public-footer">
+    <div>
+      <strong><%= domain.PROJECT.universidad %></strong>
+      <span><%= domain.PROJECT.facultad %> · <%= domain.PROJECT.carrera %></span>
+    </div>
+    <p><%= domain.DISCLAIMER %></p>
+  </footer>
+  <%- include('../partials/flash') %>
+</body>
+</html>

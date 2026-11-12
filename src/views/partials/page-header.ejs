@@ -1,0 +1,12 @@
+<header class="page-header">
+  <div class="page-header__text">
+    <% if (typeof back !== 'undefined' && back) { %>
+    <a class="back-link" href="<%= back.href %>"><%- include('icon', { name: 'arrowLeft', size: 16 }) %><%= back.label %></a>
+    <% } %>
+    <h1><%= heading %></h1>
+    <% if (typeof lead !== 'undefined' && lead) { %><p class="lead"><%= lead %></p><% } %>
+  </div>
+  <% if (typeof actions !== 'undefined' && actions) { %>
+  <div class="page-header__actions"><%- actions %></div>
+  <% } %>
+</header>

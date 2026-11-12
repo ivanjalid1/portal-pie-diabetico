@@ -1,0 +1,70 @@
+<%- include('../partials/page-header', { heading: 'Resumen del sistema', lead: 'Actividad general del portal. Por diseño, la administración no accede a los datos clínicos de los pacientes.' }) %>
+
+<section class="kpis" aria-label="Indicadores">
+  <div class="kpi"><span class="kpi__label">Médicos/as</span><span class="kpi__value num"><%= stats.porRol.medico || 0 %></span></div>
+  <div class="kpi"><span class="kpi__label">Pacientes</span><span class="kpi__value num"><%= stats.pacientes %></span></div>
+  <div class="kpi"><span class="kpi__label">Estudios</span><span class="kpi__value num"><%= stats.estudios %></span><span class="kpi__meta"><%= stats.publicados %> visibles para pacientes</span></div>
+  <div class="kpi"><span class="kpi__label">Desenlaces registrados</span><span class="kpi__value num"><%= stats.desenlaces.total %></span><span class="kpi__meta"><%= stats.desenlaces.lesion %> con lesión</span></div>
+</section>
+
+<div class="grid grid--2">
+  <section class="card">
+    <h2 class="card__title">Estudios por mes</h2>
+    <% const maxMes = Math.max(1, ...stats.meses.map((m) => m.estudios)); %>
+    <ul class="bars" aria-label="Estudios por mes, últimos 6 meses">
+      <% stats.meses.forEach((m) => { %>
+      <li>
+        <span class="bars__label"><%= fmt.monthShort(m.mes) %></span>
+        <span class="bars__track"><span class="bars__fill" style="width: <%= (m.estudios / maxMes) * 100 %>%"></span></span>
+        <span class="bars__value num"><%= m.estudios %></span>
+      </li>
+      <% }) %>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2 class="card__title">Resultados del análisis</h2>
+    <% const totalCat = Math.max(1, stats.categorias.sin_riesgo + stats.categorias.moderado + stats.categorias.alto); %>
+    <div class="stack-bar" role="img" aria-label="Distribución de categorías de riesgo">
+      <% ['sin_riesgo', 'moderado', 'alto'].forEach((k) => { const cat = domain.RISK_CATEGORIES[k]; %>
+      <span class="stack-bar__seg stack-bar__seg--<%= cat.tono %>" style="flex-grow: <%= stats.categorias[k] %>" title="<%= cat.nombre %>: <%= stats.categorias[k] %>"></span>
+      <% }) %>
+    </div>
+    <ul class="legend">
+      <% ['sin_riesgo', 'moderado', 'alto'].forEach((k) => { const cat = domain.RISK_CATEGORIES[k]; %>
+      <li><span class="dot dot--<%= cat.tono %>" aria-hidden="true"></span><%= cat.nombre %> <strong class="num"><%= stats.categorias[k] %></strong> <span class="muted num">(<%= Math.round((stats.categorias[k] / totalCat) * 100) %> %)</span></li>
+      <% }) %>
+    </ul>
+    <p class="muted small">Grupo térmico: <strong class="num"><%= stats.grupos.P %></strong> estudios P y <strong class="num"><%= stats.grupos.C %></strong> C (umbral <%= fmt.num(domain.DELTA_T_UMBRAL, 1) %> °C).</p>
+  </section>
+</div>
+
+<div class="grid grid--2">
+  <section class="card">
+    <div class="card__head">
+      <h2 class="card__title">Actividad reciente</h2>
+      <a class="link" href="/admin/auditoria">Ver auditoría completa</a>
+    </div>
+    <ul class="activity">
+      <% stats.recentAudit.forEach((e) => { %>
+      <li>
+        <span class="activity__what"><%= actionLabel(e.action) %></span>
+        <span class="activity__who"><%= e.actorEmail %></span>
+        <time class="activity__when" datetime="<%= e.createdAt %>"><%= fmt.dateTime(e.createdAt) %></time>
+      </li>
+      <% }) %>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2 class="card__title">Configuración</h2>
+    <dl class="kv">
+      <div><dt>Persistencia</dt><dd><code><%= stats.sistema.driver %></code><%= stats.sistema.driver === 'memory' ? ' (demostración, se reinicia)' : '' %></dd></div>
+      <div><dt>Predictor</dt><dd><code><%= stats.sistema.predictor.version %></code> <%= stats.sistema.predictor.nombre %></dd></div>
+      <div><dt>Umbral de asimetría</dt><dd><%= fmt.num(domain.DELTA_T_UMBRAL, 1) %> °C</dd></div>
+      <div><dt>Imágenes por estudio</dt><dd><%= domain.IMAGE_SLOTS.map((s) => s.corto).join(' + ') %></dd></div>
+      <div><dt>Entorno</dt><dd><%= stats.sistema.entorno %>, Node <%= stats.sistema.node %></dd></div>
+      <div><dt>Registros de auditoría</dt><dd class="num"><%= stats.auditCount %></dd></div>
+    </dl>
+  </section>
+</div>

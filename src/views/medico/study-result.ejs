@@ -1,0 +1,227 @@
+<%
+  const a = analysis;
+  const s = study;
+  const p = patient;
+  const A = domain.ACQUISITION;
+  const M = domain.REFERENCE_MODEL;
+  const maxContrib = a ? Math.max(0.01, ...a.factores.map((f) => Math.abs(f.contribucion))) : 1;
+%>
+<%- include('../partials/page-header', {
+  heading: `${p.codigo}, toma ${s.toma}`,
+  lead: `${p.nombreCompleto}. ${fmt.dateTime(s.fechaHora)}, ${s.centro}.`,
+  back: { href: `/medico/pacientes/${p.id}`, label: p.codigo },
+  actions: `<a class="btn btn--ghost" href="/medico/estudios/${s.id}/informe" target="_blank" rel="noopener">${include('../partials/icon', { name: 'printer', size: 18 })}Exportar informe</a>`
+}) %>
+
+<div class="notice notice--warn disclaimer" role="note">
+  <%- include('../partials/icon', { name: 'alert' }) %>
+  <p><strong>Resultado simulado.</strong> <%= domain.DISCLAIMER %></p>
+</div>
+
+<% if (!a) { %>
+<div class="card"><div class="empty"><h2>El análisis no está disponible</h2><p>Volvé a cargar el estudio.</p></div></div>
+<% } else { %>
+<div class="result-hero">
+  <section class="card result-hero__gauge" aria-labelledby="prob-title">
+    <h2 id="prob-title" class="card__title">Probabilidad de úlcera a <%= a.horizonteSemanas %> semanas</h2>
+    <%- include('../partials/gauge', { value: a.probabilidad, category: a.categoria }) %>
+    <p class="muted small center">Cortes: <%= domain.RISK_CUTS.moderado %> % (moderado) y <%= domain.RISK_CUTS.alto %> % (alto).</p>
+  </section>
+
+  <section class="card result-hero__thermal" aria-labelledby="thermal-title">
+    <h2 id="thermal-title" class="card__title">Clasificación térmica</h2>
+    <div class="metric-row">
+      <div class="metric">
+        <span class="metric__label">ΔT máximo</span>
+        <span class="metric__value num"><%= fmt.signed(a.deltaTMax) %> <small>°C</small></span>
+        <span class="metric__meta"><%= domain.ROI_NAMES[a.deltaTMaxRoi] %>, pie <%= a.deltaTMax >= 0 ? 'derecho' : 'izquierdo' %> más caliente</span>
+      </div>
+      <div class="metric">
+        <span class="metric__label">Grupo térmico</span>
+        <span class="metric__value"><span class="grupo grupo--<%= a.grupo %> grupo--lg"><%= a.grupo %></span></span>
+        <span class="metric__meta"><%= domain.GRUPOS_TERMICOS[a.grupo].nombre %></span>
+      </div>
+      <div class="metric">
+        <span class="metric__label">Simétrico</span>
+        <span class="metric__value"><%= a.simetrico ? 'Sí' : 'No' %></span>
+        <span class="metric__meta">|ΔT general| <%= a.simetrico ? '<' : '≥' %> <%= fmt.num(domain.SIMETRIA_CORTE, 1) %> °C</span>
+      </div>
+    </div>
+    <p class="threshold">
+      Umbral usado: <strong class="num"><%= fmt.num(a.umbral, 1) %> °C</strong>
+      (<%= (domain.THRESHOLD_OPTIONS.find((o) => o.value === a.umbral) || { fuente: 'configuración del sistema' }).fuente %>).
+      Referencia bibliográfica: <%= fmt.num(domain.DELTA_T_REFERENCIA, 1) %> °C.
+      Todos los participantes son diabéticos: «C» indica ausencia de asimetría, no un sujeto sano.
+    </p>
+  </section>
+</div>
+
+<div class="grid grid--map">
+  <section class="card" aria-labelledby="map-title">
+    <h2 id="map-title" class="card__title">Mapa plantar por región</h2>
+    <%- include('../partials/plantar-map', { rois: a.rois, umbral: a.umbral, mapId: 'res' }) %>
+  </section>
+
+  <section class="card card--flush" aria-labelledby="roi-title">
+    <div class="card__head card__head--pad">
+      <h2 id="roi-title" class="card__title">Temperaturas por ROI</h2>
+      <span class="muted small">°C · ΔT = derecho − izquierdo</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table table--num">
+        <thead>
+          <tr><th scope="col">Región</th><th scope="col">Media der.</th><th scope="col">Media izq.</th><th scope="col">ΔT</th><th scope="col">Máx. der./izq.</th><th scope="col">Mín. der./izq.</th></tr>
+        </thead>
+        <tbody>
+          <% a.rois.forEach((r) => { const hot = r.roi !== 'general' && Math.abs(r.deltaT) >= a.umbral; const lit = r.roi !== 'general' && Math.abs(r.deltaT) >= domain.DELTA_T_REFERENCIA; %>
+          <tr class="<%= r.roi === 'general' ? 'row-total' : '' %><%= hot ? ' row-hot' : '' %>">
+            <th scope="row"><%= domain.ROI_NAMES[r.roi] %></th>
+            <td><%= fmt.num(r.avgDer, 2) %></td>
+            <td><%= fmt.num(r.avgIzq, 2) %></td>
+            <td>
+              <span class="delta<%= hot ? ' delta--hot' : '' %>"><%= fmt.signed(r.deltaT, 2) %></span>
+              <% if (lit) { %><span class="tag tag--lit" title="Supera el valor de referencia bibliográfica (no diagnóstico)">≥ <%= fmt.num(domain.DELTA_T_REFERENCIA, 1) %></span><% } %>
+            </td>
+            <td class="muted"><%= fmt.num(r.maxDer, 1) %> / <%= fmt.num(r.maxIzq, 1) %></td>
+            <td class="muted"><%= fmt.num(r.minDer, 1) %> / <%= fmt.num(r.minIzq, 1) %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note">Filas resaltadas: |ΔT| ≥ <%= fmt.num(a.umbral, 1) %> °C (umbral activo). Etiqueta «≥ 2,2»: referencia bibliográfica, no diagnóstica.</p>
+  </section>
+</div>
+
+<div class="grid grid--2">
+  <section class="card" aria-labelledby="fact-title">
+    <h2 id="fact-title" class="card__title">Factores que más contribuyen</h2>
+    <ul class="factors">
+      <% a.factores.forEach((f) => { %>
+      <li>
+        <span class="factors__name"><%= f.nombre %></span>
+        <span class="factors__value"><%= f.valor %></span>
+        <span class="factors__bar" aria-hidden="true"><span style="width: <%= Math.round((Math.abs(f.contribucion) / maxContrib) * 100) %>%"></span></span>
+        <span class="factors__num num">+<%= fmt.num(f.contribucion, 2) %></span>
+      </li>
+      <% }) %>
+    </ul>
+    <p class="muted small">Contribución al log-odds del predictor simulado. Sirve para validar la interfaz, no para interpretación clínica.</p>
+  </section>
+
+  <section class="card model-card" aria-labelledby="model-title">
+    <h2 id="model-title" class="card__title">Ficha del modelo</h2>
+    <dl class="kv kv--compact">
+      <div><dt>Predictor activo</dt><dd><code><%= a.predictorVersion %></code> <%= predictorInfo.nombre %></dd></div>
+      <div><dt>Modelo de referencia</dt><dd><%= M.nombre %> (<%= M.hiperparametros %>), validación <%= M.validacion %>, n = <%= M.n %></dd></div>
+    </dl>
+    <div class="model-metrics">
+      <div><span class="num"><%= fmt.num(M.auc, 3) %></span><small>AUC</small></div>
+      <div><span class="num"><%= fmt.num(M.sensibilidad, 1) %> %</span><small>Sensibilidad</small></div>
+      <div><span class="num"><%= fmt.num(M.especificidad, 1) %> %</span><small>Especificidad</small></div>
+      <div><span class="num"><%= fmt.num(M.vpp, 1) %> %</span><small>VPP</small></div>
+      <div><span class="num"><%= fmt.num(M.vpn, 1) %> %</span><small>VPN</small></div>
+    </div>
+    <p class="muted small"><%= M.fuente %>. Métricas mostradas como referencia; el resultado de esta pantalla es simulado.</p>
+  </section>
+</div>
+<% } %>
+
+<div class="grid grid--2">
+  <section class="card" aria-labelledby="img-title">
+    <h2 id="img-title" class="card__title">Imágenes de la toma</h2>
+    <div class="image-pair">
+      <% imageSlots.forEach((sl) => { const img = s.image(sl.slot); %>
+      <figure class="image-tile">
+        <% if (img && canPreview(img)) { %>
+        <button type="button" class="image-tile__btn" data-lightbox="<%= imageUrl(s, sl.slot) %>" data-caption="<%= sl.titulo %>">
+          <img src="<%= imageUrl(s, sl.slot) %>" alt="<%= sl.titulo %> de <%= p.codigo %>" loading="lazy" width="320" height="240">
+        </button>
+        <% } else if (img) { %>
+        <a class="image-tile__file" href="<%= imageUrl(s, sl.slot) %>"><%- include('../partials/icon', { name: 'file', size: 28 }) %><span><%= img.originalName %></span><small>Descargar (<%= fmt.bytes(img.size) %>)</small></a>
+        <% } else { %>
+        <div class="image-tile__file"><span>Sin imagen</span></div>
+        <% } %>
+        <figcaption><%= sl.titulo %></figcaption>
+      </figure>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="acq-title">
+    <h2 id="acq-title" class="card__title">Condiciones de adquisición</h2>
+    <div class="env-summary">
+      <span class="env-chip <%= s.tempAmbienteOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'thermo', size: 18 }) %>T. ambiente <strong class="num"><%= fmt.num(s.tempAmbiente, 1) %> °C</strong></span>
+      <span class="env-chip env-chip--key <%= s.humedadOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'droplet', size: 18 }) %>Humedad <strong class="num"><%= fmt.num(s.humedadRelativa, 0) %> %</strong></span>
+      <span class="env-chip <%= s.valida ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: s.valida ? 'check' : 'alert', size: 18 }) %><%= s.valida ? 'Imagen válida' : 'Imagen no válida' %></span>
+    </div>
+    <% if (!s.condicionesOk) { %><p class="text-warn small">Condiciones fuera del rango del protocolo (<%= A.tempAmbiente.min %>–<%= A.tempAmbiente.max %> °C, <%= A.humedadRelativa.min %>–<%= A.humedadRelativa.max %> %). Interpretá el resultado con cautela.</p><% } %>
+    <% if (!s.valida && s.motivoInvalidez) { %><p class="text-warn small">Motivo: <%= s.motivoInvalidez %></p><% } %>
+    <dl class="kv kv--compact kv--2col">
+      <div><dt>Distancia</dt><dd class="num"><%= s.distanciaCm %> cm</dd></div>
+      <div><dt>Emisividad</dt><dd class="num"><%= fmt.num(s.emisividad, 2) %></dd></div>
+      <div><dt>Rango</dt><dd class="num"><%= s.rangoMin %>–<%= s.rangoMax %> °C</dd></div>
+      <div><dt>Paleta</dt><dd><%= s.paleta %></dd></div>
+      <div><dt>Estabilización</dt><dd class="num"><%= s.tiempoEstabilizacionMin %> min</dd></div>
+      <div><dt>Fondo</dt><dd><%= s.fondo %></dd></div>
+      <div><dt>Checklist</dt><dd class="num"><%= s.checklist.length %> de <%= domain.CAPTURE_CHECKLIST.length %> ítems</dd></div>
+      <div><dt>Cámara</dt><dd><%= A.camara %></dd></div>
+    </dl>
+  </section>
+</div>
+
+<div class="grid grid--2">
+  <section class="card" id="notas" aria-labelledby="notes-title">
+    <h2 id="notes-title" class="card__title">Notas del médico</h2>
+    <form method="post" action="/medico/estudios/<%= s.id %>/notas" class="form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label for="notasMedico" class="sr-only">Notas</label>
+      <textarea id="notasMedico" name="notasMedico" rows="4" placeholder="Hallazgos de la inspección, indicaciones, derivaciones"><%= s.notasMedico %></textarea>
+      <div class="form__actions"><button type="submit" class="btn btn--ghost btn--sm">Guardar notas</button></div>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="pub-title">
+    <h2 id="pub-title" class="card__title">Visibilidad para el paciente</h2>
+    <% if (s.publicado) { %>
+    <p><span class="badge badge--ok"><span class="dot" aria-hidden="true"></span>Visible</span> desde el <%= fmt.dateTime(s.publicadoAt) %>. El paciente ve un resumen en lenguaje simple, sin métricas del modelo.</p>
+    <% } else { %>
+    <p><span class="badge badge--outline">No publicado</span> El paciente ve que se realizó el estudio, pero no el resultado.</p>
+    <% } %>
+    <form method="post" action="/medico/estudios/<%= s.id %>/publicacion"<%- s.publicado ? ' data-confirm="¿Ocultar el resultado al paciente?"' : '' %>>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <% if (!s.publicado) { %><input type="hidden" name="publicado" value="on"><% } %>
+      <button type="submit" class="btn <%= s.publicado ? 'btn--ghost' : 'btn--primary' %> btn--sm"><%= s.publicado ? 'Ocultar al paciente' : 'Hacer visible al paciente' %></button>
+    </form>
+  </section>
+</div>
+
+<div class="grid grid--2">
+  <section class="card" id="control" aria-labelledby="ctl-title">
+    <h2 id="ctl-title" class="card__title">Próximo control</h2>
+    <% if (proximo) { %>
+    <p>Programado para el <strong><%= fmt.dateLong(proximo.fecha) %></strong> (<%= fmt.relativeDays(proximo.fecha) %>). <span class="muted"><%= proximo.motivo %></span></p>
+    <% } else { %>
+    <p class="muted">Sin control programado.</p>
+    <% } %>
+    <form method="post" action="/medico/estudios/<%= s.id %>/control" class="form form--inline">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field<%= errors.fecha ? ' has-error' : '' %>">
+        <label for="fecha-control">Fecha</label>
+        <input id="fecha-control" name="fecha" type="date" required value="<%= defaultControl %>">
+      </div>
+      <div class="field field--grow">
+        <label for="motivo-control">Motivo</label>
+        <input id="motivo-control" name="motivo" value="<%= s.toma === 1 ? 'Toma 2 · seguimiento termográfico' : 'Control clínico a 6 semanas' %>">
+      </div>
+      <button type="submit" class="btn btn--primary btn--sm"><%= proximo ? 'Reprogramar' : 'Programar control' %></button>
+    </form>
+    <p class="hint">Sugerido: 6 semanas después de la toma. Un control nuevo reemplaza al pendiente.</p>
+  </section>
+
+  <section class="card" id="desenlace" aria-labelledby="out-title">
+    <h2 id="out-title" class="card__title">Desenlace real</h2>
+    <p class="muted small">Se registra por paciente al finalizar el seguimiento y alimenta la validación del modelo.</p>
+    <%- include('../partials/outcome-form', { patient: p, volver: `/medico/estudios/${s.id}#desenlace` }) %>
+  </section>
+</div>

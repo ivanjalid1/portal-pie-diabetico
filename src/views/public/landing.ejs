@@ -1,0 +1,83 @@
+<%
+  const demoRois = [
+    { roi: 'dedo_mayor', avgDer: 29.8, avgIzq: 27.6, deltaT: 2.2 },
+    { roi: 'dedos_menores', avgDer: 28.1, avgIzq: 27.5, deltaT: 0.6 },
+    { roi: 'metatarso', avgDer: 30.4, avgIzq: 29.2, deltaT: 1.2 },
+    { roi: 'arco_interno', avgDer: 30.9, avgIzq: 30.6, deltaT: 0.3 },
+    { roi: 'arco_externo', avgDer: 29.6, avgIzq: 29.4, deltaT: 0.2 },
+    { roi: 'talon', avgDer: 28.7, avgIzq: 28.9, deltaT: -0.2 },
+  ];
+  const P = domain.PROJECT;
+%>
+<section class="hero">
+  <div class="hero__text">
+    <p class="hero__kicker"><%= P.carrera %> · <%= P.facultad %>, <%= P.universidad %></p>
+    <h1>Una diferencia de temperatura entre ambos pies puede anticipar una úlcera.</h1>
+    <p class="hero__lead">
+      Este portal acompaña el seguimiento de personas con diabetes mediante <strong>termografía plantar</strong>:
+      el equipo médico registra la toma, carga las imágenes y obtiene un análisis por región del pie;
+      el paciente consulta sus resultados y recomendaciones de cuidado.
+    </p>
+    <div class="hero__cta">
+      <a class="btn btn--primary btn--lg" href="/login">Ingresar al portal</a>
+      <a class="btn btn--ghost btn--lg" href="#como-funciona">Cómo funciona</a>
+    </div>
+  </div>
+  <div class="hero__visual" aria-label="Ejemplo de mapa térmico plantar">
+    <div class="hero__card">
+      <div class="hero__card-head">
+        <span>Asimetría por región</span>
+        <span class="badge badge--danger"><span class="dot" aria-hidden="true"></span>Grupo P</span>
+      </div>
+      <%- include('../partials/plantar-map', { rois: demoRois, umbral: domain.DELTA_T_UMBRAL, mapId: 'hero', values: true }) %>
+      <p class="hero__card-foot">Ejemplo ilustrativo: el dedo mayor del pie derecho está 2,2 °C más caliente que el izquierdo.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="como-funciona">
+  <div class="band__inner">
+    <h2>Del protocolo de captura al resultado</h2>
+    <ol class="steps">
+      <li>
+        <h3>Paciente y consentimiento</h3>
+        <p>Se registra al paciente con su correo (Gmail) como usuario, se verifican los criterios de exclusión y el consentimiento informado.</p>
+      </li>
+      <li>
+        <h3>Condiciones de la toma</h3>
+        <p>Temperatura ambiente entre 21 y 24 °C, humedad entre 40 y 70 %, 15 minutos de estabilización, cámara a 80 cm y emisividad 0,98.</p>
+      </li>
+      <li>
+        <h3>Dos imágenes</h3>
+        <p>Termografía plantar de ambos pies y la imagen visible / IR-Fusion de la misma toma (JPG, PNG, TIFF o IS2 de Fluke).</p>
+      </li>
+      <li>
+        <h3>Análisis por región</h3>
+        <p>Temperaturas por ROI, ΔT entre pies, grupo térmico P/C y una probabilidad de úlcera a 6 semanas con sus factores.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="band band--plain">
+  <div class="band__inner split">
+    <div>
+      <h2>Sobre el proyecto</h2>
+      <p class="prose-lead"><%= P.titulo %>.</p>
+      <dl class="credits">
+        <div><dt>Alumna</dt><dd><%= P.alumna %></dd></div>
+        <div><dt>Asesor</dt><dd><%= P.asesor %></dd></div>
+        <div><dt>Co-asesoras</dt><dd><%= P.coasesoras.join(', ') %></dd></div>
+        <div><dt>Antecedente</dt><dd><%= P.antecedente %></dd></div>
+      </dl>
+    </div>
+    <aside class="notice notice--warn">
+      <%- include('../partials/icon', { name: 'alert' }) %>
+      <div>
+        <h3>Estado actual</h3>
+        <p><%= domain.DISCLAIMER %></p>
+        <p>El modelo de referencia de la Parte 1 (regresión logística, n = 67, AUC 0,745) se muestra sólo como contexto. Predictor activo: <code><%= predictor.version %></code>.</p>
+      </div>
+    </aside>
+  </div>
+</section>

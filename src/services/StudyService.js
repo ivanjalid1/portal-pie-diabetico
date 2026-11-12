@@ -63,7 +63,9 @@ class StudyService {
     const stored = [];
     if (reused) {
       const img = reused.image('toma1');
-      stored.push({ ...img });
+      // Se reutiliza el mismo archivo, pero como imagen nueva de este estudio.
+      const { id: _id, studyId: _sid, ...ref } = img;
+      stored.push(ref);
       const buffer = img.storagePath ? await this.files.read(img.storagePath) : null;
       images.unshift({ slot: 'toma1', buffer, mime: img.mime, originalName: img.originalName, reused: true });
     }

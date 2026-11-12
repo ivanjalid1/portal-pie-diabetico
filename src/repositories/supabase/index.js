@@ -193,7 +193,14 @@ class SupabaseStudyRepository extends contracts.StudyRepository {
       'studies.insert',
     );
     const images = (study.images || []).map((img) => toRow('study_images', { ...img, studyId: row.id }));
-    if (images.length) check(await this.b.db.from('study_images').insert(images), 'study_images.insert');
+    if (images.length) {
+      const res = await this.b.db.from('study_images').insert(images);
+      if (res.error) {
+        // Compensación: no dejar un estudio sin imágenes.
+        await this.b.db.from('studies').delete().eq('id', row.id);
+        check(res, 'study_images.insert');
+      }
+    }
     return this.findById(row.id);
   }
   async update(id, patch) {

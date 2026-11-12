@@ -35,10 +35,14 @@ flowchart LR
     UC13([UC-13 Ver recomendaciones de autocuidado])
     UC14([UC-14 Gestionar usuarios])
     UC15([UC-15 Consultar auditoría])
+    UC16([UC-16 Buscar estudios realizados])
+    UC17([UC-17 Seguir controles])
+    UC18([UC-18 Ver y descargar mi informe])
+    UC19([UC-19 Consultar mis controles])
   end
 
-  M --- UC01 & UC03 & UC04 & UC05 & UC06 & UC07 & UC08 & UC09 & UC10 & UC11
-  P --- UC01 & UC02 & UC12 & UC13
+  M --- UC01 & UC03 & UC04 & UC05 & UC06 & UC07 & UC08 & UC09 & UC10 & UC11 & UC16 & UC17
+  P --- UC01 & UC02 & UC12 & UC13 & UC18 & UC19
   A --- UC01 & UC14 & UC15
   UC06 -. include .-> PR
   UC03 -. include .-> UC05
@@ -56,13 +60,17 @@ flowchart LR
 | UC-06 | Cargar estudio comparativo y analizar | Médico/a | Paciente propio con consentimiento | Asistente de 4 pasos: paciente y fechas de las tomas → condiciones ambientales y checklist → **termografía de la toma 1 (basal) y de la toma 2 (control ~30 días después)** → análisis comparativo. | La toma 1 puede reutilizarse de un estudio anterior del mismo paciente. Condiciones fuera de rango: advertencia (no bloquea). Imagen no válida: motivo obligatorio. Archivo inválido: se rechaza por firma binaria. Los IS2 se previsualizan en el servidor. |
 | UC-07 | Revisar resultado | Médico/a | Estudio analizado | Ve probabilidad, ROIs con temperaturas, ΔT, grupo P/C y umbral usado, simetría, mapa plantar, factores y ficha del modelo. | — |
 | UC-08 | Publicar resultado | Médico/a | Estudio analizado | Hace visible el resultado para el paciente (o lo oculta). | — |
-| UC-09 | Programar control | Médico/a | Paciente propio | Fecha sugerida a 6 semanas; reemplaza el control pendiente. | Puede marcarse realizado o cancelado. |
+| UC-09 | Programar control | Médico/a | Paciente propio | Fecha sugerida a 6 semanas; reemplaza el control pendiente. | Puede marcarse realizado, ausente (con motivo) o cancelado. Al guardar una toma 2 el control pendiente se marca realizado y se vincula al estudio (si falla, el estudio igual se guarda). |
 | UC-10 | Registrar desenlace | Médico/a | Paciente con estudios | Indica si generó lesión, pie, ROI y fecha. | Si generó lesión, pie y ROI son obligatorios. |
 | UC-11 | Exportar | Médico/a | — | Informe imprimible por estudio; CSV anonimizado de todos sus pacientes. | Ambas acciones quedan auditadas. |
 | UC-12 | Consultar mis estudios | Paciente | Sesión | Ve la línea de tiempo, imágenes y el resultado en lenguaje simple. | Si no está publicado: «en revisión». |
 | UC-13 | Autocuidado | Paciente | Sesión | Lee recomendaciones de cuidado del pie. | — |
 | UC-14 | Gestionar usuarios | Administrador/a | — | Alta de médicos, activar/desactivar, restablecer contraseña. | No puede desactivarse a sí mismo. |
 | UC-15 | Consultar auditoría | Administrador/a | — | Filtra por acción o texto. | — |
+| UC-16 | Buscar estudios realizados | Médico/a | — | Busca por nombre, apellido o código (sin distinguir acentos), filtra por fechas, centro, riesgo, grupo, publicación y desenlace; ordena y pagina; abre el estudio o exporta el CSV del filtro. | La búsqueda por nombre no está disponible para pacientes. |
+| UC-17 | Seguir controles | Médico/a | — | Pestañas Próximos / Vencidos / Realizados con fechas programada y realizada, cambio de asimetría y probabilidad del estudio, desenlace; filtros por fecha y riesgo; CSV. | Desde cada control: cargar la toma, marcar realizado o registrar ausencia. |
+| UC-18 | Ver y descargar mi informe | Paciente | Estudio publicado | Ve probabilidad con nivel, mayor ΔT de cada toma, mapa simplificado de la toma 2 y tabla por región con ↑/↓/=; descarga la versión imprimible. | Si no está publicado, el informe no existe (404). |
+| UC-19 | Consultar mis controles | Paciente | Sesión | Ve próximos controles e historial (realizados y ausencias). | — |
 
 ## Historias de usuario y criterios de aceptación
 

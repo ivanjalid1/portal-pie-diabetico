@@ -11,9 +11,11 @@
 | RF-05 | Asistente con condiciones ambientales, checklist de cámara y carga de dos termografías (toma 1 basal y toma 2 de control; JPG, PNG, TIFF, IS2), con reutilización de una toma 1 anterior. | Alta | Hecho |
 | RF-06 | Análisis comparativo por ROI (6 por pie + general) con temperaturas absolutas de cada toma, ΔT, variación de la asimetría, grupo P/C y simetría por toma con umbral configurable, y probabilidad a 6 semanas. | Alta | Hecho (probabilidad simulada; ROIs desde IS2 por segmentación simple) |
 | RF-07 | Publicación del resultado al paciente. | Alta | Hecho |
-| RF-08 | Programación de controles y registro del desenlace (¿generó lesión?). | Alta | Hecho |
+| RF-08 | Programación y seguimiento de controles (próximos, vencidos, realizados; ausencia con motivo; se marcan realizados al guardar la toma 2) y registro del desenlace (¿generó lesión?). | Alta | Hecho |
 | RF-09 | Informe imprimible y exportación CSV anonimizada con las columnas de la planilla. | Media | Hecho |
-| RF-10 | Portal del paciente: estudios, imágenes, resultado simplificado, próximo control, autocuidado, datos y consentimiento. | Alta | Hecho |
+| RF-10 | Portal del paciente: estudios, imágenes, resultado simplificado, «Tu informe» con versión imprimible (sólo si está publicado), mis controles, autocuidado, datos y consentimiento. | Alta | Hecho |
+| RF-15 | Estudios realizados: búsqueda por nombre, apellido o código (sólo médico/a), filtros por fecha, centro, riesgo, grupo, publicación y desenlace, orden, paginado y CSV del filtro. | Alta | Hecho |
+| RF-16 | Visor de termografías con paleta Fluke High Contrast (por defecto), Ironbow y Grises, y escala en °C. | Media | Hecho |
 | RF-11 | Administración de usuarios y auditoría. | Media | Hecho |
 | RF-12 | Ingreso con Google (OAuth). | Baja | Previsto (interfaz `AuthProvider`) |
 | RF-13 | Procesamiento real de imágenes (segmentación, ROIs, modelo). | Alta | En desarrollo (punto de extensión `UlcerPredictor`) |
@@ -32,7 +34,7 @@
 | RNF-07 | Adaptabilidad | Diseño responsive (desde 360 px), tema claro por defecto y oscuro opcional con selector manual. |
 | RNF-08 | Portabilidad | Despliegue serverless en Vercel sin disco persistente; persistencia intercambiable por configuración. |
 | RNF-09 | Mantenibilidad | Arquitectura en capas, patrones documentados, ESLint + Prettier, pruebas automatizadas. |
-| RNF-10 | Rendimiento | Páginas renderizadas en servidor; JS mínimo; Chart.js sólo donde se usa. |
+| RNF-10 | Rendimiento | Páginas renderizadas en servidor; JS mínimo; gráficos en SVG generados en el servidor (sin librerías de gráficos ni CDN de scripts). |
 | RNF-11 | Extensibilidad | Nuevo algoritmo = nueva estrategia `UlcerPredictor`; nuevo proveedor de identidad = nueva estrategia `AuthProvider`. |
 
 ## Marco legal (Argentina)

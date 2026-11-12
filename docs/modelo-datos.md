@@ -100,6 +100,10 @@ erDiagram
     uuid patient_id FK
     date fecha
     estado_control estado
+    uuid origen_study_id FK
+    uuid study_id FK
+    date realizado_en
+    text motivo_ausencia
   }
   AUDIT_LOG {
     uuid id PK
@@ -124,7 +128,7 @@ erDiagram
 | `roi` | `dedo_mayor`, `dedos_menores`, `metatarso`, `arco_interno`, `arco_externo`, `talon`, `general` |
 | `categoria_riesgo` | `sin_riesgo` (<50 %), `moderado` (50–69,9 %), `alto` (≥70 %) |
 | `estado_estudio` | `borrador`, `analizado` |
-| `estado_control` | `pendiente`, `realizado`, `cancelado`, `reprogramado` |
+| `estado_control` | `pendiente`, `realizado`, `ausente`, `cancelado`, `reprogramado` |
 
 ### `profiles` (datos de acceso e identificación)
 
@@ -195,7 +199,7 @@ Una fila por imagen (`slot` = `toma1` / `toma2`, ambas termografías), con `stor
 
 ### `appointments`, `audit_log`
 
-Controles de seguimiento (un control nuevo reprograma el pendiente) y registro de auditoría (actor, acción, entidad, detalle, IP, fecha).
+Controles de seguimiento (un control nuevo reprograma el pendiente) y registro de auditoría (actor, acción, entidad, detalle, IP, fecha). En `appointments`, `origen_study_id` es el estudio que originó el control, `study_id` el estudio realizado en ese control (toma 2), `realizado_en` la fecha efectiva y `motivo_ausencia` el motivo cuando el estado es `ausente` (migración `20260601000400_controles.sql`). Un control pendiente se considera **vencido** al terminar el día programado.
 
 ## Exportación CSV
 

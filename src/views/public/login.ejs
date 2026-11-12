@@ -1,12 +1,5 @@
 <% const P = domain.PROJECT;
-  const demoRois = [
-    { roi: 'dedo_mayor', avgDer: 30.4, avgIzq: 29.2, deltaT: 1.2 },
-    { roi: 'dedos_menores', avgDer: 28.6, avgIzq: 28.3, deltaT: 0.3 },
-    { roi: 'metatarso', avgDer: 30.1, avgIzq: 29.6, deltaT: 0.5 },
-    { roi: 'arco_interno', avgDer: 30.7, avgIzq: 30.6, deltaT: 0.1 },
-    { roi: 'arco_externo', avgDer: 29.8, avgIzq: 29.9, deltaT: -0.1 },
-    { roi: 'talon', avgDer: 29.1, avgIzq: 29.3, deltaT: -0.2 },
-  ]; %>
+  const ROLE_ICON = { 'Médico/a': 'stethoscope', Paciente: 'user', Administrador: 'shield' }; %>
 <div class="auth-split">
   <section class="auth-brand" aria-labelledby="brand-title">
     <div class="auth-brand__top">
@@ -19,9 +12,13 @@
       <p class="auth-brand__kicker"><%= P.universidad %> · FCEFyN · <%= P.carrera %></p>
       <h1 id="brand-title">Detección temprana del riesgo de pie diabético con termografía plantar</h1>
       <p class="auth-brand__lead"><%= P.titulo %>.</p>
-      <div class="auth-brand__map" aria-hidden="true">
-        <%- include('../partials/plantar-map', { rois: demoRois, umbral: domain.DELTA_T_UMBRAL, mapId: 'auth', values: false }) %>
-      </div>
+      <figure class="auth-thermo">
+        <img src="/demo/par-08-toma2.png" alt="Termografía plantar de ambos pies (imagen anonimizada del estudio)" width="800" height="600" decoding="async">
+        <figcaption>
+          <span class="auth-thermo__chip">Termografía real anonimizada · toma de control</span>
+          <span class="auth-thermo__scale" aria-hidden="true"><span style="background: <%= thermal.PALETTE_CSS[thermal.DEFAULT_PALETTE] %>"></span><small class="num"><%= thermal.CAMERA_RANGE.min %> °C</small><small class="num"><%= thermal.CAMERA_RANGE.max %> °C</small></span>
+        </figcaption>
+      </figure>
     </div>
     <dl class="auth-brand__credits">
       <div><dt>Alumna</dt><dd><%= P.alumna %></dd></div>
@@ -64,17 +61,17 @@
         <ul>
           <% demoAccounts.forEach((acc) => { %>
           <li>
-            <button type="button" class="demo-account" data-fill-login data-email="<%= acc.email %>" data-password="Demo1234!">
-              <span class="demo-account__role"><%= acc.rol %></span>
-              <span class="demo-account__email"><%= acc.email %></span>
-              <span class="demo-account__desc"><%= acc.descripcion %></span>
+            <button type="button" class="demo-account" data-fill-login data-email="<%= acc.email %>" data-password="Demo1234!" title="<%= acc.rol %>: <%= acc.descripcion %>">
+              <span class="demo-account__icon"><%- include('../partials/icon', { name: ROLE_ICON[acc.rol] || 'user', size: 18 }) %></span>
+              <span class="demo-account__email"><span class="sr-only"><%= acc.rol %>: </span><%= acc.email %></span>
+              <span class="demo-account__use">Usar<%- include('../partials/icon', { name: 'arrowRight', size: 14 }) %></span>
             </button>
           </li>
           <% }) %>
         </ul>
-        <p class="hint">Tocá una cuenta para completar el formulario.</p>
-      </aside>
+              </aside>
       <% } %>
+      <p class="auth-form__credits"><%= P.alumna %> · Asesor: <%= P.asesor %> · <%= P.universidad %>, FCEFyN</p>
       <p class="auth-form__disclaimer"><%= domain.DISCLAIMER %></p>
     </div>
   </section>

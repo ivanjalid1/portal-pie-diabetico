@@ -105,7 +105,7 @@ El portal ya decodifica la imagen infrarroja de los `.IS2` (`src/imaging/`):
 1. El `.IS2` es un ZIP (`src/imaging/zip.js`, lector sin dependencias). Se valida la firma `PK` y la extensión.
 2. `Images/Main/IR.data` contiene **320 × 241 valores `uint16` little-endian**; la primera fila (640 bytes) es cabecera y se saltea → 320 × 240 píxeles de **cuentas crudas** (`src/imaging/is2.js`).
 3. Sólo se lee la matriz IR: nunca las fotos visibles (`Images/Main/*.jpg`) ni la miniatura `Thumbnails/014000F0.jpg`, que tiene impresos fecha, hora y emisividad.
-4. **Vista previa**: normalización por percentiles (2–99,7 %), paleta ironbow, ampliación bicúbica y barra de color (`renderThermogram`). Se usa en `POST /medico/estudios/vista-previa` (asistente) y en `/media/estudios/:id/:slot?vista=png`.
+4. **Vista previa**: rango calibrado contra la miniatura de la cámara (percentiles como respaldo), paleta Fluke High Contrast (o Ironbow / Grises con `?paleta=`), ampliación bicúbica y barra de color (`renderThermogram`). Se usa en `POST /medico/estudios/vista-previa` (asistente) y en `/media/estudios/:id/:slot?vista=png`.
 5. **ROIs aproximadas** (`analyzeThermogram`): umbral de Otsu + componentes conexas para separar ambos pies (el pie izquierdo del paciente aparece a la izquierda de la imagen, convención validada contra las mediciones del equipo), bandas por longitud del pie (dedos 0–20 %, metatarso 20–42 %, arco 42–70 %, talón 70–100 %) y división medial/lateral.
 6. **Cuentas → °C**: `T ≈ −32,97 + 0,012978 · cuentas`, ajuste lineal entre cuentas medias por ROI y las temperaturas medidas por el equipo con el software del fabricante (34 termogramas, r = 0,88). Es una aproximación: la conversión exacta usa la calibración radiométrica de la cámara (`CalibrationData.gpbenc`), pendiente de implementar.
 
@@ -113,7 +113,7 @@ Cuando se suben **ambas tomas en IS2**, el predictor `mock-v0` usa estas tempera
 
 ### Imágenes demo a partir de termogramas reales
 
-`npm run generate:images` lee los pares definidos en `scripts/demo-pairs.json` desde la carpeta privada `tesis-2026info/` (excluida de git y de Vercel) y genera `public/demo/par-NN-toma{1,2}.png` (960 × 720, sin metadatos) y `src/seed/demoImages.json` (temperaturas por ROI estimadas de cada imagen, que la semilla usa para que los valores sean coherentes con lo que se ve).
+`npm run generate:images` lee los pares desde `scripts/demo-pairs.local.json` (privado, excluido de git: contiene las rutas reales dentro de `tesis-2026info/`, también excluida de git y de Vercel; el versionado `scripts/demo-pairs.json` sólo lista `par-NN` y los días aproximados entre tomas) y genera `public/demo/par-NN-toma{1,2}.png` en High Contrast más las variantes `-ironbow` y `-grises` (800 × 600, sin metadatos) y `src/seed/demoImages.json` (temperaturas por ROI estimadas de cada imagen, que la semilla usa para que los valores sean coherentes con lo que se ve).
 
 **Emparejamiento toma 1 / toma 2**: por código de paciente (`P.HC0xx` en la primera toma ↔ carpeta `2PHC.0xx` de la segunda) y verificado con la fecha de captura de cada IS2 (entre 28 y 41 días entre tomas en los 10 pares elegidos; se descartaron los pares con el reloj de la cámara desfasado, las carpetas con imágenes duplicadas y las identificadas sólo por nombre). Se eligieron imágenes con ambos pies completos y buen contraste. Los datos clínicos de la demo son ficticios y no corresponden a esos códigos.
 

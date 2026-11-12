@@ -193,7 +193,7 @@ sequenceDiagram
 ```mermaid
 flowchart TB
   subgraph Navegador
-    UI[Vistas EJS renderizadas<br/>app.css · app.js · wizard.js · charts.js]
+    UI[Vistas EJS renderizadas<br/>app.css · app.js · wizard.js · theme.js<br/>gráficos SVG del servidor]
   end
   subgraph Vercel
     F[api/index.js<br/>createApp]
@@ -210,7 +210,7 @@ flowchart TB
     AUTH[Auth / GoTrue]
     STO[(Storage<br/>bucket «estudios»)]
   end
-  CDN[jsDelivr: Chart.js 4.4.1<br/>Google Fonts]
+  CDN[Google Fonts]
   UI <--> F
   UI --> CDN
   RP --> PG
@@ -219,11 +219,27 @@ flowchart TB
   UI -. URL firmada 120 s .-> STO
 ```
 
+## 5.1 Visualización de datos
+
+Los gráficos se generan como **SVG en el servidor** (parciales `dumbbell`, `slope`, `sparkline`, `gauge`, `plantar-map`), sin librerías de gráficos en el cliente:
+
+- **Sin doble eje.** La evolución del paciente se separa en *small multiples*: un *dumbbell* por región (ΔT de la toma 1 y de la toma 2 sobre un único eje en °C, con la banda ±umbral sombreada), una pendiente con el |ΔT| máximo de cada toma con la etiqueta de valor en cada punto, y la probabilidad como KPI por estudio.
+- **Colores de serie** validados para daltonismo y contraste: toma 1 `#7b6cf6` / toma 2 `#0a94a8` (oscuro: `#8a7cf5` / `#1a9fb0`). El texto usa siempre tintas neutras; la identidad la llevan las marcas y la leyenda.
+- Cada gráfico tiene `<title>` en español como *tooltip*, leyenda y una tabla `sr-only` equivalente. En pantallas angostas se usa una variante compacta para que el texto no baje de ~11 px.
+
+### Paleta térmica Fluke High Contrast
+
+La paleta por defecto reproduce la «High Contrast» de la cámara Fluke. La LUT de 256 colores (`src/config/palettes/high-contrast.json`) se **derivó empíricamente** de la barra de color que la cámara incrusta en la miniatura JPEG de cada `.IS2` (columna x 313–317, de y = 26 a y = 181): mediana de 52 miniaturas, mediana móvil de 5 filas y suavizado gaussiano. Se validó con ΔE76 contra la propia imagen de la miniatura, modelando la fusión IR-visible de la cámara (α ≈ 0,75; mediana ≈ 10). El rango de cada imagen se calibra contra su miniatura (`src/imaging/flukeCalibration.js`) con un percentil como respaldo. Las miniaturas nunca se publican. El visor permite alternar **High Contrast / Ironbow / Grises** (variantes pre-renderizadas para las imágenes demo; render al vuelo para IS2) y muestra la escala en °C.
+
+### Identidad
+
+El logo (`public/img/logo.svg`) muestra dos plantas sobre un mosaico verde azulado: la izquierda fría y la derecha cálida, que representan la asimetría térmica que mide el estudio. Se eligió entre tres variantes (`docs/screenshots/logo-variantes.png`) por legibilidad a 16 px y por no depender del color para leerse. Se generan `favicon.svg`, `favicon.ico` (16 + 32), `apple-touch-icon.png` (180), íconos 192/512 y maskable para el `manifest.webmanifest`.
+
 ## 6. Seguridad
 
 - **Sesión**: cookie firmada `httpOnly`, `SameSite=Lax`, `Secure` en producción, 8 h; el contenido se reemplaza completo al iniciar sesión (sin fijación de sesión). Apta para serverless (sin almacenamiento de sesión en servidor).
 - **CSRF**: token sincronizado por sesión en todos los formularios; para `multipart` se verifica después de `multer`.
-- **Cabeceras**: `helmet` con CSP estricta (sin scripts en línea), `frame-ancestors 'none'`, `nosniff`.
+- **Cabeceras**: `helmet` con CSP estricta (`script-src 'self'`, sin scripts en línea ni CDN de scripts), `frame-ancestors 'none'`, `nosniff`.
 - **Fuerza bruta**: `express-rate-limit` en `POST /login`; mensajes de error genéricos y hash constante para usuarios inexistentes (evita enumeración por tiempo).
 - **Validación**: Zod en todos los formularios; imágenes validadas por **firma binaria**, no por extensión; tamaño máximo configurable.
 - **Autorización**: RBAC por rol + control a nivel de objeto en servicios (un médico sólo ve sus pacientes; un paciente sólo lo suyo; el administrador no ve datos clínicos). En Supabase, además, **RLS** por rol.

@@ -32,15 +32,17 @@ Portal médico–paciente para la **estimación del riesgo de úlcera de pie dia
 ## Funcionalidades
 
 **Médico/a**
-- Tablero con KPIs (pacientes, estudios del mes, alto riesgo, controles pendientes), últimos análisis y agenda.
+- Tablero con KPIs y tendencia frente al mes anterior (con *sparklines*), distribución de riesgo, controles vencidos y próximos, últimos estudios con miniatura y cambio de asimetría ↑/↓, y pacientes con asimetría en aumento.
+- **Estudios realizados**: búsqueda por nombre, apellido o código, filtros (fechas, centro, riesgo, grupo, publicado, desenlace), orden, paginado, tarjetas en móvil y CSV del filtro actual.
+- **Controles**: pestañas Próximos / Vencidos / Realizados, ausencia con motivo, marcado automático al guardar la toma 2, línea de tiempo en la ficha y CSV.
 - Registro de pacientes por su **correo (Gmail)**: verifica criterios de exclusión y consentimiento, crea la cuenta con contraseña temporal (se muestra una sola vez) y asigna el **código anónimo** (`DEMO-002`, `DEMO-005`, `DEMO-011`).
-- Ficha clínica completa (DM, HbA1c con alerta >12 meses o imputada, tabaquismo «a consultar», neuropatía con puntaje y grado, vibratoria 0–50 / «>50», antecedentes, hallazgos, campos futuros) con gráfico de evolución.
+- Ficha clínica completa (DM, HbA1c con alerta >12 meses o imputada, tabaquismo «a consultar», neuropatía con puntaje y grado, vibratoria 0–50 / «>50», antecedentes, hallazgos, campos futuros) con evolución entre tomas sin doble eje (dumbbell por región, pendiente del |ΔT| máximo y probabilidad por estudio).
 - **Asistente de estudio en 4 pasos** que sigue el protocolo: paciente, fechas de ambas tomas y consentimiento → condiciones ambientales (T 21–24 °C, HR 40–70 %, la humedad resaltada) y checklist de cámara → carga de **dos termografías: toma 1 (basal) y toma 2 (control ~30 días después)** (JPG/PNG/TIFF/IS2, arrastrar y soltar, vista previa; los IS2 de Fluke se previsualizan decodificando la matriz infrarroja en el servidor; la toma 1 puede reutilizarse de un estudio anterior) → análisis.
-- Resultado **comparativo**: probabilidad a 6 semanas que considera la evolución (gauge con cortes 50/70 %), temperaturas absolutas por ROI de cada toma (6 por pie + general), ΔT por toma y **variación de la asimetría** (regiones que empeoran), **grupo térmico P/C y simetría de cada toma** con el umbral usado (1,0 °C por defecto; 2,2 °C de la literatura), mapas plantares lado a lado, factores contribuyentes y ficha del modelo de referencia.
+- Resultado **comparativo**: probabilidad a 6 semanas que considera la evolución (gauge con cortes 50/70 %), temperaturas absolutas por ROI de cada toma (6 por pie + general), ΔT por toma y **variación de la asimetría** (regiones que empeoran), **grupo térmico de cada toma, mostrado como «Con asimetría (P)» / «Sin asimetría (C)» con ayuda contextual, y simetría** con el umbral usado (1,0 °C por defecto; 2,2 °C de la literatura), mapas plantares lado a lado, factores contribuyentes y ficha del modelo de referencia.
 - Notas, publicación del resultado al paciente, control a 6 semanas, **desenlace real** (¿generó lesión?, pie, ROI), informe imprimible («Guardar como PDF») y **exportación CSV** anonimizada con las columnas de la planilla del equipo.
 - Gestión del **consentimiento informado** (historial, revocación).
 
-**Paciente**: último resultado en lenguaje simple (sin métricas del modelo), estudios con imágenes (lightbox), próximo control, recomendaciones de autocuidado, sus datos y su consentimiento.
+**Paciente**: último resultado en lenguaje simple, estudios con imágenes (visor con paletas y escala en °C), **«Tu informe»** (probabilidad con nivel, mayor diferencia de temperatura en cada toma, mapa simplificado y tabla por región con ↑/↓/=, descargable en PDF) sólo cuando el médico lo publica, **mis controles**, autocuidado, sus datos y su consentimiento.
 
 **Administrador/a**: alta de médicos, activación/desactivación, restablecimiento de contraseñas, estadísticas del sistema y **auditoría**. Por diseño no accede a datos clínicos.
 
@@ -59,7 +61,7 @@ npm run dev          # http://localhost:3000 (driver memory con datos demo)
 | Paciente | `paciente@demo.com` (y 11 pacientes `*.demo@gmail.com`, p. ej. `maria.gomez.demo@gmail.com`) |
 | Administrador/a | `admin@demo.com` |
 
-Los pacientes y datos clínicos de demostración son **ficticios**. Las termografías demo son **termogramas reales anonimizados** del estudio (usados con autorización del equipo): sólo la matriz infrarroja de las plantas, renderizada con paleta ironbow, sin fotos visibles, texto ni metadatos (ver `scripts/generate-demo-images.js`).
+Los pacientes y datos clínicos de demostración son **ficticios**. Las termografías demo son **termogramas reales anonimizados** del estudio (usados con autorización del equipo): sólo la matriz infrarroja de las plantas, renderizada con la paleta **Fluke High Contrast** derivada empíricamente de la cámara (y variantes Ironbow y Grises), sin fotos visibles, texto ni metadatos (ver `scripts/generate-demo-images.js`).
 
 El tema por defecto es **claro**; el oscuro se activa con el botón ☀/☾ y se recuerda en el navegador.
 

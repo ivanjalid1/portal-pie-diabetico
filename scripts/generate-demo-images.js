@@ -2,35 +2,35 @@
 'use strict';
 
 /**
- * Genera las imágenes demo a partir de termogramas REALES (.IS2 de Fluke)
- * de la carpeta privada `tesis-2026info/` (no versionada), con autorización
- * del equipo del proyecto.
+ * Genera las imágenes demo a partir de termogramas REALES (.IS2 de Fluke) de
+ * la carpeta privada `tesis-2026info/` (no versionada), con autorización del
+ * equipo del proyecto.
  *
- * Para cada par toma 1 / toma 2 (ver scripts/demo-pairs.json):
+ * El mapeo par → archivos de origen está en `scripts/demo-pairs.local.json`
+ * (local, gitignoreado). Para cada termograma:
  *  - decodifica SÓLO la matriz infrarroja (Images/Main/IR.data); nunca se
- *    leen las fotos visibles ni las miniaturas con texto;
- *  - normaliza con percentiles comunes a ambas tomas (para que sean
- *    comparables), aplica la paleta ironbow, amplía con interpolación
- *    bicúbica a 960×720 y agrega una barra de color sin texto;
- *  - escribe PNG sin metadatos (sin EXIF, número de serie ni fecha);
- *  - estima las temperaturas por ROI (segmentación simple + conversión
- *    aproximada cuentas→°C) y las guarda en src/seed/demoImages.json para que
- *    los valores de la demo sean coherentes con lo que muestra cada imagen.
+ *    publican las fotos visibles ni las miniaturas (tienen fecha y hora);
+ *  - calcula la escala como la cámara (24–35 °C) calibrándola contra la
+ *    miniatura del propio IS2 (sólo en memoria);
+ *  - renderiza con la paleta High Contrast de Fluke (predeterminada) y las
+ *    variantes Ironbow y escala de grises, 800×600, interpolación bicúbica,
+ *    PNG sin metadatos;
+ *  - estima las temperaturas por ROI y las guarda en src/seed/demoImages.json.
  *
  * Uso: npm run generate:images
  */
 const fs = require('node:fs');
 const path = require('node:path');
-const { decodeIs2, percentile } = require('../src/imaging/is2');
-const { analyzeThermogram, renderThermogram, roisInCelsius } = require('../src/imaging/thermogram');
+const { decodeIs2 } = require('../src/imaging/is2');
+const { analyzeThermogram, renderThermogram, roisInCelsius, displayRange } = require('../src/imaging/thermogram');
 const { encodePng } = require('../src/imaging/png');
+const { PALETTES, DEFAULT_PALETTE } = require('../src/utils/thermal');
 
 const ROOT = path.join(__dirname, '..');
 const PRIVATE = path.join(ROOT, 'tesis-2026info');
 const OUT = path.join(ROOT, 'public', 'demo');
 const SEED_OUT = path.join(ROOT, 'src', 'seed', 'demoImages.json');
-const { pares } = require('./demo-pairs.json');
-
+const LOCAL = path.join(__dirname, 'demo-pairs.local.json');
 const SEGUNDA = path.join(PRIVATE, 'SEGUNDA TOMA DE FOTOS');
 
 /** La carpeta de toma 2 se busca por prefijo de código (el resto del nombre no se usa). */
@@ -40,35 +40,37 @@ function resolveToma2(rel) {
     const match = fs.readdirSync(path.join(SEGUNDA, site)).find((d) => d.startsWith(folderCode));
     if (match) return path.join(SEGUNDA, site, match, file);
   }
-  throw new Error(`No se encontró la carpeta de toma 2 para ${folderCode}`);
+  throw new Error(`No se encontró la carpeta de toma 2 del par (${folderCode.length} caracteres)`);
 }
 
 function main() {
-  if (!fs.existsSync(PRIVATE)) {
-    console.error('No existe tesis-2026info/: las imágenes demo ya generadas están en public/demo/.');
+  if (!fs.existsSync(PRIVATE) || !fs.existsSync(LOCAL)) {
+    console.error('Faltan tesis-2026info/ o scripts/demo-pairs.local.json: las imágenes demo ya están en public/demo/.');
     process.exit(1);
   }
+  const { pares } = JSON.parse(fs.readFileSync(LOCAL, 'utf8'));
   fs.mkdirSync(OUT, { recursive: true });
+  for (const f of fs.readdirSync(OUT).filter((x) => /^par-\d+-toma\d/.test(x))) fs.unlinkSync(path.join(OUT, f));
+
   const manifest = [];
   for (const par of pares) {
     const n = String(par.par).padStart(2, '0');
-    const imgs = [
-      decodeIs2(fs.readFileSync(path.join(PRIVATE, par.toma1))),
-      decodeIs2(fs.readFileSync(resolveToma2(par.toma2))),
-    ];
-    // Escala común a ambas tomas del par.
-    const lo = Math.min(...imgs.map((im) => percentile(im.data, 2)));
-    const hi = Math.max(...imgs.map((im) => percentile(im.data, 99.7)));
+    const buffers = [fs.readFileSync(path.join(PRIVATE, par.toma1)), fs.readFileSync(resolveToma2(par.toma2))];
     const entry = { par: par.par };
-    imgs.forEach((img, i) => {
+    buffers.forEach((buffer, i) => {
       const toma = i + 1;
+      const img = decodeIs2(buffer);
+      const { lo, hi, calibrado } = displayRange(buffer, img);
       const file = `par-${n}-toma${toma}.png`;
-      const { width, height, rgb } = renderThermogram(img, { lo, hi, width: 960, height: 720 });
-      fs.writeFileSync(path.join(OUT, file), encodePng(width, height, rgb));
+      for (const pal of Object.values(PALETTES)) {
+        const name = pal.key === DEFAULT_PALETTE ? file : file.replace('.png', `-${pal.key}.png`);
+        const { width, height, rgb } = renderThermogram(img, { lo, hi, width: 800, height: 600, palette: pal.fn });
+        fs.writeFileSync(path.join(OUT, name), encodePng(width, height, rgb));
+      }
       const analysis = analyzeThermogram(img);
       if (!analysis.ok) throw new Error(`Par ${n} toma ${toma}: ${analysis.reason}`);
       entry[`toma${toma}`] = { file, rois: roisInCelsius(analysis) };
-      console.log(`par ${n} toma ${toma}: ${file}`);
+      console.log(`par ${n} toma ${toma}: ${file} (escala ${calibrado ? 'calibrada con la cámara' : 'por percentiles'})`);
     });
     manifest.push(entry);
   }

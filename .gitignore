@@ -20,3 +20,6 @@ tesis-2026info/
 .vercel
 .env*
 !.env.example
+
+# Mapeo local de imágenes demo a archivos de origen (privado)
+scripts/*.local.json

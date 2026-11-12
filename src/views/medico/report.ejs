@@ -60,8 +60,8 @@
         <span><%= domain.ROI_NAMES[a.deltaTMaxRoi] %></span>
       </div>
       <div class="report__big">
-        <span class="label">Grupo térmico toma 1 → toma 2</span>
-        <span class="report__pct"><%= a.grupoToma1 || '—' %> → <%= a.grupo %></span>
+        <span class="label">Asimetría térmica</span>
+        <span><%= transicionGrupo(a) %></span>
         <span><%= a.simetrico ? 'Simétrico' : 'No simétrico' %>, umbral <%= fmt.num(a.umbral, 1) %> °C</span>
       </div>
     </section>

@@ -15,6 +15,7 @@ const NAV = {
   medico: [
     { href: '/medico', label: 'Tablero', icon: 'gauge', exact: true },
     { href: '/medico/pacientes', label: 'Pacientes', icon: 'users' },
+    { href: '/medico/estudios', label: 'Estudios realizados', icon: 'list', exact: true },
     { href: '/medico/estudios/nuevo', label: 'Nuevo estudio', icon: 'scan' },
     { href: '/medico/controles', label: 'Controles', icon: 'calendar' },
   ],
@@ -37,6 +38,40 @@ function locals(config) {
       `/media/estudios/${study.id}/${slot}${isIs2(study.image?.(slot)) ? '?vista=png' : ''}`;
     res.locals.canPreview = (img) =>
       Boolean(img && (img.publicUrl || isIs2(img) || domain.PREVIEWABLE_TYPES.includes(img.mime)));
+    /** Variantes de paleta disponibles para una imagen (demo pre-renderizada o IS2). */
+    res.locals.imagePalettes = (study, slot) => {
+      const img = study.image?.(slot);
+      if (!img) return null;
+      const keys = Object.keys(thermal.PALETTES);
+      if (img.publicUrl && /^\/demo\/par-\d+-toma\d\.png$/.test(img.publicUrl)) {
+        return Object.fromEntries(
+          keys.map((k) => [
+            k,
+            k === thermal.DEFAULT_PALETTE ? img.publicUrl : img.publicUrl.replace('.png', `-${k}.png`),
+          ]),
+        );
+      }
+      if (isIs2(img)) {
+        const base = `/media/estudios/${study.id}/${slot}?vista=png`;
+        return Object.fromEntries(keys.map((k) => [k, `${base}&paleta=${k}`]));
+      }
+      return null;
+    };
+    /** Etiqueta clara del grupo térmico (P/C se mantiene sólo en el CSV). */
+    res.locals.grupoLabel = (g) =>
+      g === 'P' ? 'Con asimetría (P)' : g === 'C' ? 'Sin asimetría (C)' : 'Sin dato';
+    res.locals.grupoAyuda = (umbral = domain.DELTA_T_UMBRAL) =>
+      `P = Problema: alguna región supera el umbral de ΔT (${fmt.num(umbral, 1)} °C). C = Control: ninguna región lo supera. No significa sano o enfermo: todos los participantes son diabéticos.`;
+    /** «Toma 1: con asimetría → Toma 2: sin asimetría (mejoró)». */
+    res.locals.transicionGrupo = (a) => {
+      if (!a?.grupoToma1 || !a.grupo) return '';
+      const txt = (g) => (g === 'P' ? 'con asimetría' : 'sin asimetría');
+      let cambio = 'sin cambios';
+      if (a.grupoToma1 === 'P' && a.grupo === 'C') cambio = 'mejoró';
+      else if (a.grupoToma1 === 'C' && a.grupo === 'P') cambio = 'empeoró';
+      else if (a.roisQueEmpeoran?.length) cambio = 'la asimetría aumentó';
+      return `Toma 1: ${txt(a.grupoToma1)} → Toma 2: ${txt(a.grupo)} (${cambio})`;
+    };
     res.locals.domain = domain;
     res.locals.appName = config.appName;
     res.locals.currentPath = req.path;

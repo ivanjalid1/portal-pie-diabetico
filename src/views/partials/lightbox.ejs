@@ -1,0 +1,18 @@
+<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Imagen ampliada" data-palette-css="<%= JSON.stringify(thermal.PALETTE_CSS) %>">
+  <div class="lightbox__bar">
+    <div class="segmented segmented--dark" role="radiogroup" aria-label="Paleta de color" data-lightbox-palettes hidden>
+      <% Object.values(thermal.PALETTES).forEach((p) => { %>
+      <label><input type="radio" name="lb-paleta" value="<%= p.key %>"<%= p.key === thermal.DEFAULT_PALETTE ? ' checked' : '' %>><span><%= p.nombre %></span></label>
+      <% }) %>
+    </div>
+    <button type="button" class="lightbox__close icon-btn" data-lightbox-close aria-label="Cerrar"><%- include('icon', { name: 'x' }) %></button>
+  </div>
+  <figure>
+    <img alt="">
+    <div class="tscale tscale--dark" data-lightbox-scale hidden>
+      <span class="tscale__bar"></span>
+      <span class="tscale__ticks num"><span><%= thermal.CAMERA_RANGE.min %></span><span>28</span><span>31</span><span><%= thermal.CAMERA_RANGE.max %> °C</span></span>
+    </div>
+    <figcaption></figcaption>
+  </figure>
+</div>

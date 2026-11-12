@@ -18,26 +18,47 @@
   <span><%= p.edad() %> años, <%= p.sexo === 'F' ? 'femenino' : 'masculino' %></span>
   <span>DM tipo <%= p.tipoDm %>, <%= fmt.num(p.aniosEvolucionDm, 1) %> años</span>
   <span><%= p.centro %></span>
-  <% if (last) { %><%- include('../partials/risk-badge', { analysis: last.analysis, showPct: true }) %><span class="grupo grupo--<%= last.analysis.grupo %>">Grupo <%= last.analysis.grupo %></span><% } %>
+  <% if (last) { %><%- include('../partials/risk-badge', { analysis: last.analysis, showPct: true }) %><%- include('../partials/grupo', { value: last.analysis.grupo }) %><% } %>
   <% if (!p.consentimientoFirmado) { %><span class="badge badge--danger">Sin consentimiento vigente</span><% } %>
 </div>
 
 <div class="grid grid--main">
   <div class="stack-lg">
-    <section class="card">
+    <section class="card evo-card" aria-labelledby="evo-title">
       <div class="card__head">
-        <h2 class="card__title">Evolución</h2>
-        <span class="muted small">Probabilidad estimada y ΔT máximo por toma</span>
+        <h2 id="evo-title" class="card__title">Evolución entre tomas</h2>
+        <% if (last) { %><span class="small muted"><%= transicionGrupo(last.analysis) %></span><% } %>
       </div>
-      <% if (serie.length) { %>
-      <div class="chart-box skeleton" data-chart-box>
-        <canvas id="evolucion" height="220" data-chart="evolucion" data-series="<%= JSON.stringify(serie.map((s) => ({ label: `${fmt.date(s.fecha)} · toma ${s.toma}`, p: s.probabilidad, dt: s.deltaTMax }))) %>" data-umbral="<%= domain.DELTA_T_UMBRAL %>" aria-label="Gráfico de evolución de la probabilidad y del ΔT máximo"></canvas>
+      <% if (last) { const la = last.analysis; %>
+      <div class="evo-grid">
+        <div class="evo-grid__main">
+          <h3 class="card__subtitle">ΔT por región: toma 1 → toma 2</h3>
+          <%- include('../partials/dumbbell', { analysis: la, chartId: 'pd' }) %>
+          <%- include('../partials/dumbbell', { analysis: la, chartId: 'pd', small: true }) %>
+        </div>
+        <div class="evo-grid__side">
+          <h3 class="card__subtitle">Mayor diferencia entre pies</h3>
+          <%- include('../partials/slope', { serie, umbral: la.umbral }) %>
+          <h3 class="card__subtitle">Probabilidad estimada por estudio</h3>
+          <ul class="prob-list">
+            <% items.filter((i) => i.analysis).forEach(({ study, analysis }) => { const c = domain.RISK_CATEGORIES[analysis.categoria]; %>
+            <li>
+              <a href="/medico/estudios/<%= study.id %>"><span class="num"><%= fmt.date(study.fechaHora) %></span></a>
+              <span class="prob-mini" role="img" aria-label="<%= fmt.num(analysis.probabilidad, 0) %> %"><span class="prob-mini__fill prob-mini__fill--<%= c.tono %>" style="width: <%= analysis.probabilidad %>%"></span></span>
+              <strong class="num"><%= fmt.num(analysis.probabilidad, 0) %> %</strong>
+              <span class="badge badge--<%= c.tono %>"><%= c.nombre %></span>
+            </li>
+            <% }) %>
+          </ul>
+        </div>
       </div>
-      <table class="sr-only"><caption>Evolución</caption><tr><th>Fecha</th><th>Probabilidad</th><th>ΔT máx.</th></tr><% serie.forEach((s) => { %><tr><td><%= fmt.date(s.fecha) %></td><td><%= s.probabilidad %> %</td><td><%= s.deltaTMax %> °C</td></tr><% }) %></table>
+      <table class="sr-only">
+        <caption>ΔT por región en cada toma</caption>
+        <tr><th scope="col">Región</th><th scope="col">Toma 1</th><th scope="col">Toma 2</th></tr>
+        <% la.evolucion.forEach((e) => { %><tr><th scope="row"><%= domain.ROI_NAMES[e.roi] %></th><td><%= fmt.signed(e.dt1, 2) %> °C</td><td><%= fmt.signed(e.dt2, 2) %> °C</td></tr><% }) %>
+      </table>
       <% } else { %>
-      <div class="empty empty--inline">
-        <p>Sin estudios analizados todavía.</p>
-      </div>
+      <div class="empty empty--inline"><p>Sin estudios analizados todavía.</p></div>
       <% } %>
     </section>
 
@@ -68,7 +89,7 @@
             </span>
             <span class="timeline__result">
               <%- include('../partials/risk-badge', { analysis, showPct: true }) %>
-              <% if (analysis) { %><span class="grupo grupo--<%= analysis.grupo %>"><%= analysis.grupo %></span><% } %>
+              <% if (analysis) { %><span class="grupo-trans" title="<%= grupoAyuda() %>"><%- include('../partials/grupo', { value: analysis.grupoToma1, small: true }) %><span class="grupo-arrow" aria-hidden="true">→</span><%- include('../partials/grupo', { value: analysis.grupo, small: true }) %></span><% } %>
             </span>
           </a>
         </li>
@@ -178,5 +199,3 @@
     </section>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous" defer></script>
-<script src="/js/charts.js" defer></script>

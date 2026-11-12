@@ -1,0 +1,32 @@
+<%
+  // |ΔT máx| por toma (puntos unidos, etiqueta de valor en cada punto) con la
+  // franja por debajo del umbral sombreada. Un solo eje (°C).
+  const pts = serie.map((s) => ({ ...s, v: Number(s.deltaTMax) }));
+  const u = typeof umbral === 'undefined' ? domain.DELTA_T_UMBRAL : umbral;
+  const W = 320, H = 190, L = 40, R = 12, T = 22, B = 40, PAD = 44;
+  const maxV = Math.max(u + 0.5, 3, ...pts.map((p) => p.v));
+  const sx = (i) => (pts.length === 1 ? (L + W - R) / 2 : L + PAD + (i * (W - L - R - 2 * PAD)) / (pts.length - 1));
+  const sy = (v) => T + (1 - v / maxV) * (H - T - B);
+  const yTicks = [0, 1, 2, 3].filter((t) => t <= maxV);
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${sx(i).toFixed(1)} ${sy(p.v).toFixed(1)}`).join(' ');
+%>
+<figure class="slope">
+  <svg viewBox="0 0 <%= W %> <%= H %>" role="img" aria-label="Mayor diferencia de temperatura entre pies en cada toma">
+    <rect x="<%= L %>" y="<%= sy(u).toFixed(1) %>" width="<%= W - L - R %>" height="<%= (sy(0) - sy(u)).toFixed(1) %>" class="slope__band"/>
+    <text x="<%= ((L + W - R) / 2).toFixed(1) %>" y="<%= (sy(0) - 6).toFixed(1) %>" class="slope__band-label" text-anchor="middle">bajo el umbral <%= fmt.num(u, 1) %> °C</text>
+    <% yTicks.forEach((t) => { %>
+    <line x1="<%= L %>" x2="<%= W - R %>" y1="<%= sy(t).toFixed(1) %>" y2="<%= sy(t).toFixed(1) %>" class="slope__grid"/>
+    <text x="<%= L - 8 %>" y="<%= (sy(t) + 4).toFixed(1) %>" class="slope__tick" text-anchor="end"><%= t %> °C</text>
+    <% }) %>
+    <path d="<%= path %>" class="slope__line"/>
+    <% pts.forEach((p, i) => { %>
+    <g class="slope__pt slope__pt--t<%= p.toma %>">
+      <title><%= fmt.date(p.fecha) %>, toma <%= p.toma %>: <%= fmt.num(p.v, 2) %> °C</title>
+      <circle cx="<%= sx(i).toFixed(1) %>" cy="<%= sy(p.v).toFixed(1) %>" r="7"/>
+      <text x="<%= sx(i).toFixed(1) %>" y="<%= (sy(p.v) - 13).toFixed(1) %>" class="slope__value" text-anchor="middle"><%= fmt.num(p.v, 1) %> °C</text>
+      <text x="<%= sx(i).toFixed(1) %>" y="<%= H - 22 %>" class="slope__x" text-anchor="middle">Toma <%= p.toma %></text>
+      <text x="<%= sx(i).toFixed(1) %>" y="<%= H - 8 %>" class="slope__x slope__x--muted" text-anchor="middle"><%= fmt.date(p.fecha) %></text>
+    </g>
+    <% }) %>
+  </svg>
+</figure>

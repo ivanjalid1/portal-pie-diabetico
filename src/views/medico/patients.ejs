@@ -22,8 +22,8 @@
         <option value="sin_riesgo"<%= riesgo === 'sin_riesgo' ? ' selected' : '' %>>Sin riesgo</option>
       </optgroup>
       <optgroup label="Grupo térmico">
-        <option value="P"<%= riesgo === 'P' ? ' selected' : '' %>>P (Problema)</option>
-        <option value="C"<%= riesgo === 'C' ? ' selected' : '' %>>C (Control)</option>
+        <option value="P"<%= riesgo === 'P' ? ' selected' : '' %>>Con asimetría (P)</option>
+        <option value="C"<%= riesgo === 'C' ? ' selected' : '' %>>Sin asimetría (C)</option>
       </optgroup>
       <option value="sin_estudios"<%= riesgo === 'sin_estudios' ? ' selected' : '' %>>Sin estudios</option>
     </select>
@@ -72,7 +72,7 @@
           <td class="num"><%= p.edad() %> <span class="muted"><%= p.sexo %></span></td>
           <td>Tipo <%= p.tipoDm %><small class="muted block num"><%= fmt.num(p.aniosEvolucionDm, 1) %> años</small></td>
           <td><%= r.ultimoEstudio ? fmt.date(r.ultimoEstudio.fechaHora) : '—' %><% if (r.ultimoEstudio) { %><small class="muted block">Toma 1: <%= fmt.date(r.ultimoEstudio.fechaToma1) %></small><% } %></td>
-          <td><% if (r.ultimoAnalisis) { %><span class="grupo grupo--<%= r.ultimoAnalisis.grupo %>" title="<%= domain.GRUPOS_TERMICOS[r.ultimoAnalisis.grupo].descripcion %>"><%= r.ultimoAnalisis.grupo %></span><% } else { %>—<% } %></td>
+          <td><% if (r.ultimoAnalisis) { %><%- include('../partials/grupo', { value: r.ultimoAnalisis.grupo, small: true }) %><% } else { %>—<% } %></td>
           <td><%- include('../partials/risk-badge', { analysis: r.ultimoAnalisis, showPct: true }) %></td>
           <td><% if (r.proximoControl) { %><span class="<%= r.proximoControl.vencido() ? 'text-warn' : '' %>"><%= fmt.date(r.proximoControl.fecha) %></span><small class="muted block"><%= fmt.relativeDays(r.proximoControl.fecha) %></small><% } else { %>—<% } %></td>
           <td class="table__chevron"><%- include('../partials/icon', { name: 'chevronRight', size: 18 }) %></td>

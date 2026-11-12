@@ -68,6 +68,6 @@
     <span>|ΔT| 0 °C</span>
     <span class="pm-legend__bar" aria-hidden="true" style="background: <%= thermal.DELTA_LEGEND_CSS %>"></span>
     <span>3 °C</span>
-    <span class="pm-legend__note">Contorno marcado: |ΔT| ≥ <%= fmt.num(u, 1) %> °C. Números: temperatura media de la región (°C).</span>
+    <span class="pm-legend__note">Contorno marcado: |ΔT| ≥ <%= fmt.num(u, 1) %> °C.<% if (showValues) { %> Números: temperatura media de la región (°C).<% } %></span>
   </figcaption>
 </figure>

@@ -1,25 +1,32 @@
-<%- include('../partials/page-header', { heading: `Estudio del ${fmt.dateLong(study.fechaHora)}`, lead: `Compara tu primer estudio (${fmt.date(study.fechaToma1)}) con el control.`, back: { href: '/paciente/estudios', label: 'Mis estudios' } }) %>
+<%
+  const a = analysis;
+  const cat = a ? domain.RISK_CATEGORIES[a.categoria] : null;
+  const nivel = { sin_riesgo: 'bajo', moderado: 'moderado', alto: 'alto' };
+  const amable = {
+    sin_riesgo: 'La probabilidad estimada es baja. Seguí con tus cuidados de siempre.',
+    moderado: 'La probabilidad estimada es moderada. Reforzá los cuidados diarios y respetá tus controles.',
+    alto: 'La probabilidad estimada es alta. No significa que vayas a tener una herida, pero tu médico va a seguirte más de cerca.',
+  };
+  const flecha = (e) => (e.tendencia === 'empeora' ? ['↑', 'Aumentó', 'up'] : e.tendencia === 'mejora' ? ['↓', 'Disminuyó', 'down'] : ['=', 'Igual', 'eq']);
+  const d1 = a && a.deltaTMaxToma1 !== null ? Math.abs(a.deltaTMaxToma1) : null;
+  const d2 = a ? Math.abs(a.deltaTMax) : null;
+%>
+<%- include('../partials/page-header', {
+  heading: `Estudio del ${fmt.dateLong(study.fechaHora)}`,
+  lead: `Compara tu primer estudio (${fmt.date(study.fechaToma1)}) con el control.`,
+  back: { href: '/paciente/estudios', label: 'Mis estudios' },
+  actions: a ? `<a class="btn btn--primary" href="/paciente/estudios/${study.id}/informe" target="_blank" rel="noopener">${include('../partials/icon', { name: 'download', size: 18 })}Descargar informe (PDF)</a>` : ''
+}) %>
 
 <div class="grid grid--2">
-  <section class="card patient-status<%= analysis ? ' patient-status--' + domain.RISK_CATEGORIES[analysis.categoria].tono : '' %>" aria-labelledby="res-title">
+  <section class="card patient-status<%= a ? ' patient-status--' + cat.tono : '' %>" aria-labelledby="res-title">
     <h2 id="res-title" class="card__title">Resultado</h2>
-    <% if (analysis) { const cat = domain.RISK_CATEGORIES[analysis.categoria]; %>
+    <% if (a) { %>
     <p class="patient-status__level"><span class="dot dot--<%= cat.tono %>" aria-hidden="true"></span><%= cat.paciente %></p>
     <p><%= cat.mensajePaciente %></p>
-    <% if (analysis.roisQueEmpeoran && analysis.roisQueEmpeoran.length) { %>
-    <p>Desde tu primer estudio, la diferencia de temperatura entre tus pies aumentó en alguna zona. Por eso es importante el control.</p>
-    <% } else if (analysis.tieneToma1) { %>
-    <p>Desde tu primer estudio, la temperatura de tus pies se mantuvo estable o mejoró.</p>
-    <% } %>
-    <% if (analysis.grupo === 'P') { %>
-    <p class="muted">En alguna zona de la planta, un pie estuvo más caliente que el otro. Esto puede indicar inflamación antes de que aparezca una herida, por eso es importante el seguimiento.</p>
     <% } else { %>
-    <p class="muted">La temperatura de ambos pies fue parecida en todas las zonas medidas.</p>
+    <p>Tu médico todavía está revisando este estudio. Cuando lo habilite vas a ver el resultado y tu informe aquí.</p>
     <% } %>
-    <% } else { %>
-    <p>Tu médico todavía está revisando este estudio. Cuando lo habilite vas a ver el resultado aquí.</p>
-    <% } %>
-    <p class="notice notice--info small"><%- include('../partials/icon', { name: 'info', size: 18 }) %><span>Este resultado es orientativo y forma parte de un proyecto de investigación. Tu médico es quien interpreta el estudio junto con tu revisión clínica.</span></p>
   </section>
 
   <section class="card" aria-labelledby="next-title">
@@ -29,25 +36,73 @@
     <% } else { %>
     <p class="muted">Sin fecha programada.</p>
     <% } %>
-    <a class="btn btn--ghost" href="/paciente/autocuidado">Ver cuidados de los pies</a>
+    <a class="btn btn--ghost" href="/paciente/controles">Ver mis controles</a>
   </section>
 </div>
 
 <section class="card" aria-labelledby="img-title">
   <h2 id="img-title" class="card__title">Tus imágenes</h2>
-  <p class="muted small">Tocá una imagen para verla más grande. En la termografía, los colores claros indican zonas más calientes.</p>
+  <p class="muted small">Tocá una imagen para verla más grande. Los colores más cálidos (amarillo, rojo, blanco) indican zonas más calientes.</p>
   <div class="image-pair">
-    <% imageSlots.forEach((sl) => { const img = study.image(sl.slot); %>
-    <figure class="image-tile">
-      <% if (img && canPreview(img)) { %>
-      <button type="button" class="image-tile__btn" data-lightbox="<%= imageUrl(study, sl.slot) %>" data-caption="<%= sl.titulo %>">
-        <img src="<%= imageUrl(study, sl.slot) %>" alt="<%= sl.titulo %>" decoding="async" width="320" height="240">
-      </button>
-      <% } else if (img) { %>
-      <a class="image-tile__file" href="<%= imageUrl(study, sl.slot) %>"><%- include('../partials/icon', { name: 'file', size: 28 }) %><span>Descargar archivo</span></a>
-      <% } %>
-      <figcaption><%= sl.titulo %></figcaption>
-    </figure>
+    <% imageSlots.forEach((sl) => { %>
+    <%- include('../partials/thermo-tile', { study, sl, label: sl.toma === 1 ? 'Primer estudio' : 'Control', sub: sl.toma === 1 ? fmt.date(study.fechaToma1) : fmt.date(study.fechaHora) }) %>
     <% }) %>
   </div>
 </section>
+
+<% if (a) { %>
+<section class="card report-card" aria-labelledby="inf-title">
+  <div class="card__head">
+    <h2 id="inf-title" class="card__title">Tu informe</h2>
+    <a class="link" href="/paciente/estudios/<%= study.id %>/informe" target="_blank" rel="noopener">Versión para imprimir</a>
+  </div>
+
+  <div class="report-card__grid">
+    <div class="report-card__prob">
+      <span class="small muted">Probabilidad estimada de úlcera en las próximas <%= a.horizonteSemanas %> semanas</span>
+      <div class="prob-bar" role="img" aria-label="<%= fmt.num(a.probabilidad, 0) %> por ciento, nivel <%= nivel[a.categoria] %>">
+        <span class="prob-bar__fill prob-bar__fill--<%= cat.tono %>" style="width: <%= Math.max(3, a.probabilidad) %>%"></span>
+        <span class="prob-bar__cut" style="left: <%= domain.RISK_CUTS.moderado %>%"></span>
+        <span class="prob-bar__cut" style="left: <%= domain.RISK_CUTS.alto %>%"></span>
+      </div>
+      <div class="prob-bar__legend small"><span>Bajo</span><span>Moderado</span><span>Alto</span></div>
+      <p class="report-card__big"><strong class="num"><%= fmt.num(a.probabilidad, 0) %> %</strong> <span class="badge badge--<%= cat.tono %>">Nivel <%= nivel[a.categoria] %></span></p>
+      <p class="small"><%= amable[a.categoria] %></p>
+    </div>
+
+    <div class="report-card__delta">
+      <span class="small muted">Mayor diferencia de temperatura entre tus pies</span>
+      <div class="delta-compare">
+        <div><small>Primer estudio</small><strong class="num"><%= d1 !== null ? fmt.num(d1, 1) : '—' %> °C</strong></div>
+        <span class="delta-compare__arrow <%= d1 !== null && d2 > d1 + 0.05 ? 'is-up' : d1 !== null && d2 < d1 - 0.05 ? 'is-down' : '' %>" aria-hidden="true"><%= d1 !== null && d2 > d1 + 0.05 ? '↑' : d1 !== null && d2 < d1 - 0.05 ? '↓' : '=' %></span>
+        <div><small>Control</small><strong class="num"><%= fmt.num(d2, 1) %> °C</strong></div>
+      </div>
+      <p class="small"><%= d1 === null ? '' : d2 > d1 + 0.05 ? 'La diferencia aumentó desde tu primer estudio.' : d2 < d1 - 0.05 ? 'La diferencia disminuyó desde tu primer estudio.' : 'La diferencia se mantuvo igual.' %> Diferencias de más de <%= fmt.num(a.umbral, 1) %> °C merecen atención.</p>
+    </div>
+
+    <div class="report-card__map">
+      <span class="small muted">Tu control: zonas con más diferencia</span>
+      <%- include('../partials/plantar-map', { rois: a.rois, umbral: a.umbral, mapId: 'pac', values: false }) %>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table table--simple">
+      <caption class="sr-only">Diferencia de temperatura por zona del pie</caption>
+      <thead><tr><th scope="col">Zona del pie</th><th scope="col">Primer estudio</th><th scope="col">Control</th><th scope="col">Cambio</th></tr></thead>
+      <tbody>
+        <% a.evolucion.filter((e) => e.roi !== 'general').forEach((e) => { const [sym, txt, cls] = flecha(e); %>
+        <tr>
+          <th scope="row"><%= domain.ROI_NAMES[e.roi] %></th>
+          <td class="num"><%= fmt.num(Math.abs(e.dt1), 1) %> °C</td>
+          <td class="num"><%= fmt.num(Math.abs(e.dt2), 1) %> °C</td>
+          <td class="nowrap"><span class="trend-sym trend-sym--<%= cls %>" aria-hidden="true"><%= sym %></span> <span class="trend-txt"><%= txt %></span></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="notice notice--info small"><%- include('../partials/icon', { name: 'info', size: 18 }) %><span>Este resultado es orientativo y forma parte de un proyecto de investigación. Es un resultado simulado: el análisis automático de las imágenes todavía está en desarrollo. Tu médico es quien interpreta el estudio junto con tu revisión clínica.</span></p>
+</section>
+<% } %>

@@ -76,7 +76,7 @@
       <% if (analysis) { %>
       <a class="control-card__study" href="/medico/estudios/<%= appt.studyId %>">
         <span class="small muted">Estudio comparativo</span>
-        <span class="control-card__groups"><span class="grupo grupo--sm grupo--<%= analysis.grupoToma1 %>"><%= analysis.grupoToma1 %></span><span class="grupo-arrow">→</span><span class="grupo grupo--<%= analysis.grupo %>"><%= analysis.grupo %></span></span>
+        <span class="control-card__groups"><span class="grupo-trans" title="<%= grupoAyuda() %>"><%- include('../partials/grupo', { value: analysis.grupoToma1, small: true }) %><span class="grupo-arrow" aria-hidden="true">→</span><%- include('../partials/grupo', { value: analysis.grupo, small: true }) %></span></span>
         <span class="small"><%= analysis.roisQueEmpeoran.length ? `Asimetría +${fmt.num(analysis.maxEmpeoramiento, 1)} °C` : 'Asimetría estable' %></span>
         <%- include('../partials/risk-badge', { analysis, showPct: true }) %>
       </a>

@@ -70,9 +70,6 @@
     </div>
   </div>
   <%- include('../partials/flash') %>
-  <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Imagen ampliada">
-    <button type="button" class="lightbox__close icon-btn" data-lightbox-close aria-label="Cerrar"><%- include('../partials/icon', { name: 'x' }) %></button>
-    <figure><img alt=""><figcaption></figcaption></figure>
-  </div>
+  <%- include('../partials/lightbox') %>
 </body>
 </html>

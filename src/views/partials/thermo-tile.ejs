@@ -1,0 +1,27 @@
+<%
+  // Termografía con visor (lightbox), selector de paleta y barra de escala en °C.
+  const img = study.image(sl.slot);
+  const pals = imagePalettes(study, sl.slot);
+  const R = thermal.CAMERA_RANGE;
+  const caption = typeof label === 'undefined' ? sl.titulo : label;
+%>
+<figure class="image-tile">
+  <% if (img && canPreview(img)) { %>
+  <button type="button" class="image-tile__btn" data-lightbox="<%= imageUrl(study, sl.slot) %>" data-caption="<%= caption %>"<% if (pals) { %> data-palettes="<%= JSON.stringify(pals) %>"<% } %> aria-label="Ampliar: <%= caption %>">
+    <img src="<%= imageUrl(study, sl.slot) %>" alt="<%= caption %>" width="800" height="600" decoding="async">
+    <span class="image-tile__badge image-tile__badge--t<%= sl.toma %>"><%= sl.etiqueta %></span>
+    <span class="image-tile__zoom" aria-hidden="true"><%- include('icon', { name: 'search', size: 16 }) %></span>
+  </button>
+  <% if (pals) { %>
+  <div class="tscale" aria-label="Escala de temperatura aproximada de <%= R.min %> a <%= R.max %> °C">
+    <span class="tscale__bar" style="background: <%= thermal.PALETTE_CSS[thermal.DEFAULT_PALETTE] %>"></span>
+    <span class="tscale__ticks num"><span><%= R.min %></span><span><%= Math.round((R.min * 2 + R.max) / 3) %></span><span><%= Math.round((R.min + R.max * 2) / 3) %></span><span><%= R.max %> °C</span></span>
+  </div>
+  <% } %>
+  <% } else if (img) { %>
+  <a class="image-tile__file" href="<%= imageUrl(study, sl.slot) %>"><%- include('icon', { name: 'file', size: 28 }) %><span><%= img.originalName %></span><small>Descargar (<%= fmt.bytes(img.size) %>)</small></a>
+  <% } else { %>
+  <div class="image-tile__file"><span>Sin imagen</span></div>
+  <% } %>
+  <figcaption><%= caption %><% if (typeof sub !== 'undefined' && sub) { %> · <%= sub %><% } %></figcaption>
+</figure>

@@ -3,7 +3,7 @@
 const AppointmentService = require('../services/AppointmentService');
 const { CENTRO_NOMBRES, IMAGE_SLOTS, CENTROS } = require('../config/domain');
 const { buildCsv, buildControlesCsv } = require('../utils/csv');
-const { controlesFilterSchema } = require('../validators/schemas');
+const { controlesFilterSchema, estudiosFilterSchema } = require('../validators/schemas');
 const { sniffImageType } = require('../validators/imageValidator');
 const { is2PreviewPng } = require('../imaging/thermogram');
 const { EVENTS } = require('../utils/eventBus');
@@ -145,6 +145,26 @@ function createMedicoController({
     },
 
     /* ---------- Estudios ---------- */
+
+    async studies(req, res) {
+      const filters = estudiosFilterSchema.parse(req.query);
+      const result = await studyService.searchForMedico(req.user.id, filters);
+      res.render('medico/studies', { title: 'Estudios realizados', filters, ...result });
+    },
+
+    async exportStudies(req, res) {
+      const filters = estudiosFilterSchema.parse(req.query);
+      const { all } = await studyService.searchForMedico(req.user.id, filters);
+      events.publish(EVENTS.DATA_EXPORTED, {
+        actor: actor(req),
+        entity: 'estudio',
+        detail: `CSV de estudios · ${all.length} filas`,
+      });
+      const stamp = new Date().toISOString().slice(0, 10);
+      res.set('Content-Type', 'text/csv; charset=utf-8');
+      res.set('Content-Disposition', `attachment; filename="termopie-estudios-${stamp}.csv"`);
+      res.send(buildCsv(all));
+    },
 
     async newStudy(req, res) {
       const rows = await patientService.listForMedico(req.user.id);

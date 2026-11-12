@@ -2,6 +2,7 @@
 
 const { IMAGE_SLOTS, EXCLUSION_CRITERIA } = require('../config/domain');
 const { SELF_CARE } = require('../config/selfCare');
+const { NotFoundError } = require('../utils/errors');
 
 /** Portal del paciente: lenguaje simple, sin métricas crudas del modelo. */
 function createPacienteController({ studyService, appointmentService, patientService }) {
@@ -29,6 +30,12 @@ function createPacienteController({ studyService, appointmentService, patientSer
       const data = await studyService.getForPaciente(req.params.id, req.user.id);
       const proximo = await appointmentService.nextForPatient(data.patient.id);
       res.render('paciente/study-detail', { title: 'Detalle del estudio', ...data, proximo, imageSlots: IMAGE_SLOTS });
+    },
+
+    async report(req, res) {
+      const data = await studyService.getForPaciente(req.params.id, req.user.id);
+      if (!data.analysis) throw new NotFoundError('El informe todavía no está disponible.');
+      res.render('paciente/report', { layout: false, title: 'Mi informe', ...data, imageSlots: IMAGE_SLOTS });
     },
 
     async controles(req, res) {

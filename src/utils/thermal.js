@@ -18,25 +18,11 @@ const IRONBOW = [
 ];
 
 /**
- * Aproximación de la paleta «High Contrast» de Fluke (la configurada en la
- * cámara del estudio): negro → violeta → azul → cian → verde → amarillo →
- * naranja → rojo → blanco. Calibrada visualmente contra el render de la cámara.
+ * Paleta «High Contrast» de Fluke (la configurada en la cámara del estudio).
+ * LUT de 256 colores derivada empíricamente del render de la cámara (ver
+ * src/config/palettes/high-contrast.json y docs/despliegue.md).
  */
-const HIGH_CONTRAST = [
-  [0.0, [0, 0, 0]],
-  [0.08, [40, 8, 70]],
-  [0.18, [96, 20, 160]],
-  [0.28, [40, 50, 210]],
-  [0.38, [0, 130, 235]],
-  [0.47, [0, 200, 220]],
-  [0.56, [20, 190, 90]],
-  [0.65, [150, 220, 20]],
-  [0.73, [250, 230, 0]],
-  [0.82, [255, 150, 0]],
-  [0.91, [235, 30, 20]],
-  [0.97, [255, 140, 170]],
-  [1.0, [255, 255, 255]],
-];
+const HIGH_CONTRAST = require('../config/palettes/high-contrast.json').lut.map((c, i) => [i / 255, c]);
 
 const GRAYS = [
   [0, [0, 0, 0]],
@@ -57,7 +43,9 @@ function interpolate(stops, t) {
 }
 
 const ironbow = (t) => interpolate(IRONBOW, t);
-const highContrast = (t) => interpolate(HIGH_CONTRAST, t);
+const HC_LUT = HIGH_CONTRAST.map(([, c]) => c);
+/** Búsqueda directa en la LUT de 256 entradas (rápida para renderizar). */
+const highContrast = (t) => HC_LUT[Math.max(0, Math.min(255, Math.round((Number.isFinite(t) ? t : 0) * 255)))];
 const grays = (t) => interpolate(GRAYS, t);
 
 /** Paletas disponibles para renderizar termogramas (la primera es la predeterminada). */
@@ -75,14 +63,15 @@ const hex = (rgb) => `#${rgb.map((v) => v.toString(16).padStart(2, '0')).join(''
 
 /** Gradiente CSS de una escala (para leyendas). */
 function cssGradient(stops, from = 0, to = 1) {
+  const step = stops.length > 32 ? Math.ceil(stops.length / 24) : 1;
   const parts = stops
-    .filter(([p]) => p >= from && p <= to)
+    .filter(([p], i) => p >= from && p <= to && (i % step === 0 || i === stops.length - 1))
     .map(([p, c]) => `${hex(c)} ${Math.round(((p - from) / (to - from)) * 100)}%`);
   return `linear-gradient(90deg, ${parts.join(', ')})`;
 }
 
 /** Rango de la escala usado por el mapa: |ΔT| 0 °C → 0,06; 3 °C → 0,94. */
-const DELTA_SCALE = Object.freeze({ from: 0.3, to: 0.95, max: 3 });
+const DELTA_SCALE = Object.freeze({ from: 0.3, to: 0.88, max: 3 });
 
 /** Color para una diferencia contralateral |ΔT| (0 °C → frío, ≥3 °C → caliente). */
 function deltaColor(delta, max = DELTA_SCALE.max) {

@@ -179,7 +179,7 @@ class StudyService {
   }
 
   /** Autoriza y resuelve el acceso a una imagen de estudio. */
-  async getImageAccess(studyId, slot, user, { render = false } = {}) {
+  async getImageAccess(studyId, slot, user, { render = false, palette } = {}) {
     const study = await this.studies.findById(studyId);
     if (!study) throw new NotFoundError('La imagen no existe.');
     if (user.role === ROLES.MEDICO) {
@@ -198,11 +198,57 @@ class StudyService {
     if (render && image.mime === 'application/x-fluke-is2') {
       const buffer = await this.files.read(image.storagePath);
       if (!buffer) throw new NotFoundError('La imagen no está disponible.');
-      return { type: 'buffer', buffer: is2PreviewPng(buffer), mime: 'image/png' };
+      return { type: 'buffer', buffer: is2PreviewPng(buffer, { palette }), mime: 'image/png' };
     }
     const access = await this.files.getAccess(image.storagePath, { download: image.originalName });
     if (!access) throw new NotFoundError('La imagen no está disponible.');
     return { ...access, filename: image.originalName, mime: access.mime || image.mime };
+  }
+
+  /**
+   * Listado de estudios del médico con búsqueda por nombre, apellido o código
+   * (los nombres vienen del perfil, vía PatientView: funciona igual en ambos
+   * drivers), filtros, orden y paginación.
+   */
+  async searchForMedico(medicoId, f = {}) {
+    const { normalize } = require('../utils/text');
+    const [rows, studies] = await Promise.all([
+      this.patientService.listForMedico(medicoId),
+      this.studies.listByMedico(medicoId),
+    ]);
+    const byPatient = new Map(rows.map((r) => [r.patient.id, r.patient]));
+    const analyses = await this.analysisService.analyses.listByStudyIds(studies.map((st) => st.id));
+    const aByStudy = new Map(analyses.map((a) => [a.studyId, a]));
+    const q = normalize(f.q);
+    let items = studies
+      .map((study) => ({ study, patient: byPatient.get(study.patientId), analysis: aByStudy.get(study.id) || null }))
+      .filter((i) => i.patient && i.analysis);
+    const centros = [...new Set(items.map((i) => i.study.centro).filter(Boolean))].sort();
+    items = items.filter(({ study, patient, analysis }) => {
+      if (q && !normalize(`${patient.codigo} ${patient.nombre} ${patient.apellido}`).includes(q)) return false;
+      if (f.desde && new Date(study.fechaHora) < new Date(`${f.desde}T00:00:00-03:00`)) return false;
+      if (f.hasta && new Date(study.fechaHora) > new Date(`${f.hasta}T23:59:59-03:00`)) return false;
+      if (f.centro && study.centro !== f.centro) return false;
+      if (f.riesgo && analysis.categoria !== f.riesgo) return false;
+      if (f.grupo && analysis.grupo !== f.grupo) return false;
+      if (f.publicado && (f.publicado === 'si') !== study.publicado) return false;
+      if (f.desenlace && (f.desenlace === 'con') !== (patient.generoLesion !== null)) return false;
+      return true;
+    });
+    const keys = {
+      fecha: (i) => new Date(i.study.fechaHora).getTime(),
+      codigo: (i) => i.patient.codigo,
+      probabilidad: (i) => i.analysis.probabilidad,
+      dt: (i) => Math.abs(i.analysis.deltaTMax),
+    };
+    const key = keys[f.orden] || keys.fecha;
+    const dir = f.dir === 'asc' ? 1 : -1;
+    items.sort((a, b) => (key(a) > key(b) ? dir : key(a) < key(b) ? -dir : 0));
+    const total = items.length;
+    const size = f.size || 10;
+    const pages = Math.max(1, Math.ceil(total / size));
+    const page = Math.min(Math.max(1, f.page || 1), pages);
+    return { all: items, items: items.slice((page - 1) * size, page * size), total, page, pages, centros };
   }
 
   async count() {

@@ -46,14 +46,54 @@ class DashboardService {
       patient: pById.get(study.patientId),
       analysis: aByStudy.get(study.id) || null,
     }));
-    const proximosControles = pendientes.slice(0, 6).map((appt) => ({ appt, patient: pById.get(appt.patientId) }));
+    const proximosControles = pendientes
+      .filter((a) => !a.vencido(now))
+      .slice(0, 5)
+      .map((appt) => ({ appt, patient: pById.get(appt.patientId) }));
     // Pacientes con al menos un estudio cuyo desenlace (¿generó lesión?) aún no se registró.
     const conEstudio = new Set(studies.map((s) => s.patientId));
     const sinDesenlace = patients.filter((p) => conEstudio.has(p.id) && p.generoLesion === null).length;
     const grupos = { P: 0, C: 0 };
     for (const a of ultimo.values()) if (a.grupo) grupos[a.grupo] += 1;
 
+    // Series mensuales (6 meses) para tendencias y sparklines.
+    const meses = [];
+    for (let i = 5; i >= 0; i -= 1) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      const inMonth = (iso) => new Date(iso) >= d && new Date(iso) < next;
+      meses.push({
+        mes: d.toISOString(),
+        estudios: studies.filter((s) => inMonth(s.fechaHora)).length,
+        pacientes: patients.filter((p) => new Date(p.createdAt) < next).length,
+        controles: appts.filter((a) => a.estado === 'realizado' && a.realizadoEn && inMonth(a.realizadoEn)).length,
+      });
+    }
+    const prev = meses[meses.length - 2];
+    const cur = meses[meses.length - 1];
+
+    // Pacientes cuya asimetría aumentó entre tomas (último estudio).
+    const empeorando = [];
+    for (const [patientId, a] of ultimo.entries()) {
+      if (a.roisQueEmpeoran.length) {
+        const study = studies.find((s) => s.id === a.studyId);
+        empeorando.push({ patient: pById.get(patientId), analysis: a, study });
+      }
+    }
+    empeorando.sort((x, y) => y.analysis.maxEmpeoramiento - x.analysis.maxEmpeoramiento);
+    const vencidos = pendientes
+      .filter((a) => a.vencido(now))
+      .map((appt) => ({ appt, patient: pById.get(appt.patientId) }));
+
     return {
+      meses,
+      tendencias: {
+        estudios: cur.estudios - prev.estudios,
+        pacientes: cur.pacientes - prev.pacientes,
+        controles: cur.controles - prev.controles,
+      },
+      empeorando: empeorando.filter((e) => e.patient).slice(0, 5),
+      vencidos: vencidos.filter((v) => v.patient),
       kpis: {
         pacientes: patients.length,
         estudiosMes,

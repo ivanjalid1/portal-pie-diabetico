@@ -1,15 +1,45 @@
 {
-  "_descripcion": "Pares toma 1 / toma 2 usados para las imágenes demo. Rutas relativas a tesis-2026info/ (carpeta privada, no versionada). Emparejados por código de paciente y verificados por fecha de captura (28–41 días entre tomas). Sólo códigos: nunca nombres.",
+  "_descripcion": "Pares demo toma 1 / toma 2 (termogramas reales anonimizados). El origen de cada par está en scripts/demo-pairs.local.json, que es local y no se versiona.",
   "pares": [
-    { "par": 1, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
-    { "par": 2, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
-    { "par": 3, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
-    { "par": 4, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
-    { "par": 5, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
-    { "par": 6, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
-    { "par": 7, "toma1": "<carpeta privada>/<carpeta privada>/HC/DEMO-007/IR_xxxxx.IS2", "toma2": "<privado>" },
-    { "par": 8, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" },
-    { "par": 9, "toma1": "<carpeta privada>/<carpeta privada>/HC/DEMO-008/IR_xxxxx.IS2", "toma2": "<privado>" },
-    { "par": 10, "toma1": "<carpeta privada>/<carpeta privada>/HC/P.HCxxx/IR_xxxxx.IS2", "toma2": "<privado>" }
+    {
+      "par": 1,
+      "diasEntreTomasAprox": 31
+    },
+    {
+      "par": 2,
+      "diasEntreTomasAprox": 31
+    },
+    {
+      "par": 3,
+      "diasEntreTomasAprox": 31
+    },
+    {
+      "par": 4,
+      "diasEntreTomasAprox": 31
+    },
+    {
+      "par": 5,
+      "diasEntreTomasAprox": 41
+    },
+    {
+      "par": 6,
+      "diasEntreTomasAprox": 41
+    },
+    {
+      "par": 7,
+      "diasEntreTomasAprox": 34
+    },
+    {
+      "par": 8,
+      "diasEntreTomasAprox": 38
+    },
+    {
+      "par": 9,
+      "diasEntreTomasAprox": 29
+    },
+    {
+      "par": 10,
+      "diasEntreTomasAprox": 31
+    }
   ]
 }

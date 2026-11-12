@@ -1,0 +1,40 @@
+<%
+  // Dumbbell: ΔT por región en la toma 1 (violeta) y en la toma 2 (verde azulado),
+  // un único eje en °C con banda del umbral ±u. ΔT = derecho − izquierdo.
+  const rows = (analysis.evolucion || []).filter((e) => e.roi !== 'general');
+  const u = analysis.umbral;
+  const ext = Math.max(2, Math.ceil(Math.max(u + 0.5, ...rows.flatMap((e) => [Math.abs(e.dt1), Math.abs(e.dt2)])) * 2) / 2);
+  const compact = typeof small !== 'undefined' && small;
+  const W = compact ? 340 : 560, L = compact ? 96 : 118, R = compact ? 38 : 46, rowH = compact ? 36 : 34, top = compact ? 34 : 30, H = top + rows.length * rowH + 30;
+  const sx = (v) => L + ((v + ext) / (2 * ext)) * (W - L - R);
+  const ticks = [];
+  for (let t = -ext; t <= ext + 1e-9; t += ext >= 2 ? 1 : 0.5) ticks.push(Math.round(t * 10) / 10);
+  const uid = typeof chartId === 'undefined' ? 'db' : chartId;
+%>
+<figure class="dumbbell<%= compact ? ' dumbbell--compact' : ' dumbbell--wide' %>">
+  <svg viewBox="0 0 <%= W %> <%= H %>" role="img" aria-labelledby="<%= uid %><%= compact ? 'c' : '' %>-t">
+    <title id="<%= uid %><%= compact ? 'c' : '' %>-t">Diferencia de temperatura por región en la toma 1 y en la toma 2</title>
+    <rect x="<%= sx(-u).toFixed(1) %>" y="<%= top - 8 %>" width="<%= (sx(u) - sx(-u)).toFixed(1) %>" height="<%= rows.length * rowH + 4 %>" class="dumbbell__band"/>
+    <% ticks.forEach((t) => { %>
+    <line x1="<%= sx(t).toFixed(1) %>" x2="<%= sx(t).toFixed(1) %>" y1="<%= top - 8 %>" y2="<%= top + rows.length * rowH - 4 %>" class="dumbbell__grid<%= t === 0 ? ' dumbbell__grid--zero' : '' %>"/>
+    <text x="<%= sx(t).toFixed(1) %>" y="<%= top + rows.length * rowH + 12 %>" class="dumbbell__tick" text-anchor="middle"><%= t > 0 ? '+' : '' %><%= fmt.num(t, ext >= 2 ? 0 : 1) %></text>
+    <% }) %>
+    <text x="<%= sx(0).toFixed(1) %>" y="<%= top - 14 %>" class="dumbbell__axis" text-anchor="middle"><%= compact ? '← izq. más caliente · der. más caliente →' : '← izquierdo más caliente · derecho más caliente →' %></text>
+    <% rows.forEach((e, i) => { const cy = top + i * rowH + rowH / 2 - 4; const x1 = sx(e.dt1), x2 = sx(e.dt2); %>
+    <g class="dumbbell__row<%= e.tendencia === 'empeora' ? ' is-worse' : '' %>">
+      <title><%= domain.ROI_NAMES[e.roi] %>: toma 1 <%= fmt.signed(e.dt1, 2) %> °C → toma 2 <%= fmt.signed(e.dt2, 2) %> °C (<%= e.tendencia === 'empeora' ? 'empeora' : e.tendencia === 'mejora' ? 'mejora' : 'estable' %>)</title>
+      <rect x="0" y="<%= cy - rowH / 2 + 2 %>" width="<%= W %>" height="<%= rowH - 4 %>" class="dumbbell__hit"/>
+      <text x="<%= L - 12 %>" y="<%= cy + 4 %>" class="dumbbell__label" text-anchor="end"><%= domain.ROI_NAMES[e.roi] %></text>
+      <line x1="<%= x1.toFixed(1) %>" x2="<%= x2.toFixed(1) %>" y1="<%= cy %>" y2="<%= cy %>" class="dumbbell__link"/>
+      <circle cx="<%= x1.toFixed(1) %>" cy="<%= cy %>" r="6" class="dumbbell__t1"/>
+      <circle cx="<%= x2.toFixed(1) %>" cy="<%= cy %>" r="6" class="dumbbell__t2"/>
+      <text x="<%= W - 6 %>" y="<%= cy + 4 %>" class="dumbbell__value" text-anchor="end"><%= fmt.signed(e.dt2, 1) %></text>
+    </g>
+    <% }) %>
+  </svg>
+  <figcaption class="chart-legend">
+    <span><span class="chart-key chart-key--t1"></span>Toma 1</span>
+    <span><span class="chart-key chart-key--t2"></span>Toma 2</span>
+    <span><span class="chart-key chart-key--band"></span>|ΔT| &lt; <%= fmt.num(u, 1) %> °C (umbral)</span>
+  </figcaption>
+</figure>

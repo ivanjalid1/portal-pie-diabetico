@@ -115,6 +115,8 @@ function buildRoutes(container) {
     medico.revokeConsent,
   );
 
+  m.get('/estudios', medico.studies);
+  m.get('/estudios/exportar.csv', medico.exportStudies);
   m.get('/estudios/nuevo', medico.newStudy);
   m.post(
     '/estudios',
@@ -155,6 +157,7 @@ function buildRoutes(container) {
   p.get('/', paciente.home);
   p.get('/estudios', paciente.studies);
   p.get('/estudios/:id', paciente.studyDetail);
+  p.get('/estudios/:id/informe', paciente.report);
   p.get('/controles', paciente.controles);
   p.get('/autocuidado', paciente.selfCare);
   p.get('/datos', paciente.myData);

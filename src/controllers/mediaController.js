@@ -6,6 +6,7 @@ function createMediaController({ studyService }) {
     async studyImage(req, res) {
       const access = await studyService.getImageAccess(req.params.studyId, req.params.slot, req.user, {
         render: req.query.vista === 'png',
+        palette: ['alto_contraste', 'ironbow', 'grises'].includes(req.query.paleta) ? req.query.paleta : undefined,
       });
       res.set('Cache-Control', 'private, no-store');
       if (access.type === 'redirect') return res.redirect(302, access.url);

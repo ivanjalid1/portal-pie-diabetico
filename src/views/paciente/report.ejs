@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %> · <%= appName %></title>
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap">
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/print.css">
+  <script src="/js/report.js" defer></script>
+</head>
+<body class="report">
+  <% const a = analysis; const s = study; const p = patient; const cat = domain.RISK_CATEGORIES[a.categoria]; const nivel = { sin_riesgo: 'bajo', moderado: 'moderado', alto: 'alto' }; %>
+  <div class="report__toolbar no-print">
+    <button type="button" class="btn btn--primary" data-print><%- include('../partials/icon', { name: 'printer', size: 18 }) %>Imprimir o guardar como PDF</button>
+    <a class="btn btn--ghost" href="/paciente/estudios/<%= s.id %>">Volver</a>
+  </div>
+  <article class="report__page">
+    <header class="report__head">
+      <div class="brand"><img src="/img/logo.svg" alt="" width="36" height="36"><span class="brand__text"><strong><%= appName %></strong><small>Termografía plantar</small></span></div>
+      <div class="report__meta"><strong>Mi informe de termografía</strong><span><%= p.nombreCompleto %> · <%= fmt.dateLong(s.fechaHora) %></span></div>
+    </header>
+    <p class="report__disclaimer">Resultado orientativo y simulado, parte de un proyecto de investigación (FCEFyN – UNC). No es un diagnóstico: tu médico interpreta el estudio junto con tu revisión clínica.</p>
+
+    <section class="report__result">
+      <div class="report__big">
+        <span class="label">Probabilidad estimada de úlcera (<%= a.horizonteSemanas %> semanas)</span>
+        <span class="num report__pct"><%= fmt.num(a.probabilidad, 0) %> %</span>
+        <span class="badge badge--<%= cat.tono %>">Nivel <%= nivel[a.categoria] %></span>
+      </div>
+      <div class="report__big">
+        <span class="label">Mayor diferencia entre pies</span>
+        <span class="num report__pct"><%= a.deltaTMaxToma1 !== null ? fmt.num(Math.abs(a.deltaTMaxToma1), 1) : '—' %> → <%= fmt.num(Math.abs(a.deltaTMax), 1) %> °C</span>
+        <span>Primer estudio → control</span>
+      </div>
+      <div class="report__big">
+        <span class="label">Qué significa</span>
+        <span><%= cat.mensajePaciente %></span>
+      </div>
+    </section>
+
+    <section class="report__grid">
+      <figure class="report__map"><figcaption>Zonas con más diferencia en el control</figcaption><%- include('../partials/plantar-map', { rois: a.rois, umbral: a.umbral, mapId: 'prep', values: false }) %></figure>
+      <table class="table table--dense">
+        <thead><tr><th scope="col">Zona</th><th scope="col">Primer estudio</th><th scope="col">Control</th><th scope="col">Cambio</th></tr></thead>
+        <tbody>
+          <% a.evolucion.filter((e) => e.roi !== 'general').forEach((e) => { %>
+          <tr><th scope="row"><%= domain.ROI_NAMES[e.roi] %></th><td class="num"><%= fmt.num(Math.abs(e.dt1), 1) %> °C</td><td class="num"><%= fmt.num(Math.abs(e.dt2), 1) %> °C</td><td><%= e.tendencia === 'empeora' ? '↑ aumentó' : e.tendencia === 'mejora' ? '↓ disminuyó' : '= igual' %></td></tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="report__images">
+      <% imageSlots.forEach((sl) => { const img = s.image(sl.slot); if (img && canPreview(img)) { %>
+      <figure><img src="<%= imageUrl(s, sl.slot) %>" alt="<%= sl.toma === 1 ? 'Primer estudio' : 'Control' %>"><figcaption><%= sl.toma === 1 ? 'Primer estudio' : 'Control' %></figcaption></figure>
+      <% } }) %>
+    </section>
+
+    <section>
+      <h2>Cuidados de todos los días</h2>
+      <p>Revisá tus pies todos los días, usá calzado cómodo y cerrado, no camines descalzo y consultá enseguida si notás una herida, una zona más caliente, roja o hinchada.</p>
+    </section>
+    <footer class="report__foot"><p>Documento con datos de salud: tratamiento confidencial (Leyes 25.326 y 26.529).</p></footer>
+  </article>
+</body>
+</html>

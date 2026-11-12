@@ -249,6 +249,23 @@ const appointmentStatusSchema = z
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
+const optDay = () => z.preprocess((v) => (f.empty(v) ? undefined : v), z.string().regex(ISO_DAY).optional()).catch(undefined);
+
+/** Filtros del listado «Estudios realizados» (valores inválidos se ignoran). */
+const estudiosFilterSchema = z.object({
+  q: z.string().trim().max(80).optional().catch(undefined),
+  desde: optDay(),
+  hasta: optDay(),
+  centro: z.string().max(80).optional().catch(undefined),
+  riesgo: z.enum(['sin_riesgo', 'moderado', 'alto']).optional().catch(undefined),
+  grupo: z.enum(['P', 'C']).optional().catch(undefined),
+  publicado: z.enum(['si', 'no']).optional().catch(undefined),
+  desenlace: z.enum(['con', 'sin']).optional().catch(undefined),
+  orden: z.enum(['fecha', 'codigo', 'probabilidad', 'dt']).catch('fecha'),
+  dir: z.enum(['asc', 'desc']).catch('desc'),
+  page: z.coerce.number().int().min(1).max(1000).catch(1),
+});
+
 const controlesFilterSchema = z.object({
   vista: z.enum(['proximos', 'vencidos', 'realizados']).catch('proximos'),
   desde: z.preprocess((v) => (f.empty(v) ? undefined : v), z.string().regex(ISO_DAY).optional()).catch(undefined),
@@ -271,5 +288,6 @@ module.exports = {
   appointmentSchema,
   appointmentStatusSchema,
   controlesFilterSchema,
+  estudiosFilterSchema,
   localToIso,
 };

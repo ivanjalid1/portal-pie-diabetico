@@ -1,0 +1,87 @@
+<%
+  const qs = (over = {}) => {
+    const p = new URLSearchParams();
+    Object.entries({ ...filters, ...over }).forEach(([k, v]) => { if (v !== undefined && v !== '' && v !== null) p.set(k, v); });
+    return `?${p.toString()}`;
+  };
+  const sortLink = (key, label) => {
+    const active = filters.orden === key;
+    const dir = active && filters.dir === 'desc' ? 'asc' : 'desc';
+    return `<a class="sort${active ? ' is-active' : ''}" href="/medico/estudios${qs({ orden: key, dir, page: 1 })}" aria-sort="${active ? (filters.dir === 'asc' ? 'ascending' : 'descending') : 'none'}">${label}<span aria-hidden="true">${active ? (filters.dir === 'asc' ? '↑' : '↓') : '↕'}</span></a>`;
+  };
+  const tend = (a) => (a.roisQueEmpeoran.length ? ['up', 'Empeora'] : a.evolucion.some((e) => e.tendencia === 'mejora' && e.roi !== 'general') ? ['down', 'Mejora'] : ['eq', 'Estable']);
+  const anyFilter = filters.q || filters.desde || filters.hasta || filters.centro || filters.riesgo || filters.grupo || filters.publicado || filters.desenlace;
+%>
+<%- include('../partials/page-header', {
+  heading: 'Estudios realizados',
+  lead: 'Todos los estudios comparativos de tus pacientes. Buscá por nombre, apellido o código.',
+  actions: `<a class="btn btn--ghost" href="/medico/estudios/exportar.csv${qs({ page: undefined })}">${include('../partials/icon', { name: 'table', size: 18 })}Exportar CSV</a><a class="btn btn--primary" href="/medico/estudios/nuevo">${include('../partials/icon', { name: 'scan', size: 18 })}Nuevo estudio</a>`
+}) %>
+
+<form method="get" action="/medico/estudios" class="filter-panel card" role="search">
+  <div class="filter-panel__search input-icon">
+    <%- include('../partials/icon', { name: 'search', size: 18 }) %>
+    <label for="q" class="sr-only">Buscar</label>
+    <input id="q" name="q" type="search" value="<%= filters.q || '' %>" placeholder="Nombre, apellido o código (DEMO-002)">
+  </div>
+  <details class="filter-panel__more"<%= anyFilter && !filters.q ? ' open' : '' %>>
+    <summary>Filtros<% if (anyFilter) { %> <span class="count">activos</span><% } %></summary>
+    <div class="filter-grid">
+      <div class="field"><label for="desde">Desde</label><input id="desde" name="desde" type="date" value="<%= filters.desde || '' %>"></div>
+      <div class="field"><label for="hasta">Hasta</label><input id="hasta" name="hasta" type="date" value="<%= filters.hasta || '' %>"></div>
+      <div class="field"><label for="centro">Centro</label><select id="centro" name="centro"><option value="">Todos</option><% centros.forEach((c) => { %><option<%= filters.centro === c ? ' selected' : '' %>><%= c %></option><% }) %></select></div>
+      <div class="field"><label for="riesgo">Nivel de riesgo</label><select id="riesgo" name="riesgo"><option value="">Todos</option><% ['alto', 'moderado', 'sin_riesgo'].forEach((k) => { %><option value="<%= k %>"<%= filters.riesgo === k ? ' selected' : '' %>><%= domain.RISK_CATEGORIES[k].nombre %></option><% }) %></select></div>
+      <div class="field"><label for="grupo">Asimetría (toma 2)</label><select id="grupo" name="grupo"><option value="">Todas</option><option value="P"<%= filters.grupo === 'P' ? ' selected' : '' %>>Con asimetría (P)</option><option value="C"<%= filters.grupo === 'C' ? ' selected' : '' %>>Sin asimetría (C)</option></select></div>
+      <div class="field"><label for="publicado">Visible al paciente</label><select id="publicado" name="publicado"><option value="">Todos</option><option value="si"<%= filters.publicado === 'si' ? ' selected' : '' %>>Publicado</option><option value="no"<%= filters.publicado === 'no' ? ' selected' : '' %>>No publicado</option></select></div>
+      <div class="field"><label for="desenlace">Desenlace</label><select id="desenlace" name="desenlace"><option value="">Todos</option><option value="con"<%= filters.desenlace === 'con' ? ' selected' : '' %>>Registrado</option><option value="sin"<%= filters.desenlace === 'sin' ? ' selected' : '' %>>Sin registrar</option></select></div>
+    </div>
+  </details>
+  <div class="filter-panel__actions">
+    <button type="submit" class="btn btn--primary">Buscar</button>
+    <% if (anyFilter) { %><a class="link" href="/medico/estudios">Limpiar</a><% } %>
+  </div>
+</form>
+
+<p class="result-count muted small"><strong class="num"><%= total %></strong> <%= total === 1 ? 'estudio' : 'estudios' %><%= anyFilter ? ' con los filtros actuales' : '' %></p>
+
+<% if (!items.length) { %>
+<div class="card"><div class="empty"><%- include('../partials/icon', { name: 'search', size: 28 }) %><h2>No hay estudios que coincidan</h2><p>Probá con otro nombre o código, o quitá algún filtro.</p></div></div>
+<% } else { %>
+<div class="card card--flush">
+  <div class="table-wrap">
+    <table class="table table--cards">
+      <thead>
+        <tr>
+          <th scope="col"><%- sortLink('fecha', 'Toma 2') %></th>
+          <th scope="col"><%- sortLink('codigo', 'Paciente') %></th>
+          <th scope="col">Centro</th>
+          <th scope="col"><%- sortLink('dt', 'ΔT máx. T1 → T2') %></th>
+          <th scope="col">Tendencia</th>
+          <th scope="col"><%- sortLink('probabilidad', 'Probabilidad') %></th>
+          <th scope="col">Publicado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% items.forEach(({ study, patient, analysis: a }) => { const [tc, tl] = tend(a); %>
+        <tr class="row-link" data-href="/medico/estudios/<%= study.id %>">
+          <td data-label="Toma 2"><a href="/medico/estudios/<%= study.id %>" class="cell-link"><strong class="num"><%= fmt.date(study.fechaHora) %></strong></a><small class="muted block">T1: <%= fmt.date(study.fechaToma1) %></small></td>
+          <td data-label="Paciente"><span class="person"><span class="code"><%= patient.codigo %></span><span><strong><%= patient.nombreCompleto %></strong></span></span></td>
+          <td data-label="Centro"><%= study.centro %></td>
+          <td data-label="ΔT máx." class="num nowrap"><%= a.deltaTMaxToma1 !== null ? fmt.num(Math.abs(a.deltaTMaxToma1), 1) : '—' %> → <strong><%= fmt.num(Math.abs(a.deltaTMax), 1) %></strong> °C</td>
+          <td data-label="Tendencia"><span class="trend-sym trend-sym--<%= tc %>" aria-hidden="true"><%= tc === 'up' ? '↑' : tc === 'down' ? '↓' : '=' %></span> <%= tl %></td>
+          <td data-label="Probabilidad"><%- include('../partials/risk-badge', { analysis: a, showPct: true }) %></td>
+          <td data-label="Publicado"><%= study.publicado ? 'Sí' : 'No' %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% if (pages > 1) { %>
+<nav class="pager" aria-label="Paginación">
+  <% if (page > 1) { %><a class="btn btn--ghost btn--sm" href="/medico/estudios<%= qs({ page: page - 1 }) %>"><%- include('../partials/icon', { name: 'chevronLeft', size: 16 }) %>Anterior</a><% } else { %><span></span><% } %>
+  <span class="small muted">Página <span class="num"><%= page %></span> de <span class="num"><%= pages %></span></span>
+  <% if (page < pages) { %><a class="btn btn--ghost btn--sm" href="/medico/estudios<%= qs({ page: page + 1 }) %>">Siguiente<%- include('../partials/icon', { name: 'chevronRight', size: 16 }) %></a><% } else { %><span></span><% } %>
+</nav>
+<% } %>
+<% } %>

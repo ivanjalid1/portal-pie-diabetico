@@ -11,7 +11,7 @@
  * algoritmo de la tesis); sirve para que los valores por ROI del seed sean
  * coherentes con lo que muestra la imagen.
  */
-const { ironbow } = require('../utils/thermal');
+const { highContrast, PALETTES, DEFAULT_PALETTE } = require('../utils/thermal');
 
 function otsu(data) {
   let min = Infinity;
@@ -197,9 +197,9 @@ function resizeBicubic(src, sw, sh, dw, dh) {
  * Renderiza el termograma a RGB con paleta ironbow, escala [lo, hi] y una
  * barra de color vertical a la derecha (sin texto).
  */
-function renderThermogram(img, { lo, hi, width = 960, height = 720, palette = ironbow } = {}) {
-  const barW = Math.round(width * 0.022);
-  const margin = Math.round(width * 0.02);
+function renderThermogram(img, { lo, hi, width = 960, height = 720, palette = highContrast, bar = false } = {}) {
+  const barW = bar ? Math.round(width * 0.022) : 0;
+  const margin = bar ? Math.round(width * 0.02) : 0;
   const imgW = width - barW - margin * 2;
   const src = Float32Array.from(img.data);
   const scaled = resizeBicubic(src, img.width, img.height, imgW, height);
@@ -215,6 +215,7 @@ function renderThermogram(img, { lo, hi, width = 960, height = 720, palette = ir
     for (let x = 0; x < width; x += 1) put(x, y, bg);
     for (let x = 0; x < imgW; x += 1) put(x, y, palette((scaled[y * imgW + x] - lo) / (hi - lo)));
   }
+  if (!bar) return { width, height, rgb };
   const top = Math.round(height * 0.08);
   const bottom = Math.round(height * 0.92);
   const bx = imgW + margin;
@@ -257,13 +258,26 @@ function roisInCelsius(analysis) {
 }
 
 /** Vista previa PNG de un archivo IS2 (para el navegador). */
-function is2PreviewPng(buffer, { width = 640, height = 480 } = {}) {
-  const { decodeIs2, percentile } = require('./is2');
+/**
+ * Extremos de la escala (cuentas) para renderizar como la cámara: calibrados
+ * con la miniatura del propio IS2 (24–35 °C) o, si no se puede, por percentiles.
+ */
+function displayRange(buffer, img) {
+  const { percentile } = require('./is2');
+  const { calibrateSpan } = require('./flukeCalibration');
+  const cal = calibrateSpan(buffer, img);
+  if (cal) return { lo: cal.c0, hi: cal.c1, calibrado: true };
+  return { lo: percentile(img.data, 2), hi: percentile(img.data, 99.7), calibrado: false };
+}
+
+/** Vista previa PNG de un archivo IS2 (paleta High Contrast por defecto). */
+function is2PreviewPng(buffer, { width = 640, height = 480, palette = DEFAULT_PALETTE } = {}) {
+  const { decodeIs2 } = require('./is2');
   const { encodePng } = require('./png');
   const img = decodeIs2(buffer);
-  const lo = percentile(img.data, 2);
-  const hi = percentile(img.data, 99.7);
-  const out = renderThermogram(img, { lo, hi, width, height });
+  const { lo, hi } = displayRange(buffer, img);
+  const fn = (PALETTES[palette] || PALETTES[DEFAULT_PALETTE]).fn;
+  const out = renderThermogram(img, { lo, hi, width, height, palette: fn });
   return encodePng(out.width, out.height, out.rgb);
 }
 
@@ -276,6 +290,7 @@ module.exports = {
   roisInCelsius,
   toCelsius,
   is2PreviewPng,
+  displayRange,
   COUNTS_TO_C,
   ROI_BANDS,
 };

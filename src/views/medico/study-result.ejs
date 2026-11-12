@@ -36,7 +36,7 @@
       <div class="compare__col">
         <span class="compare__label"><span class="toma-dot toma-dot--1"></span>Toma 1 · basal</span>
         <div class="compare__metrics">
-          <div><small>Grupo</small><span class="grupo grupo--<%= a.grupoToma1 %>"><%= a.grupoToma1 || '—' %></span></div>
+          <div class="compare__wide"><small>Clasificación</small><%- include('../partials/grupo', { value: a.grupoToma1, umbral: a.umbral }) %></div>
           <div><small>ΔT máx.</small><strong class="num"><%= a.deltaTMaxToma1 !== null ? fmt.signed(a.deltaTMaxToma1) : '—' %> °C</strong></div>
           <div><small>Simétrico</small><strong><%= a.simetricoToma1 === null ? '—' : a.simetricoToma1 ? 'Sí' : 'No' %></strong></div>
         </div>
@@ -46,13 +46,14 @@
       <div class="compare__col compare__col--now">
         <span class="compare__label"><span class="toma-dot toma-dot--2"></span>Toma 2 · control</span>
         <div class="compare__metrics">
-          <div><small>Grupo</small><span class="grupo grupo--<%= a.grupo %>"><%= a.grupo %></span></div>
+          <div class="compare__wide"><small>Clasificación</small><%- include('../partials/grupo', { value: a.grupo, umbral: a.umbral }) %></div>
           <div><small>ΔT máx.</small><strong class="num"><%= fmt.signed(a.deltaTMax) %> °C</strong></div>
           <div><small>Simétrico</small><strong><%= a.simetrico ? 'Sí' : 'No' %></strong></div>
         </div>
         <span class="muted small"><%= domain.ROI_NAMES[a.deltaTMaxRoi] %>, pie <%= a.deltaTMax >= 0 ? 'derecho' : 'izquierdo' %> más caliente</span>
       </div>
     </div>
+    <p class="grupo-transition"><%= transicionGrupo(a) %> <button type="button" class="help-dot" title="<%= grupoAyuda(a.umbral) %>" aria-label="<%= grupoAyuda(a.umbral) %>">?</button></p>
     <div class="evolution-summary">
       <% if (a.roisQueEmpeoran.length) { %>
       <p><span class="trend trend--danger"><%- include('../partials/icon', { name: 'trendUp', size: 16 }) %>Asimetría en aumento</span> en <%= a.roisQueEmpeoran.map((e) => domain.ROI_NAMES[e.roi].toLowerCase()).join(', ') %> (máx. +<%= fmt.num(a.maxEmpeoramiento, 1) %> °C).</p>
@@ -185,20 +186,8 @@
   <section class="card" aria-labelledby="img-title">
     <h2 id="img-title" class="card__title">Termografías</h2>
     <div class="image-pair">
-      <% imageSlots.forEach((sl) => { const img = s.image(sl.slot); %>
-      <figure class="image-tile">
-        <% if (img && canPreview(img)) { %>
-        <button type="button" class="image-tile__btn" data-lightbox="<%= imageUrl(s, sl.slot) %>" data-caption="<%= sl.titulo %>">
-          <img src="<%= imageUrl(s, sl.slot) %>" alt="<%= sl.titulo %> de <%= p.codigo %>" width="480" height="360" decoding="async">
-          <span class="image-tile__badge image-tile__badge--t<%= sl.toma %>"><%= sl.etiqueta %></span>
-        </button>
-        <% } else if (img) { %>
-        <a class="image-tile__file" href="<%= imageUrl(s, sl.slot) %>"><%- include('../partials/icon', { name: 'file', size: 28 }) %><span><%= img.originalName %></span><small>Descargar (<%= fmt.bytes(img.size) %>)</small></a>
-        <% } else { %>
-        <div class="image-tile__file"><span>Sin imagen</span></div>
-        <% } %>
-        <figcaption><%= sl.toma === 1 ? fmt.date(s.fechaToma1) : fmt.date(s.fechaHora) %><%= sl.toma === 1 && s.toma1OrigenStudyId ? ' · reutilizada de un estudio anterior' : '' %></figcaption>
-      </figure>
+      <% imageSlots.forEach((sl) => { %>
+      <%- include('../partials/thermo-tile', { study: s, sl, sub: (sl.toma === 1 ? fmt.date(s.fechaToma1) : fmt.date(s.fechaHora)) + (sl.toma === 1 && s.toma1OrigenStudyId ? ' · reutilizada' : '') }) %>
       <% }) %>
     </div>
   </section>

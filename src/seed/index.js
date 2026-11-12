@@ -175,7 +175,7 @@ async function seedDemoData({ repos, authProvider, predictor }, options = {}) {
       emisividad: ACQUISITION.emisividad,
       rangoMin: ACQUISITION.rango.min,
       rangoMax: ACQUISITION.rango.max,
-      paleta: 'Ironbow',
+      paleta: 'High Contrast',
       tiempoEstabilizacionMin: 15,
       fondo: rnd() < 0.6 ? 'Cartulina' : 'Tela',
       valida: estudio.valida ?? true,

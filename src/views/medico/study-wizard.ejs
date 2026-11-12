@@ -132,7 +132,7 @@
       </div>
       <div class="field">
         <label for="paleta">Paleta</label>
-        <select id="paleta" name="paleta"><% A.paletas.forEach((pal) => { %><option<%= v('paleta', 'Ironbow') === pal ? ' selected' : '' %>><%= pal %></option><% }) %></select>
+        <select id="paleta" name="paleta"><% A.paletas.forEach((pal) => { %><option<%= v('paleta', 'High Contrast') === pal ? ' selected' : '' %>><%= pal %></option><% }) %></select>
       </div>
       <fieldset class="<%= cls('fondo') %>">
         <legend>Fondo</legend>

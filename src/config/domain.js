@@ -179,7 +179,7 @@ const ACQUISITION = Object.freeze({
   distanciaCm: 80,
   emisividad: 0.98,
   rango: Object.freeze({ min: 24, max: 35 }),
-  paletas: Object.freeze(['Ironbow', 'Arcoíris', 'Escala de grises', 'Ámbar']),
+  paletas: Object.freeze(['High Contrast', 'Ironbow', 'Arcoíris', 'Escala de grises', 'Ámbar']),
   fondos: Object.freeze(['Cartulina', 'Tela']),
   tiempoEstabilizacionMin: 15,
   camara: 'Fluke TiS75 (320×240, IR-Fusion)',

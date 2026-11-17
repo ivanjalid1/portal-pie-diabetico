@@ -29,7 +29,9 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
   const events = overrides.events || new DomainEventBus();
   const data = overrides.data || createDataLayer(config);
   const { repos, authProvider } = data;
-  const predictor = overrides.predictor || createPredictor(config.predictor);
+  const predictor =
+    overrides.predictor ||
+    createPredictor(config.predictor, { realDataDir: config.seed === 'real' ? config.realDataDir : null });
 
   const auditService = new AuditService({ audit: repos.audit, events }).subscribe();
   const authService = new AuthService({ authProvider, users: repos.users, events });

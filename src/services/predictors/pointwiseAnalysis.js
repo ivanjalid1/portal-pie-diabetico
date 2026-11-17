@@ -15,7 +15,9 @@ const {
   changeMetrics,
   zoneCoverage,
   roisFromGrids,
+  encodeGrid,
 } = require('../../imaging/pointwise');
+const { computeTci } = require('../../imaging/tci');
 
 /** Cobertura mínima (fracción) para considerar analizada una zona. */
 const COBERTURA_MINIMA = 0.5;
@@ -27,11 +29,19 @@ function zonasDeToma(cobertura) {
   return { excluidas, analizadas: ZONAS.map((z) => z.key).filter((k) => !excluidas.includes(k)) };
 }
 
+/** TCI serializable (mapas de desvío en base64). */
+function serializeTci(t) {
+  if (!t) return null;
+  const { mapas, ...rest } = t;
+  return { ...rest, mapas: { izq: encodeGrid(mapas.izq), der: encodeGrid(mapas.der) } };
+}
+
 /**
- * @param {{toma1: object, toma2?: object|null}} grids  cada toma: { izq, der (base64), calidad?, marco?, fecha? }
+ * @param {{toma1: object, toma2?: object|null}} grids  cada toma: { izq, der (base64), calidad?, marco?, fecha?, tci? }
  * @param {{umbralPixel:number, areaMinima:number, umbralCambio:number}} p
+ * @param {{tciReference?: object}} opts  patrón de referencia del TCI (si la toma no trae su TCI precalculado)
  */
-function analyzePointwise(grids, p) {
+function analyzePointwise(grids, p, { tciReference = null } = {}) {
   const umbralPixel = p.umbralPixel ?? 1;
   const areaMinima = p.areaMinima ?? 10;
   const umbralCambio = p.umbralCambio ?? 1;
@@ -46,10 +56,14 @@ function analyzePointwise(grids, p) {
     const cobertura = zoneCoverage(izq, der);
     const { excluidas, analizadas } = zonasDeToma(cobertura);
     const metricas = asymmetryMetrics(izq, der, { umbralPixel, zonasExcluidas: excluidas });
+    let tci = g.tci ?? null;
+    if (!tci && tciReference) tci = serializeTci(computeTci(izq, der, tciReference));
     tomas.push({
       toma: k,
       izq: g.izq,
       der: g.der,
+      segmentacion: g.segmentacion ?? 'clasica',
+      tci,
       calidad: g.calidad ?? null,
       marco: g.marco ?? null,
       fecha: g.fecha ?? null,
@@ -96,4 +110,4 @@ function zonasTexto(toma) {
   };
 }
 
-module.exports = { analyzePointwise, zonasTexto, ZONA_NOMBRES, COBERTURA_MINIMA };
+module.exports = { analyzePointwise, serializeTci, zonasTexto, ZONA_NOMBRES, COBERTURA_MINIMA };

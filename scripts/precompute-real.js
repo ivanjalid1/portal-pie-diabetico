@@ -30,6 +30,18 @@ const { encodePng } = require('../src/imaging/png');
 const { highContrast } = require('../src/utils/thermal');
 const { analyzeIs2Pointwise, is2CaptureDate } = require('../src/imaging/pointwise');
 const { marcaSinConsentimiento } = require('../src/utils/consent');
+const { labelsToMasks } = require('../src/imaging/pointwise');
+const { readNpy, is2Key } = require('./lib/npy');
+const { decodeGrid } = require('../src/imaging/pointwise');
+const { computeTci } = require('../src/imaging/tci');
+const { serializeTci } = require('../src/services/predictors/pointwiseAnalysis');
+const {
+  REFERENCE_FILE,
+  CRITERIO_COHORTE,
+  selectReferenceMembers,
+  loadReferenceStore,
+  referenceFor,
+} = require('../src/services/predictors/tciReference');
 
 const ROOT = path.join(__dirname, '..');
 const PRIVATE = path.join(ROOT, 'tesis-2026info');
@@ -38,6 +50,21 @@ const PRIMERA = path.join(PRIVATE, 'PRIMERAS FOTOS', 'PRIMERAS FOTOS');
 const SEGUNDA = path.join(PRIVATE, 'SEGUNDA TOMA DE FOTOS');
 const OUT = path.join(ROOT, 'data-local', 'real');
 const IMG = path.join(OUT, 'img');
+/** Máscaras de la U-Net (scripts/ml/segment_unet.py): una por archivo IS2, clave = hash de la ruta. */
+const UNET_MASKS = path.join(ROOT, 'data-local', 'ml', 'unet-masks');
+const USE_UNET = process.env.SEGMENTACION !== 'clasica';
+
+/** Máscaras U-Net del archivo, si existen (si no, la segmentación clásica). */
+function unetMasks(file) {
+  if (!USE_UNET) return null;
+  const f = path.join(UNET_MASKS, `${is2Key(PRIVATE, file)}.npy`);
+  if (!fs.existsSync(f)) return null;
+  try {
+    return labelsToMasks(readNpy(f).data);
+  } catch {
+    return null;
+  }
+}
 
 const CENTRO_POR_PREFIJO = { HC: 'Hospital Córdoba', VHF: 'Hospital Ferreyra', RF: 'Clínica Reina Fabiola' };
 const CODE_RE = /^2?P\.?\s*(VHF|HC|RF)\.?\s*(\d{3})/i;
@@ -232,7 +259,8 @@ function processToma(files, codigo, toma) {
     let buffer;
     try {
       buffer = fs.readFileSync(file);
-      const r = analyzeIs2Pointwise(buffer);
+      const masks = unetMasks(file);
+      const r = analyzeIs2Pointwise(buffer, masks ? { masks, masksSource: 'unet' } : {});
       if (!r.ok) continue;
       validas += 1;
       if (!best || r.calidad > best.calidad) best = { ...r, file, fecha: is2CaptureDate(buffer) };
@@ -254,6 +282,7 @@ function processToma(files, codigo, toma) {
     replicas: files.length,
     validas,
     calidad: best.calidad,
+    segmentacion: best.segmentacion,
     marco: best.marco,
     imagen,
     izq: best.izq,
@@ -310,6 +339,27 @@ function main() {
     const t = tomas.map((x) => `t${x.toma}:${x.ok ? x.calidad : 'falla'}`).join(' ');
     process.stdout.write(`[${n}/${codigos.length}] ${codigo} ${t}\n`);
   }
+  // Patrón de referencia del TCI: pacientes más simétricos de la cohorte (toma 1).
+  const miembros = selectReferenceMembers(pacientes, CRITERIO_COHORTE);
+  fs.writeFileSync(
+    path.join(OUT, REFERENCE_FILE),
+    JSON.stringify({
+      _aviso: 'Grillas de pacientes reales. Local: no versionar.',
+      fuente: 'cohorte',
+      criterio: CRITERIO_COHORTE,
+      miembros,
+    }),
+  );
+  const store = loadReferenceStore(OUT);
+  for (const p of pacientes) {
+    // Leave-one-out: un miembro de la referencia nunca se compara consigo mismo.
+    const ref = referenceFor(store, p.codigo);
+    for (const t of p.tomas) {
+      if (!t.ok) continue;
+      t.tci = serializeTci(computeTci(decodeGrid(t.izq), decodeGrid(t.der), ref));
+    }
+  }
+  console.log(`Referencia TCI: ${miembros.length} pacientes (criterio de simetría; LOO al puntuar a un miembro)`);
   const dataset = {
     _aviso: 'DATOS REALES DE PACIENTES. Local: no versionar, no publicar, no desplegar.',
     generado: new Date().toISOString(),
@@ -326,4 +376,6 @@ function main() {
   console.log(`Salida: ${path.relative(ROOT, OUT)}/dataset.json`);
 }
 
-main();
+module.exports = { readClinical, readContacts, readAna, inventory, parseCode, PRIVATE, PLANILLA, PRIMERA, SEGUNDA };
+
+if (require.main === module) main();

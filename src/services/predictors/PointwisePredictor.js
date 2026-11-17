@@ -3,7 +3,8 @@
 const UlcerPredictor = require('./UlcerPredictor');
 const MockUlcerPredictor = require('./MockUlcerPredictor');
 const { analyzePointwise } = require('./pointwiseAnalysis');
-const { loadModel, featureVector, applyModel } = require('./pointwiseModel');
+const { loadModel, featureVector, applyModel, COMPARISON_PATH } = require('./pointwiseModel');
+const { loadReferenceStore, referenceFor } = require('./tciReference');
 const { categoryFor, DELTA_T_UMBRAL, thermalGroup } = require('../../config/domain');
 const { DEFAULT_PARAMS } = require('../../config/settings');
 
@@ -48,11 +49,25 @@ function summarize(rois, umbral, corteSimetria) {
  * referencia secundaria (`rois`, `roisToma1`).
  */
 class PointwisePredictor extends UlcerPredictor {
-  constructor({ model = loadModel(), umbral = DELTA_T_UMBRAL, fallback = new MockUlcerPredictor() } = {}) {
+  constructor({
+    model = loadModel(),
+    umbral = DELTA_T_UMBRAL,
+    fallback = new MockUlcerPredictor(),
+    realDataDir = null,
+    tciStore = null,
+  } = {}) {
     super();
     this.model = model;
     this.umbral = umbral;
     this.fallback = fallback;
+    this.realDataDir = realDataDir;
+    this._tciStore = tciStore;
+  }
+
+  /** Patrón de referencia del TCI (real local si existe; si no, el de demostración). Perezoso. */
+  get tciStore() {
+    if (!this._tciStore) this._tciStore = loadReferenceStore(this.realDataDir);
+    return this._tciStore;
   }
 
   get info() {
@@ -63,6 +78,7 @@ class PointwisePredictor extends UlcerPredictor {
       nombre: 'Análisis punto a punto + modelo preliminar',
       descripcion:
         'Segmenta ambos pies, espeja el derecho, los registra (centroide, eje principal y escala) y compara punto a punto; la probabilidad proviene de una regresión logística preliminar.',
+      comparacion: loadModel(COMPARISON_PATH),
       modelo: this.model
         ? {
             version: this.model.version,
@@ -106,14 +122,17 @@ class PointwisePredictor extends UlcerPredictor {
       return { ...out, puntual: null };
     }
 
-    const { rois: roisPorToma, ...puntual } = analyzePointwise(grids, p);
+    const tciReference = referenceFor(this.tciStore, patient?.codigo ?? null);
+    const { rois: roisPorToma, ...puntual } = analyzePointwise(grids, p, { tciReference });
     const actual = puntual.tomas.at(-1);
     const rois = roisPorToma[`toma${actual.toma}`] || [];
     const roisToma1 = puntual.tieneToma2 ? roisPorToma.toma1 || [] : [];
     const s2 = summarize(rois, p.umbral, p.corteSimetria);
     const s1 = puntual.tieneToma2 ? summarize(roisToma1, p.umbral, p.corteSimetria) : null;
 
-    const x = this.model ? featureVector(actual, { umbralPixel: this.model.umbralPixel }) : null;
+    const x = this.model
+      ? featureVector(actual, { umbralPixel: this.model.umbralPixel, keys: this.model.features.map((f) => f.key) })
+      : null;
     const pred = applyModel(this.model, x);
     const probabilidad = pred ? pred.probabilidad : null;
     const v = this.model?.validacion;

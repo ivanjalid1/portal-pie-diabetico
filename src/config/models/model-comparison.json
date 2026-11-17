@@ -1,0 +1,89 @@
+{
+  "_descripcion": "Comparación de modelos (scripts/ml/train_models.py). Sólo métricas agregadas.",
+  "generado": "2026-11-17",
+  "desenlace": "HbA1c > 7 % (sustituto)",
+  "metodo": "Validación cruzada por paciente: logísticas 5 pliegues × 20 repeticiones con C anidado; CNN 5 pliegues × 4. AUC media de las repeticiones; IC 95 % por bootstrap de pacientes.",
+  "modelos": [
+    {
+      "modelo": "base",
+      "nombre": "Logística: área, |ΔT| medio, |ΔT| p95 (actual)",
+      "auc": 0.325,
+      "aucIC95": [0.259, 0.393],
+      "n": 53,
+      "positivos": 35,
+      "pPermutacion": 0.876
+    },
+    {
+      "modelo": "tci_lr",
+      "nombre": "Logística: TCI + área + |ΔT| p95",
+      "auc": 0.636,
+      "aucIC95": [0.481, 0.786],
+      "n": 53,
+      "positivos": 35,
+      "pPermutacion": 0.085
+    },
+    {
+      "modelo": "tci",
+      "nombre": "TCI solo (puntaje directo)",
+      "auc": 0.296,
+      "aucIC95": [0.152, 0.449],
+      "n": 53,
+      "positivos": 35,
+      "pPermutacion": null
+    },
+    {
+      "modelo": "control_centro",
+      "nombre": "Control: sólo el centro de atención",
+      "auc": 0.636,
+      "aucIC95": [0.497, 0.768],
+      "n": 53,
+      "positivos": 35,
+      "pPermutacion": null
+    },
+    {
+      "modelo": "tci_lr_t2",
+      "nombre": "Logística: + cambio entre tomas (con toma 2)",
+      "auc": 0.533,
+      "aucIC95": [0.362, 0.696],
+      "n": 35,
+      "positivos": 23,
+      "pPermutacion": 0.333
+    },
+    {
+      "modelo": "base_subt2",
+      "nombre": "Logística actual (misma submuestra con toma 2)",
+      "auc": 0.305,
+      "aucIC95": [0.206, 0.409],
+      "n": 35,
+      "positivos": 23,
+      "pPermutacion": null
+    },
+    {
+      "modelo": "cnn",
+      "nombre": "CNN chica: ΔT + desvío TCI",
+      "auc": 0.612,
+      "aucIC95": [0.453, 0.767],
+      "n": 53,
+      "positivos": 35,
+      "pPermutacion": null
+    },
+    {
+      "modelo": "cnn_dt",
+      "nombre": "CNN chica: sólo ΔT",
+      "auc": 0.53,
+      "aucIC95": [0.434, 0.633],
+      "n": 53,
+      "positivos": 35,
+      "pPermutacion": null
+    }
+  ],
+  "aucUnivariada": {
+    "tciPuntual": 0.298,
+    "tciPatron": 0.438,
+    "areaCalientePct": 0.501,
+    "mediaAbs": 0.515,
+    "p95Abs": 0.507
+  },
+  "eleccion": null,
+  "conclusion": "Ningún modelo muestra una señal convincente: ningún IC 95 % queda por encima de 0,5 y el modelo actual queda por debajo del azar (sin señal, con el sesgo negativo de la validación cruzada en muestras chicas). El TCI absoluto va en sentido contrario a la hipótesis y se confunde con el centro de atención. El portal mantiene el modelo preliminar, rotulado «no validado»."
+}

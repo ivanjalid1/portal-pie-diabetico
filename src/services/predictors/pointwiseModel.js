@@ -16,6 +16,14 @@ const path = require('node:path');
 const { decodeGrid, asymmetryMetrics } = require('../../imaging/pointwise');
 
 const MODEL_PATH = path.join(__dirname, '..', '..', 'config', 'models', 'pointwise-logreg.json');
+/** Modelo experimental con TCI (scripts/ml/train_models.py --export). */
+const TCI_MODEL_PATH = path.join(__dirname, '..', '..', 'config', 'models', 'pointwise-tci-logreg.json');
+
+/** Comparación de modelos (sólo agregados: AUC, IC y n; scripts/ml/train_models.py). */
+const COMPARISON_PATH = path.join(__dirname, '..', '..', 'config', 'models', 'model-comparison.json');
+
+/** Features que salen del TCI de la toma (el resto, de las métricas de asimetría). */
+const TCI_FEATURES = Object.freeze({ tci: 'valor', tciPuntual: 'puntual', tciPatron: 'patron' });
 
 /** Features (en el orden del vector). Se calculan con el umbral propio del modelo. */
 const FEATURES = Object.freeze([
@@ -24,23 +32,30 @@ const FEATURES = Object.freeze([
   Object.freeze({ key: 'p95Abs', nombre: '|ΔT| percentil 95', unidad: '°C' }),
 ]);
 
-let cached = null;
+const cache = new Map();
 
 function loadModel(file = MODEL_PATH) {
-  if (file === MODEL_PATH && cached) return cached;
+  if (cache.has(file)) return cache.get(file);
   if (!fs.existsSync(file)) return null;
   const m = JSON.parse(fs.readFileSync(file, 'utf8'));
-  if (file === MODEL_PATH) cached = m;
+  cache.set(file, m);
   return m;
 }
 
-/** Vector de features de una toma (grillas serializadas) con el umbral y las zonas excluidas indicadas. */
-function featureVector(toma, { umbralPixel = 1 } = {}) {
+/**
+ * Vector de features de una toma (grillas serializadas) con el umbral y las
+ * zonas excluidas indicadas. `keys` por defecto son las del modelo preliminar;
+ * las claves del TCI (`tci`, `tciPuntual`, `tciPatron`) se toman de `toma.tci`.
+ * Devuelve null si falta alguna.
+ */
+function featureVector(toma, { umbralPixel = 1, keys = FEATURES.map((f) => f.key) } = {}) {
   const m = asymmetryMetrics(decodeGrid(toma.izq), decodeGrid(toma.der), {
     umbralPixel,
     zonasExcluidas: toma.zonasNoAnalizadas || [],
   });
-  return m ? FEATURES.map((f) => m[f.key]) : null;
+  if (!m) return null;
+  const x = keys.map((k) => (k in TCI_FEATURES ? (toma.tci?.[TCI_FEATURES[k]] ?? null) : (m[k] ?? null)));
+  return x.every((v) => Number.isFinite(v)) ? x : null;
 }
 
 /**
@@ -64,4 +79,13 @@ function applyModel(model, x) {
   return { probabilidad: Math.round((1000 / (1 + Math.exp(-logit))) * 1) / 10, factores };
 }
 
-module.exports = { FEATURES, MODEL_PATH, loadModel, featureVector, applyModel };
+module.exports = {
+  FEATURES,
+  TCI_FEATURES,
+  MODEL_PATH,
+  TCI_MODEL_PATH,
+  COMPARISON_PATH,
+  loadModel,
+  featureVector,
+  applyModel,
+};

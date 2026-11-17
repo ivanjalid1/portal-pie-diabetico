@@ -5,58 +5,55 @@
   "desenlace": "HbA1c > 7 % (sustituto, igual que la Parte 1)",
   "umbralPixel": 1,
   "C": 0.5,
-  "intercepto": 0.676,
+  "intercepto": 0.666,
   "features": [
     {
       "key": "areaCalientePct",
       "nombre": "Área con |ΔT| sobre el umbral",
       "unidad": "%",
-      "media": 16.815,
-      "desvio": 15.5,
-      "coef": 0.275
+      "media": 17.836,
+      "desvio": 15.657,
+      "coef": 0.153
     },
     {
       "key": "mediaAbs",
       "nombre": "|ΔT| medio entre pies",
       "unidad": "°C",
-      "media": 0.597,
-      "desvio": 0.228,
-      "coef": 0.106
+      "media": 0.614,
+      "desvio": 0.222,
+      "coef": 0.024
     },
     {
       "key": "p95Abs",
       "nombre": "|ΔT| percentil 95",
       "unidad": "°C",
-      "media": 1.399,
-      "desvio": 0.476,
-      "coef": -0.194
+      "media": 1.411,
+      "desvio": 0.369,
+      "coef": -0.12
     }
   ],
   "validacion": {
     "metodo": "Leave-One-Out",
     "n": 53,
     "positivos": 35,
-    "auc": 0.267,
-    "aucIC95": [
-      0.135,
-      0.405
-    ],
+    "auc": 0.016,
+    "aucIC95": [0, 0.048],
     "kFold": {
       "metodo": "5 pliegues estratificados × 20 repeticiones",
-      "aucMedia": 0.422
+      "aucMedia": 0.314
     },
     "aucPorFeature": [
       {
         "key": "areaCalientePct",
-        "auc": 0.525
+        "auc": 0.501
       },
       {
         "key": "mediaAbs",
-        "auc": 0.55
+        "auc": 0.515
       },
       {
         "key": "p95Abs",
-        "auc": 0.49
+        "auc": 0.507
       }
     ]
   },

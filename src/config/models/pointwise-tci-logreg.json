@@ -1,0 +1,51 @@
+{
+  "_descripcion": "Modelo EXPERIMENTAL (regresión logística L2) sobre TCI + features punto a punto de la toma 1. Generado por scripts/ml/train_models.py. Sólo contiene parámetros y métricas agregadas.",
+  "version": "puntual-tci-logreg-v1",
+  "generado": "2026-11-17",
+  "desenlace": "HbA1c > 7 % (sustituto, igual que la Parte 1)",
+  "umbralPixel": 1,
+  "C": 0.1,
+  "intercepto": 0.685,
+  "features": [
+    {
+      "key": "tci",
+      "nombre": "TCI (índice de cambio térmico)",
+      "unidad": "°C",
+      "media": 1.338,
+      "desvio": 0.85,
+      "coef": -0.364
+    },
+    {
+      "key": "areaCalientePct",
+      "nombre": "Área con |ΔT| sobre el umbral",
+      "unidad": "%",
+      "media": 17.836,
+      "desvio": 15.657,
+      "coef": 0.068
+    },
+    {
+      "key": "p95Abs",
+      "nombre": "|ΔT| percentil 95",
+      "unidad": "°C",
+      "media": 1.411,
+      "desvio": 0.369,
+      "coef": 0.036
+    }
+  ],
+  "validacion": {
+    "metodo": "5 pliegues estratificados × 20 repeticiones, C anidado",
+    "n": 53,
+    "positivos": 35,
+    "auc": 0.636,
+    "aucIC95": [0.481, 0.786],
+    "pPermutacion": 0.085,
+    "kFold": {
+      "metodo": "5 pliegues estratificados × 20 repeticiones",
+      "aucMedia": 0.636
+    }
+  },
+  "muestra": {
+    "criterio": "Pacientes con el desenlace registrado y toma 1 analizable; se excluyen los marcados «PACIENTE NO VALIDO»."
+  },
+  "nota": "No validado y NO usado por defecto (PREDICTOR=puntual-tci para probarlo). El coeficiente del TCI es NEGATIVO (más TCI, menos riesgo), opuesto a la hipótesis fisiológica; el TCI absoluto se confunde con el centro de atención (control «sólo centro» AUC 0,64) y la variante de patrón no muestra señal (AUC 0,44). El IC 95 % incluye 0,5."
+}

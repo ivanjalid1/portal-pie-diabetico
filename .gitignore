@@ -11,6 +11,8 @@ coverage/
 # Material privado (datos de pacientes reales, documentos, instaladores)
 tesis-2026/
 tesis-2026info/
+# Datos reales precalculados (locales, nunca se versionan ni se despliegan)
+data-local/
 *.pdf
 *.xlsx
 *.xls

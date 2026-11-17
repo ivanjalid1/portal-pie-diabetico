@@ -1,4 +1,6 @@
 tesis-2026info/
+# Datos reales precalculados (locales, nunca se versionan ni se despliegan)
+data-local/
 *.pdf
 *.xlsx
 *.xls

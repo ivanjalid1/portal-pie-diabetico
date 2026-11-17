@@ -9,8 +9,8 @@
     const dir = active && filters.dir === 'desc' ? 'asc' : 'desc';
     return `<a class="sort${active ? ' is-active' : ''}" href="/medico/estudios${qs({ orden: key, dir, page: 1 })}" aria-sort="${active ? (filters.dir === 'asc' ? 'ascending' : 'descending') : 'none'}">${label}<span aria-hidden="true">${active ? (filters.dir === 'asc' ? '↑' : '↓') : '↕'}</span></a>`;
   };
-  const tend = (a) => (a.roisQueEmpeoran.length ? ['up', 'Empeora'] : a.evolucion.some((e) => e.tendencia === 'mejora' && e.roi !== 'general') ? ['down', 'Mejora'] : ['eq', 'Estable']);
-  const anyFilter = filters.q || filters.desde || filters.hasta || filters.centro || filters.riesgo || filters.grupo || filters.publicado || filters.desenlace;
+  const areaDe = (a) => (a.puntualActual && a.puntualActual.metricas ? a.puntualActual.metricas.areaCalientePct : null);
+  const anyFilter = filters.q || filters.desde || filters.hasta || filters.centro || filters.riesgo || filters.grupo || filters.desenlace;
 %>
 <%- include('../partials/page-header', {
   heading: 'Estudios realizados',
@@ -31,8 +31,7 @@
       <div class="field"><label for="hasta">Hasta</label><input id="hasta" name="hasta" type="date" value="<%= filters.hasta || '' %>"></div>
       <div class="field"><label for="centro">Centro</label><select id="centro" name="centro"><option value="">Todos</option><% centros.forEach((c) => { %><option<%= filters.centro === c ? ' selected' : '' %>><%= c %></option><% }) %></select></div>
       <div class="field"><label for="riesgo">Nivel de riesgo</label><select id="riesgo" name="riesgo"><option value="">Todos</option><% ['alto', 'moderado', 'sin_riesgo'].forEach((k) => { %><option value="<%= k %>"<%= filters.riesgo === k ? ' selected' : '' %>><%= domain.RISK_CATEGORIES[k].nombre %></option><% }) %></select></div>
-      <div class="field"><label for="grupo">Asimetría (toma 2)</label><select id="grupo" name="grupo"><option value="">Todas</option><option value="P"<%= filters.grupo === 'P' ? ' selected' : '' %>>Con asimetría (P)</option><option value="C"<%= filters.grupo === 'C' ? ' selected' : '' %>>Sin asimetría (C)</option></select></div>
-      <div class="field"><label for="publicado">Visible al paciente</label><select id="publicado" name="publicado"><option value="">Todos</option><option value="si"<%= filters.publicado === 'si' ? ' selected' : '' %>>Publicado</option><option value="no"<%= filters.publicado === 'no' ? ' selected' : '' %>>No publicado</option></select></div>
+      <div class="field"><label for="grupo">Regiones (Parte 1)</label><select id="grupo" name="grupo"><option value="">Todas</option><option value="P"<%= filters.grupo === 'P' ? ' selected' : '' %>>Con asimetría (P)</option><option value="C"<%= filters.grupo === 'C' ? ' selected' : '' %>>Sin asimetría (C)</option></select></div>
       <div class="field"><label for="desenlace">Desenlace</label><select id="desenlace" name="desenlace"><option value="">Todos</option><option value="con"<%= filters.desenlace === 'con' ? ' selected' : '' %>>Registrado</option><option value="sin"<%= filters.desenlace === 'sin' ? ' selected' : '' %>>Sin registrar</option></select></div>
     </div>
   </details>
@@ -52,25 +51,23 @@
     <table class="table table--cards">
       <thead>
         <tr>
-          <th scope="col"><%- sortLink('fecha', 'Toma 2') %></th>
+          <th scope="col"><%- sortLink('fecha', 'Última toma') %></th>
           <th scope="col"><%- sortLink('codigo', 'Paciente') %></th>
           <th scope="col">Centro</th>
-          <th scope="col"><%- sortLink('dt', 'ΔT máx. T1 → T2') %></th>
-          <th scope="col">Tendencia</th>
-          <th scope="col"><%- sortLink('probabilidad', 'Probabilidad') %></th>
-          <th scope="col">Publicado</th>
+          <th scope="col"><%- sortLink('dt', 'Área |ΔT| &gt; umbral') %></th>
+          <th scope="col">Tomas</th>
+          <th scope="col"><%- sortLink('probabilidad', 'Categoría') %></th>
         </tr>
       </thead>
       <tbody>
-        <% items.forEach(({ study, patient, analysis: a }) => { const [tc, tl] = tend(a); %>
+        <% items.forEach(({ study, patient, analysis: a }) => { const area = areaDe(a); const tA = a.puntualActual; %>
         <tr class="row-link" data-href="/medico/estudios/<%= study.id %>">
-          <td data-label="Toma 2"><a href="/medico/estudios/<%= study.id %>" class="cell-link"><strong class="num"><%= fmt.date(study.fechaHora) %></strong></a><small class="muted block">T1: <%= fmt.date(study.fechaToma1) %></small></td>
+          <td data-label="Última toma"><a href="/medico/estudios/<%= study.id %>" class="cell-link"><strong class="num"><%= fmt.date(study.fechaHora) %></strong></a><small class="muted block">T1: <%= fmt.date(study.fechaToma1) %></small></td>
           <td data-label="Paciente"><span class="person"><span class="code"><%= patient.codigo %></span><span><strong><%= patient.nombreCompleto %></strong></span></span></td>
           <td data-label="Centro"><%= study.centro %></td>
-          <td data-label="ΔT máx." class="num nowrap"><%= a.deltaTMaxToma1 !== null ? fmt.num(Math.abs(a.deltaTMaxToma1), 1) : '—' %> → <strong><%= fmt.num(Math.abs(a.deltaTMax), 1) %></strong> °C</td>
-          <td data-label="Tendencia"><span class="trend-sym trend-sym--<%= tc %>" aria-hidden="true"><%= tc === 'up' ? '↑' : tc === 'down' ? '↓' : '=' %></span> <%= tl %></td>
-          <td data-label="Probabilidad"><%- include('../partials/risk-badge', { analysis: a, showPct: true }) %></td>
-          <td data-label="Publicado"><%= study.publicado ? 'Sí' : 'No' %></td>
+          <td data-label="Área |ΔT| &gt; umbral" class="num nowrap"><%= area !== null ? `${fmt.num(area, 1)} %` : '—' %><% if (tA && tA.zonasNoAnalizadas.length) { %> <span class="badge badge--warn" title="Zonas no analizadas: <%= pw.zonasTexto(tA).noAnalizado %>">parcial</span><% } %></td>
+          <td data-label="Tomas"><%= a.tieneToma2 ? 'Toma 1 y 2' : 'Sin toma 2' %></td>
+          <td data-label="Categoría"><%- include('../partials/risk-badge', { analysis: a, showPct: true }) %></td>
         </tr>
         <% }) %>
       </tbody>

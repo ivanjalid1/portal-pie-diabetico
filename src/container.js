@@ -23,6 +23,7 @@ const StudyService = require('./services/StudyService');
 const DashboardService = require('./services/DashboardService');
 const SettingsService = require('./services/SettingsService');
 const { seedDemoData, DEMO_PASSWORD } = require('./seed');
+const { loadRealDataset, seedRealData } = require('./seed/realData');
 
 function buildContainer({ config = getConfig(), overrides = {} } = {}) {
   const events = overrides.events || new DomainEventBus();
@@ -102,9 +103,28 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
   };
 
   // El driver memory arranca vacío: se carga la semilla de demostración.
+  // Con SEED=real y la carpeta local data-local/real presente se cargan los
+  // pacientes reales precalculados; si falta (CI, Vercel, pruebas), la demo.
   if (data.driver === 'memory' && overrides.seed !== false) {
     const passwordHash = bcrypt.hashSync(DEMO_PASSWORD, config.security.bcryptRounds);
-    container.ready = seedDemoData({ repos, authProvider, predictor }, { passwordHash });
+    const dataset = config.seed === 'real' ? loadRealDataset(config.realDataDir) : null;
+    if (config.seed === 'real' && !dataset) {
+      console.warn(
+        '[seed] SEED=real pero no se encontró data-local/real/dataset.json: se usan los datos de demostración.',
+      );
+    }
+    container.seedMode = dataset ? 'real' : 'demo';
+    container.ready = dataset
+      ? seedRealData(
+          { repos, predictor },
+          {
+            dataset,
+            dir: config.realDataDir,
+            passwordHash,
+            log: config.isTest ? undefined : (m) => console.log(`[seed] ${m}`),
+          },
+        )
+      : seedDemoData({ repos, authProvider, predictor }, { passwordHash });
   }
   return container;
 }

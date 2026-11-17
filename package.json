@@ -11,7 +11,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "generate:images": "node scripts/generate-demo-images.js",
-    "seed:supabase": "node scripts/seed-supabase.js"
+    "seed:supabase": "node scripts/seed-supabase.js",
+    "precompute:real": "node scripts/precompute-real.js",
+    "train:model": "node scripts/train-pointwise-model.js",
+    "generate:pointwise": "node scripts/generate-demo-pointwise.js"
   },
   "license": "MIT",
   "dependencies": {

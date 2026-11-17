@@ -41,7 +41,10 @@ function build(env = process.env) {
     appName: 'TermoPie',
     appUrl: env.APP_URL || 'http://localhost:3000',
     dataDriver: (env.DATA_DRIVER || 'memory').toLowerCase(),
-    predictor: (env.PREDICTOR || 'mock').toLowerCase(),
+    predictor: (env.PREDICTOR || 'puntual').toLowerCase(),
+    // SEED=real carga los pacientes reales precalculados en data-local/ (sólo local).
+    seed: (env.SEED || 'demo').toLowerCase(),
+    realDataDir: env.REAL_DATA_DIR || require('node:path').join(__dirname, '..', '..', 'data-local', 'real'),
     session: Object.freeze({
       name: 'tp_session',
       secret: isProd && !env.SESSION_SECRET ? require('node:crypto').randomBytes(32).toString('hex') : sessionSecret,

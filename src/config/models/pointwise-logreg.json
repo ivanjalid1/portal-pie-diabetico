@@ -1,0 +1,66 @@
+{
+  "_descripcion": "Modelo PRELIMINAR (regresión logística L2) sobre features punto a punto de la toma 1. Generado por scripts/train-pointwise-model.js. Sólo contiene parámetros y métricas agregadas.",
+  "version": "puntual-logreg-v1",
+  "generado": "2026-11-17",
+  "desenlace": "HbA1c > 7 % (sustituto, igual que la Parte 1)",
+  "umbralPixel": 1,
+  "C": 0.5,
+  "intercepto": 0.676,
+  "features": [
+    {
+      "key": "areaCalientePct",
+      "nombre": "Área con |ΔT| sobre el umbral",
+      "unidad": "%",
+      "media": 16.815,
+      "desvio": 15.5,
+      "coef": 0.275
+    },
+    {
+      "key": "mediaAbs",
+      "nombre": "|ΔT| medio entre pies",
+      "unidad": "°C",
+      "media": 0.597,
+      "desvio": 0.228,
+      "coef": 0.106
+    },
+    {
+      "key": "p95Abs",
+      "nombre": "|ΔT| percentil 95",
+      "unidad": "°C",
+      "media": 1.399,
+      "desvio": 0.476,
+      "coef": -0.194
+    }
+  ],
+  "validacion": {
+    "metodo": "Leave-One-Out",
+    "n": 53,
+    "positivos": 35,
+    "auc": 0.267,
+    "aucIC95": [
+      0.135,
+      0.405
+    ],
+    "kFold": {
+      "metodo": "5 pliegues estratificados × 20 repeticiones",
+      "aucMedia": 0.422
+    },
+    "aucPorFeature": [
+      {
+        "key": "areaCalientePct",
+        "auc": 0.525
+      },
+      {
+        "key": "mediaAbs",
+        "auc": 0.55
+      },
+      {
+        "key": "p95Abs",
+        "auc": 0.49
+      }
+    ]
+  },
+  "muestra": {
+    "criterio": "Pacientes con HbA1c registrada y toma 1 analizable; se excluyen los marcados «PACIENTE NO VALIDO» en la planilla (criterio de la Parte 1)."
+  }
+}

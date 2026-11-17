@@ -25,7 +25,10 @@ function createAuthController({ authService, events, config }) {
         layout: 'public',
         title: 'Ingresar',
         next: typeof req.query.next === 'string' ? req.query.next : '',
-        demoAccounts: config.showDemoAccounts ? DEMO_ACCOUNTS : [],
+        // Con los datos reales locales no existe la paciente demo (sólo las cuentas del personal).
+        demoAccounts: config.showDemoAccounts
+          ? DEMO_ACCOUNTS.filter((a) => req.app.locals.seedMode !== 'real' || a.email !== 'paciente@demo.com')
+          : [],
       });
     },
 

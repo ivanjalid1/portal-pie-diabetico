@@ -19,6 +19,7 @@ const buildRoutes = require('./routes');
 function createApp(container = buildContainer()) {
   const { config, services } = container;
   const app = express();
+  app.locals.seedMode = container.seedMode || 'demo';
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));

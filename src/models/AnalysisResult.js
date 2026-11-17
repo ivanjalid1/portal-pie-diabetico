@@ -59,17 +59,50 @@ class AnalysisResult {
         Object.entries(p).map(([k, v]) => [k, v !== null && typeof v === 'object' ? v : Number(v)]),
       ),
     };
+    // Análisis punto a punto (grillas canónicas, métricas por toma, cambio entre tomas y modelo).
+    this.puntual = a.puntual && typeof a.puntual === 'object' ? a.puntual : null;
     this.simulado = a.simulado !== false;
     this.createdAt = a.createdAt || new Date().toISOString();
   }
 
+  /** Sólo hay toma 1 (análisis punto a punto sin toma 2): `rois` corresponde a la toma 1. */
+  get soloToma1() {
+    return Boolean(this.puntual && !this.puntual.tieneToma2 && this.puntual.tomaActual === 1);
+  }
+
   roi(key, toma = 2) {
-    return (toma === 1 ? this.roisToma1 : this.rois).find((r) => r.roi === key) || null;
+    let list = toma === 1 ? this.roisToma1 : this.rois;
+    if (this.soloToma1) list = toma === 1 ? this.rois : [];
+    return list.find((r) => r.roi === key) || null;
+  }
+
+  grupoDeToma(toma) {
+    if (this.soloToma1) return toma === 1 ? this.grupo : null;
+    return toma === 1 ? this.grupoToma1 : this.grupo;
+  }
+
+  simetricoDeToma(toma) {
+    if (this.soloToma1) return toma === 1 ? this.simetrico : null;
+    return toma === 1 ? this.simetricoToma1 : this.simetrico;
   }
 
   /** ROIs de la toma 2 cuya asimetría supera el umbral. */
   get roisSobreUmbral() {
     return this.rois.filter((r) => r.roi !== 'general' && Math.abs(r.deltaT) >= this.umbral);
+  }
+
+  /** Toma más reciente del análisis punto a punto (o null). */
+  get puntualActual() {
+    return this.puntual?.tomas?.at(-1) || null;
+  }
+
+  /** Toma k del análisis punto a punto (o null). */
+  puntualToma(k) {
+    return this.puntual?.tomas?.find((t) => t.toma === k) || null;
+  }
+
+  get tieneToma2() {
+    return this.puntual ? Boolean(this.puntual.tieneToma2) : this.roisToma1.length > 0;
   }
 
   get tieneToma1() {

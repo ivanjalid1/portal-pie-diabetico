@@ -50,8 +50,9 @@ const BASE_COLUMNS = [
 /** Columnas por ROI y clasificación térmica de una toma (prefijo T1/T2). */
 function tomaColumns(toma) {
   const p = `T${toma}`;
-  const grupo = ({ analysis }) => (toma === 1 ? analysis?.grupoToma1 : analysis?.grupo) || '';
-  const sim = ({ analysis }) => yesNo(toma === 1 ? analysis?.simetricoToma1 : analysis?.simetrico);
+  const grupo = ({ analysis }) => analysis?.grupoDeToma(toma) || '';
+  const sim = ({ analysis }) => yesNo(analysis?.simetricoDeToma(toma));
+  const pw = (analysis) => analysis?.puntualToma(toma)?.metricas || null;
   return [
     ...ROIS.flatMap((r) => [
       [`${p} AVG DER ${r.csv}`, ({ analysis }) => num(analysis?.roi(r.key, toma)?.avgDer)],
@@ -60,6 +61,15 @@ function tomaColumns(toma) {
     ]),
     [`${p} GRUPO (P/C)`, grupo],
     [`${p} SIMETRICO`, sim],
+    // Análisis punto a punto (ΔT = izquierdo − derecho espejado).
+    [`${p} PUNTUAL AREA |DT|>UMBRAL (%)`, ({ analysis }) => num(pw(analysis)?.areaCalientePct, 1)],
+    [`${p} PUNTUAL |DT| MEDIO`, ({ analysis }) => num(pw(analysis)?.mediaAbs)],
+    [`${p} PUNTUAL |DT| P95`, ({ analysis }) => num(pw(analysis)?.p95Abs)],
+    [`${p} PUNTUAL |DT| MAX`, ({ analysis }) => num(pw(analysis)?.maxAbs)],
+    [
+      `${p} PUNTUAL ZONAS NO ANALIZADAS`,
+      ({ analysis }) => (analysis?.puntualToma(toma)?.zonasNoAnalizadas || []).join(' '),
+    ],
   ];
 }
 
@@ -80,7 +90,12 @@ const TAIL_COLUMNS = [
     'CORTES RIESGO (%)',
     ({ analysis }) => (analysis ? `${analysis.parametros.corteModerado}/${analysis.parametros.corteAlto}` : ''),
   ],
-  ['PROBABILIDAD (%) SIMULADA', ({ analysis }) => num(analysis?.probabilidad, 1)],
+  ['UMBRAL POR PUNTO (°C)', ({ analysis }) => num(analysis?.puntual?.umbralPixel, 1)],
+  ['PROBABILIDAD (%) MODELO', ({ analysis }) => num(analysis?.probabilidad, 1)],
+  [
+    'ORIGEN PROBABILIDAD',
+    ({ analysis }) => (!analysis ? '' : analysis.puntual ? 'MODELO PRELIMINAR (NO VALIDADO)' : 'SIMULADA'),
+  ],
 ];
 
 const COLUMNS = [...BASE_COLUMNS, ...tomaColumns(1), ...tomaColumns(2), ...EVOLUTION_COLUMNS, ...TAIL_COLUMNS];
@@ -105,10 +120,10 @@ function buildControlesCsv(items) {
     ['DESVIO (DIAS)', ({ appt }) => appt.desvioDias ?? ''],
     ['MOTIVO', ({ appt }) => appt.motivo],
     ['MOTIVO AUSENCIA', ({ appt }) => appt.motivoAusencia || ''],
-    ['GRUPO T1', ({ analysis }) => analysis?.grupoToma1 || ''],
-    ['GRUPO T2', ({ analysis }) => analysis?.grupo || ''],
-    ['AUMENTO MAX |DIF| (°C)', ({ analysis }) => (analysis ? num(analysis.maxEmpeoramiento) : '')],
-    ['PROBABILIDAD (%) SIMULADA', ({ analysis }) => num(analysis?.probabilidad, 1)],
+    ['GRUPO T1', ({ analysis }) => analysis?.grupoDeToma(1) || ''],
+    ['GRUPO T2', ({ analysis }) => analysis?.grupoDeToma(2) || ''],
+    ['PUNTUAL AREA |DT|>UMBRAL (%)', ({ analysis }) => num(analysis?.puntualActual?.metricas?.areaCalientePct, 1)],
+    ['PROBABILIDAD (%) MODELO', ({ analysis }) => num(analysis?.probabilidad, 1)],
     ['GENERÓ LESIÓN', ({ patient }) => yesNo(patient.generoLesion)],
   ];
   const lines = [cols.map(([h]) => escape(h)).join(';')];

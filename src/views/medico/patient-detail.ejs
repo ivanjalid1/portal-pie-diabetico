@@ -15,48 +15,54 @@
 
 <div class="patient-strip">
   <span class="code code--lg"><%= p.codigo %></span>
-  <span><%= p.edad() %> años, <%= p.sexo === 'F' ? 'femenino' : 'masculino' %></span>
-  <span>DM tipo <%= p.tipoDm %>, <%= fmt.num(p.aniosEvolucionDm, 1) %> años</span>
+  <span><%= p.edad() !== null ? `${p.edad()} años` : 'Edad sin dato' %><%= p.sexo === 'F' ? ', femenino' : p.sexo === 'M' ? ', masculino' : '' %></span>
+  <span><%= p.tipoDm ? `DM tipo ${p.tipoDm}` : 'DM tipo sin dato' %><%= p.aniosEvolucionDm !== null ? `, ${fmt.num(p.aniosEvolucionDm, 1)} años` : '' %></span>
   <span><%= p.centro %></span>
-  <% if (last) { %><%- include('../partials/risk-badge', { analysis: last.analysis, showPct: true }) %><%- include('../partials/grupo', { value: last.analysis.grupo }) %><% } %>
+  <% if (last) { %><%- include('../partials/risk-badge', { analysis: last.analysis, showPct: false }) %><% if (last.analysis.puntualActual) { %><span class="badge badge--<%= last.analysis.puntualActual.conAsimetria ? 'danger' : 'ok' %>"><%= last.analysis.puntualActual.conAsimetria ? 'Con asimetría punto a punto' : 'Sin asimetría punto a punto' %></span><% } %><% } %>
   <% if (!p.consentimientoFirmado) { %><span class="badge badge--danger">Sin consentimiento vigente</span><% } %>
 </div>
 
 <div class="grid grid--main">
   <div class="stack-lg">
-    <section class="card evo-card" aria-labelledby="evo-title">
+    <section class="card pw-card" aria-labelledby="pw-title">
       <div class="card__head">
-        <h2 id="evo-title" class="card__title">Evolución entre tomas</h2>
-        <% if (last) { %><span class="small muted"><%= transicionGrupo(last.analysis) %></span><% } %>
+        <h2 id="pw-title" class="card__title">Análisis punto a punto</h2>
+        <% if (last) { %><a class="link small" href="/medico/estudios/<%= last.study.id %>">Ver estudio completo</a><% } %>
       </div>
-      <% if (last) { const la = last.analysis; %>
-      <div class="evo-grid">
-        <div class="evo-grid__main">
-          <h3 class="card__subtitle">ΔT por región: toma 1 → toma 2</h3>
-          <%- include('../partials/dumbbell', { analysis: la, chartId: 'pd' }) %>
-          <%- include('../partials/dumbbell', { analysis: la, chartId: 'pd', small: true }) %>
+      <% const lastPw = last && last.analysis.puntual; %>
+      <% if (lastPw) { const la = last.analysis; const data = pw.payload(la); const srcId = `pw-pd-${last.study.id}`; const tA = la.puntualActual; const z = pw.zonasTexto(tA); %>
+      <script type="application/json" id="<%= srcId %>" data-pw-data><%- pw.json(data) %></script>
+      <div class="pw-evo">
+        <div>
+          <h3 class="card__subtitle">Área con diferencia entre pies, por toma</h3>
+          <%- include('../partials/pw-evolution', { serie: seriePuntual, areaMinima: lastPw.umbralPixel ? lastPw.areaMinima : 10 }) %>
+          <% if (lastPw.modelo) { %>
+          <p class="muted small">Modelo preliminar (desenlace sustituto HbA1c &gt; 7 %): AUC <span class="num"><%= fmt.num(lastPw.modelo.auc, 2) %></span>, n = <%= lastPw.modelo.n %>. No está validado: la categoría se basa en el hallazgo térmico.</p>
+          <% } %>
         </div>
-        <div class="evo-grid__side">
-          <h3 class="card__subtitle">Mayor diferencia entre pies</h3>
-          <%- include('../partials/slope', { serie, umbral: la.umbral }) %>
-          <h3 class="card__subtitle">Probabilidad estimada por estudio</h3>
-          <ul class="prob-list">
-            <% items.filter((i) => i.analysis).forEach(({ study, analysis }) => { const c = domain.RISK_CATEGORIES[analysis.categoria]; %>
-            <li>
-              <a href="/medico/estudios/<%= study.id %>"><span class="num"><%= fmt.date(study.fechaHora) %></span></a>
-              <span class="prob-mini" role="img" aria-label="<%= fmt.num(analysis.probabilidad, 0) %> %"><span class="prob-mini__fill prob-mini__fill--<%= c.tono %>" style="width: <%= analysis.probabilidad %>%"></span></span>
-              <strong class="num"><%= fmt.num(analysis.probabilidad, 0) %> %</strong>
-              <span class="badge badge--<%= c.tono %>"><%= c.nombre %></span>
-            </li>
+        <div>
+          <h3 class="card__subtitle">Mapa ΔT izq. − der. <%= lastPw.tieneToma2 ? 'por toma' : '(toma 1)' %></h3>
+          <div class="pw-evo__maps">
+            <% lastPw.tomas.forEach((t) => { %>
+            <figure class="pw-map pw-map--dt">
+              <canvas data-pw-map="<%= t.toma %>:dt" data-pw-src="<%= srcId %>" role="img" aria-label="Mapa de diferencias, toma <%= t.toma %>"></canvas>
+              <figcaption>Toma <%= t.toma %> · <span class="num"><%= t.metricas ? fmt.num(t.metricas.areaCalientePct, 1) : '—' %> %</span></figcaption>
+            </figure>
             <% }) %>
-          </ul>
+            <% if (!lastPw.tieneToma2) { %>
+            <div class="pw-map pw-map--empty image-tile__file--empty"><span class="small muted">Sin toma 2</span></div>
+            <% } %>
+          </div>
+          <div class="pw-legend">
+            <span class="pw-legend__bar pw-legend__bar--div"></span>
+            <span class="pw-legend__ticks num"><span>−3</span><span>0</span><span>+3 °C</span></span>
+            <span class="pw-legend__label">Rojo: izquierdo más caliente · azul: derecho · contorno: |ΔT| &gt; <%= fmt.num(lastPw.umbralPixel, 1) %> °C</span>
+          </div>
+          <% if (z) { %><p class="small text-warn">En el último estudio no se analizó: <%= z.noAnalizado %>. Se analizó: <%= z.analizado %>.</p><% } %>
         </div>
       </div>
-      <table class="sr-only">
-        <caption>ΔT por región en cada toma</caption>
-        <tr><th scope="col">Región</th><th scope="col">Toma 1</th><th scope="col">Toma 2</th></tr>
-        <% la.evolucion.forEach((e) => { %><tr><th scope="row"><%= domain.ROI_NAMES[e.roi] %></th><td><%= fmt.signed(e.dt1, 2) %> °C</td><td><%= fmt.signed(e.dt2, 2) %> °C</td></tr><% }) %>
-      </table>
+      <% } else if (last) { %>
+      <div class="empty empty--inline"><p>El último estudio no tiene análisis punto a punto (imágenes no radiométricas).</p></div>
       <% } else { %>
       <div class="empty empty--inline"><p>Sin estudios analizados todavía.</p></div>
       <% } %>
@@ -76,20 +82,24 @@
         <% items.forEach(({ study, analysis }) => { %>
         <li class="timeline__item">
           <a href="/medico/estudios/<%= study.id %>" class="timeline__link">
-            <span class="timeline__date"><strong><%= fmt.date(study.fechaHora) %></strong><small>Toma 1: <%= fmt.date(study.fechaToma1) %></small></span>
+            <span class="timeline__date"><strong><%= fmt.date(study.fechaHora) %></strong><small><%= analysis && analysis.puntual && !analysis.puntual.tieneToma2 ? 'Sólo toma 1' : `Toma 1: ${fmt.date(study.fechaToma1)}` %></small></span>
             <span class="timeline__body">
-              <% if (analysis) { %>
-              <span>ΔT máx. <strong class="num"><%= fmt.signed(analysis.deltaTMax) %> °C</strong> en <%= domain.ROI_NAMES[analysis.deltaTMaxRoi].toLowerCase() %></span>
+              <% const tA = analysis && analysis.puntualActual; %>
+              <% if (tA && tA.metricas) { %>
+              <span>Área con |ΔT| &gt; umbral <strong class="num"><%= fmt.num(tA.metricas.areaCalientePct, 1) %> %</strong> (toma <%= tA.toma %>)</span>
+              <% } else if (analysis) { %>
+              <span>ΔT máx. por región <strong class="num"><%= fmt.signed(analysis.deltaTMax) %> °C</strong></span>
               <% } %>
               <span class="timeline__tags">
                 <% if (!study.valida) { %><span class="badge badge--warn">Imagen no válida</span><% } %>
-                <% if (!study.condiciones(paramsOf(analysis).protocolo).ok) { %><span class="badge badge--warn">Condiciones fuera de rango</span><% } %>
-                <% if (study.publicado) { %><span class="badge badge--muted">Visible al paciente</span><% } else { %><span class="badge badge--outline">No publicado</span><% } %>
+                <% if (study.tempAmbiente !== null && !study.condiciones(paramsOf(analysis).protocolo).ok) { %><span class="badge badge--warn">Condiciones fuera de rango</span><% } %>
+                <% if (analysis && analysis.puntual && !analysis.puntual.tieneToma2) { %><span class="badge badge--outline">Sin toma 2</span><% } %>
+                <% if (tA && tA.zonasNoAnalizadas.length) { %><span class="badge badge--warn">Zonas no analizadas</span><% } %>
               </span>
             </span>
             <span class="timeline__result">
               <%- include('../partials/risk-badge', { analysis, showPct: true }) %>
-              <% if (analysis) { %><span class="grupo-trans" title="<%= grupoAyuda() %>"><%- include('../partials/grupo', { value: analysis.grupoToma1, small: true }) %><span class="grupo-arrow" aria-hidden="true">→</span><%- include('../partials/grupo', { value: analysis.grupo, small: true }) %></span><% } %>
+
             </span>
           </a>
         </li>
@@ -152,7 +162,7 @@
             </div>
             <small class="muted"><%= a.motivo %><% if (a.realizadoEn) { %> · realizado el <%= fmt.date(a.realizadoEn) %><% } %></small>
             <% if (a.motivoAusencia) { %><small class="text-warn"><%= a.motivoAusencia %></small><% } %>
-            <% if (a.studyId) { %><a class="link small" href="/medico/estudios/<%= a.studyId %>">Ver estudio comparativo</a><% } %>
+            <% if (a.studyId) { %><a class="link small" href="/medico/estudios/<%= a.studyId %>">Ver estudio</a><% } %>
           </div>
         </li>
         <% }) %>

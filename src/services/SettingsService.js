@@ -12,6 +12,8 @@ const {
   describe,
 } = require('../config/settings');
 const { thermalGroup, categoryFor } = require('../config/domain');
+const { analyzePointwise } = require('./predictors/pointwiseAnalysis');
+const { categoriaTermica } = require('./predictors/PointwisePredictor');
 
 /**
  * Configuración global del análisis (parámetros editables).
@@ -117,15 +119,39 @@ class SettingsService {
     let conAsimetria = 0;
     let conAsimetriaActual = 0;
     let simetricas = 0;
+    let conAsimetriaPuntual = 0;
+    let conAsimetriaPuntualActual = 0;
+    let puntuales = 0;
     const riesgo = { sin_riesgo: 0, moderado: 0, alto: 0 };
+    const params = analysisParams(v);
     for (const a of list) {
       const g = thermalGroup(a.rois, v.umbralAsimetria, v.corteSimetria);
       if (g.grupo === 'P') conAsimetria += 1;
       if (a.grupo === 'P') conAsimetriaActual += 1;
       if (g.simetrico) simetricas += 1;
-      riesgo[categoryFor(a.probabilidad, { moderado: v.corteModerado, alto: v.corteAlto })] += 1;
+      let categoria = categoryFor(a.probabilidad, { moderado: v.corteModerado, alto: v.corteAlto });
+      if (a.puntual) {
+        // Se recalculan las métricas punto a punto con los parámetros propuestos (sin reprocesar imágenes).
+        const grids = Object.fromEntries(a.puntual.tomas.map((t) => [`toma${t.toma}`, t]));
+        const pw = analyzePointwise(grids, params);
+        const actual = pw.tomas.at(-1);
+        puntuales += 1;
+        if (actual?.conAsimetria) conAsimetriaPuntual += 1;
+        if (a.puntual.tomas.at(-1)?.conAsimetria) conAsimetriaPuntualActual += 1;
+        if (a.puntual.categoriaPor === 'hallazgo_termico') categoria = categoriaTermica(actual, params);
+      }
+      riesgo[categoria] += 1;
     }
-    return { total: list.length, conAsimetria, conAsimetriaActual, simetricas, riesgo };
+    return {
+      total: list.length,
+      conAsimetria,
+      conAsimetriaActual,
+      simetricas,
+      riesgo,
+      puntuales,
+      conAsimetriaPuntual,
+      conAsimetriaPuntualActual,
+    };
   }
 
   /** Validación tolerante para la vista previa: ignora los campos inválidos. */

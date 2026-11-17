@@ -5,20 +5,29 @@
   const P = paramsOf(a);
   const C = s.condiciones(P.protocolo);
   const M = domain.REFERENCE_MODEL;
-  const maxContrib = a ? Math.max(0.01, ...a.factores.map((f) => Math.abs(f.contribucion))) : 1;
-  const fuente = { imagen: 'estimadas de las termografías', is2: 'calculadas desde los archivos IS2', simulada: 'simuladas' };
-  const tend = { empeora: { label: 'Empeora', cls: 'danger', icon: 'trendUp' }, mejora: { label: 'Mejora', cls: 'ok', icon: 'trendDown' }, estable: { label: 'Estable', cls: 'muted', icon: 'minus' } };
+  const PW = a && a.puntual;
+  const MOD = PW && PW.modelo;
+  const t2 = PW ? PW.tieneToma2 : Boolean(s.image('toma2'));
+  const maxContrib = a && a.factores.length ? Math.max(0.01, ...a.factores.map((f) => Math.abs(f.contribucion))) : 1;
+  const regiones = a ? (a.tieneToma2 && a.roisToma1.length ? [[1, a.roisToma1], [2, a.rois]] : [[PW ? PW.tomaActual : 2, a.rois]]) : [];
+  const tomaLabel = (k) => (k === 1 ? 'Toma 1 · basal' : 'Toma 2 · control');
+  const fechaToma = (k) => (k === 1 ? s.fechaToma1 : s.fechaHora);
+  const grupoDe = (k) => (regiones.length > 1 && k === 1 ? a.grupoToma1 : a.grupo);
 %>
 <%- include('../partials/page-header', {
-  heading: `${p.codigo} · comparación de tomas`,
-  lead: `${p.nombreCompleto}. Toma 1: ${fmt.date(s.fechaToma1)} · Toma 2: ${fmt.dateTime(s.fechaHora)}${s.diasEntreTomas !== null ? ` (${s.diasEntreTomas} días)` : ''} · ${s.centro}.`,
+  heading: `${p.codigo} · análisis punto a punto`,
+  lead: `${p.nombreCompleto}. Toma 1: ${fmt.date(s.fechaToma1)}` + (t2 ? ` · Toma 2: ${fmt.date(s.fechaHora)}${s.diasEntreTomas !== null ? ` (${s.diasEntreTomas} días)` : ''}` : ' · Sin toma 2') + (s.centro ? ` · ${s.centro}.` : '.'),
   back: { href: `/medico/pacientes/${p.id}`, label: p.codigo },
   actions: `<a class="btn btn--ghost" href="/medico/estudios/${s.id}/informe" target="_blank" rel="noopener">${include('../partials/icon', { name: 'printer', size: 18 })}Exportar informe</a>`
 }) %>
 
 <div class="notice notice--warn disclaimer" role="note">
   <%- include('../partials/icon', { name: 'alert' }) %>
-  <p><strong>Resultado simulado.</strong> <%= domain.DISCLAIMER %><% if (a) { %> Temperaturas por región <%= fuente[a.fuenteRois] || 'simuladas' %>.<% } %></p>
+  <% if (PW) { %>
+  <p><strong>Herramienta exploratoria, no diagnóstica.</strong> Temperaturas aproximadas (conversión lineal de las cuentas de la cámara, sin calibración radiométrica). El modelo de probabilidad es preliminar y no está validado clínicamente.</p>
+  <% } else { %>
+  <p><strong>Resultado simulado.</strong> No se pudo hacer el análisis punto a punto porque las imágenes no son archivos radiométricos (.IS2).</p>
+  <% } %>
 </div>
 
 <% if (!a) { %>
@@ -26,177 +35,163 @@
 <% } else { %>
 <div class="result-hero">
   <section class="card result-hero__gauge" aria-labelledby="prob-title">
-    <h2 id="prob-title" class="card__title">Probabilidad de úlcera a <%= a.horizonteSemanas %> semanas</h2>
+    <div class="card__head"><h2 id="prob-title" class="card__title">Modelo preliminar</h2><span class="badge badge--outline">No validado</span></div>
+    <% if (MOD) { %>
+    <div class="prelim">
+      <span class="prelim__value num"><%= fmt.num(a.probabilidad, 1) %><small>%</small></span>
+      <span class="prelim__bar" role="img" aria-label="Probabilidad del modelo preliminar: <%= fmt.num(a.probabilidad, 0) %> por ciento"><span style="width: <%= Math.max(2, a.probabilidad) %>%"></span></span>
+      <span class="prelim__ticks num"><span>0</span><span>50</span><span>100 %</span></span>
+    </div>
+    <p class="small center">Probabilidad estimada de <strong>HbA1c &gt; 7 %</strong> (desenlace sustituto, como en la Parte 1) a partir de la toma <%= MOD.tomaUsada %>.</p>
+    <div class="model-strip">
+      <span>AUC <%= MOD.metodo === 'Leave-One-Out' ? 'LOO' : 'CV' %> <strong class="num"><%= fmt.num(MOD.auc, 2) %></strong></span>
+      <% if (MOD.aucIC95) { %><span>IC 95 % <span class="num"><%= fmt.num(MOD.aucIC95[0], 2) %>–<%= fmt.num(MOD.aucIC95[1], 2) %></span></span><% } %>
+      <span>n <strong class="num"><%= MOD.n %></strong></span>
+    </div>
+    <% if (PW.categoriaPor === 'hallazgo_termico') { %>
+    <div class="prelim__cat"><span class="small">Categoría por hallazgo térmico</span> <%- include('../partials/risk-badge', { analysis: a }) %></div>
+    <p class="muted small center">El modelo todavía no discrimina (AUC &lt; 0,7): la categoría resume la asimetría punto a punto, no esta probabilidad.</p>
+    <% } %>
+    <% } else { %>
     <%- include('../partials/gauge', { value: a.probabilidad, category: a.categoria, cortes: { moderado: P.corteModerado, alto: P.corteAlto } }) %>
-    <p class="muted small center">Considera la asimetría de la toma 2 y su evolución desde la toma 1. Cortes: <%= P.corteModerado %> % y <%= P.corteAlto %> %.</p>
+    <p class="muted small center">Probabilidad simulada (sin análisis punto a punto).</p>
+    <% } %>
   </section>
 
-  <section class="card result-hero__thermal" aria-labelledby="thermal-title">
-    <div class="card__head"><h2 id="thermal-title" class="card__title">Clasificación térmica por toma</h2><span class="muted small nowrap">Umbral <span class="num"><%= fmt.num(a.umbral, 1) %> °C</span></span></div>
-    <% const cambioMax = a.deltaTMaxToma1 === null ? null : Math.abs(a.deltaTMax) - Math.abs(a.deltaTMaxToma1);
-       const empeora = a.roisQueEmpeoran.length > 0;
-       const txtG = (g) => (g === 'P' ? 'con asimetría' : g === 'C' ? 'sin asimetría' : 'sin dato');
-       const mejoraGrupo = a.grupoToma1 === 'P' && a.grupo === 'C';
-       const empeoraGrupo = a.grupoToma1 === 'C' && a.grupo === 'P';
-       const tono = empeora || empeoraGrupo ? 'danger' : mejoraGrupo ? 'ok' : 'neutral';
-       const titulo = empeora ? 'Asimetría en aumento entre tomas' : mejoraGrupo ? 'La asimetría mejoró entre tomas' : empeoraGrupo ? 'Apareció asimetría en la toma 2' : 'Sin cambios relevantes entre tomas';
-       const grupos = a.grupoToma1 === a.grupo ? `Ambas tomas ${txtG(a.grupo)}` : `Toma 1 ${txtG(a.grupoToma1)} → toma 2 ${txtG(a.grupo)}`; %>
-    <div class="tclass-grid">
-      <%- include('../partials/toma-class', { a, toma: 1 }) %>
-      <%- include('../partials/toma-class', { a, toma: 2 }) %>
-    </div>
-    <div class="evo-banner evo-banner--<%= tono %>" role="status">
-      <span class="evo-banner__icon"><%- include('../partials/icon', { name: empeora || empeoraGrupo ? 'trendUp' : mejoraGrupo ? 'trendDown' : 'check', size: 18 }) %></span>
-      <span class="evo-banner__text">
-        <strong><%= titulo %></strong>
-        <small><%= grupos %><% if (cambioMax !== null) { %> · cambio de ΔT máx. <span class="num"><%= fmt.signed(cambioMax, 1) %> °C</span><% } %><% if (empeora) { %> · aumenta en <%= a.roisQueEmpeoran.map((e) => domain.ROI_NAMES[e.roi].toLowerCase()).join(', ') %> (máx. +<%= fmt.num(a.maxEmpeoramiento, 1) %> °C)<% } %></small>
-      </span>
-    </div>
-  </section>
-</div>
-
-<section class="card" aria-labelledby="maps-title">
-  <div class="card__head">
-    <h2 id="maps-title" class="card__title">Mapa plantar por región</h2>
-  </div>
-  <div class="maps-compare">
-    <figure class="maps-compare__item">
-      <figcaption><span class="toma-dot toma-dot--1"></span><strong>Toma 1 · basal</strong> <span class="muted"><%= fmt.date(s.fechaToma1) %></span></figcaption>
-      <%- include('../partials/plantar-map', { rois: a.roisToma1, umbral: a.umbral, mapId: 'res1' }) %>
-    </figure>
-    <figure class="maps-compare__item">
-      <figcaption><span class="toma-dot toma-dot--2"></span><strong>Toma 2 · control</strong> <span class="muted"><%= fmt.date(s.fechaHora) %></span></figcaption>
-      <%- include('../partials/plantar-map', { rois: a.rois, umbral: a.umbral, mapId: 'res2' }) %>
-    </figure>
-  </div>
-</section>
-
-<div class="stack-lg result-tables">
-  <section class="card card--flush" aria-labelledby="evo-title">
-    <div class="card__head card__head--pad">
-      <h2 id="evo-title" class="card__title">Evolución de la asimetría</h2>
-      <span class="muted small">ΔT = derecho − izquierdo (°C)</span>
-    </div>
-    <div class="table-wrap">
-      <table class="table table--num">
-        <thead><tr><th scope="col">Región</th><th scope="col">ΔT toma 1</th><th scope="col">ΔT toma 2</th><th scope="col">Cambio |ΔT|</th><th scope="col">Tendencia</th></tr></thead>
-        <tbody>
-          <% a.evolucion.forEach((e) => { const t = tend[e.tendencia]; %>
-          <tr class="<%= e.roi === 'general' ? 'row-total' : '' %><%= e.tendencia === 'empeora' && e.roi !== 'general' ? ' row-hot' : '' %>">
-            <th scope="row"><%= domain.ROI_NAMES[e.roi] %></th>
-            <td><span class="delta<%= Math.abs(e.dt1) >= a.umbral && e.roi !== 'general' ? ' delta--hot' : '' %>"><%= fmt.signed(e.dt1, 2) %></span></td>
-            <td><span class="delta<%= Math.abs(e.dt2) >= a.umbral && e.roi !== 'general' ? ' delta--hot' : '' %>"><%= fmt.signed(e.dt2, 2) %></span></td>
-            <td><%= fmt.signed(e.cambio, 2) %></td>
-            <td><span class="trend trend--<%= t.cls %>"><%- include('../partials/icon', { name: t.icon, size: 14 }) %><%= t.label %></span></td>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    </div>
-    <p class="table-note">Cambio |ΔT| = |ΔT toma 2| − |ΔT toma 1|. Se marca como empeoramiento a partir de +<%= fmt.num(P.cambioRelevante, 1) %> °C.</p>
-  </section>
-
-  <section class="card card--flush" aria-labelledby="roi-title">
-    <div class="card__head card__head--pad">
-      <h2 id="roi-title" class="card__title">Temperaturas por región</h2>
-    </div>
-    <div class="roi-pair">
-      <% [[1, a.roisToma1], [2, a.rois]].forEach(([toma, list]) => { %>
-      <div class="roi-pair__item">
-        <h3 class="roi-pair__title"><span class="toma-dot toma-dot--<%= toma %>"></span><%= toma === 1 ? 'Toma 1 · basal' : 'Toma 2 · control' %></h3>
-        <div class="table-wrap">
-        <table class="table table--num">
-          <caption class="sr-only">Temperaturas medias por región, toma <%= toma %></caption>
-          <thead><tr><th scope="col">Región</th><th scope="col">Media der.</th><th scope="col">Media izq.</th><th scope="col">ΔT</th><th scope="col">Máx. der./izq.</th></tr></thead>
-          <tbody>
-            <% list.forEach((r) => { const hot = r.roi !== 'general' && Math.abs(r.deltaT) >= a.umbral; const lit = r.roi !== 'general' && Math.abs(r.deltaT) >= P.referencia; %>
-            <tr class="<%= r.roi === 'general' ? 'row-total' : '' %><%= hot ? ' row-hot' : '' %>">
-              <th scope="row"><%= domain.ROI_NAMES[r.roi] %></th>
-              <td><%= fmt.num(r.avgDer, 2) %></td>
-              <td><%= fmt.num(r.avgIzq, 2) %></td>
-              <td><span class="delta<%= hot ? ' delta--hot' : '' %>"><%= fmt.signed(r.deltaT, 2) %></span><% if (lit) { %><span class="tag tag--lit" title="Supera la referencia bibliográfica (no diagnóstico)">≥ <%= fmt.num(P.referencia, 1) %></span><% } %></td>
-              <td class="muted"><%= fmt.num(r.maxDer, 1) %> / <%= fmt.num(r.maxIzq, 1) %></td>
-            </tr>
-            <% }) %>
-          </tbody>
-        </table>
-        </div>
+  <section class="card result-hero__thermal" aria-labelledby="sum-title">
+    <div class="card__head"><h2 id="sum-title" class="card__title">Resumen punto a punto</h2><% if (PW) { %><span class="muted small nowrap">|ΔT| &gt; <span class="num"><%= fmt.num(PW.umbralPixel, 1) %> °C</span></span><% } %></div>
+    <% if (PW) { %>
+    <div class="pw-summary">
+      <% [1, 2].forEach((k) => { const t = a.puntualToma(k); %>
+      <div class="pw-summary__item<%= t && t.toma === PW.tomaActual ? ' is-now' : '' %><%= t ? '' : ' is-empty' %>">
+        <span class="pw-summary__label"><span class="toma-dot toma-dot--<%= k %>"></span><%= tomaLabel(k) %></span>
+        <% if (t && t.metricas) { %>
+        <strong class="pw-summary__big num"><%= fmt.num(t.metricas.areaCalientePct, 1) %> %</strong>
+        <small>del área plantar con diferencia sobre el umbral</small>
+        <span class="badge badge--<%= t.conAsimetria ? 'danger' : 'ok' %>"><%= t.conAsimetria ? 'Con asimetría' : 'Sin asimetría' %></span>
+        <small class="muted">Máx. <span class="num"><%= fmt.num(t.metricas.maxAbs, 1) %> °C</span> en <%= pw.ZONA_NOMBRES[t.metricas.hotspot.zona] %></small>
+        <% if (t.zonasNoAnalizadas.length) { %><small class="text-warn">No analizado: <%= pw.zonasTexto(t).noAnalizado %></small><% } %>
+        <% } else if (t) { %>
+        <small class="muted">Sin puntos comparables.</small>
+        <% } else { %>
+        <strong class="pw-summary__big pw-summary__big--muted">Sin toma 2</strong>
+        <small class="muted">Se analizó sólo la termografía basal.</small>
+        <% } %>
       </div>
       <% }) %>
     </div>
-    <p class="table-note">Filas resaltadas: |ΔT| ≥ <%= fmt.num(a.umbral, 1) %> °C. Temperaturas <%= fuente[a.fuenteRois] || 'simuladas' %><%= a.fuenteRois !== 'simulada' ? ' (conversión aproximada, sin calibración radiométrica)' : '' %>.</p>
+    <% if (PW.cambio && PW.cambio.izq && PW.cambio.der) { %>
+    <p class="small pw-summary__change"><%- include('../partials/icon', { name: 'trendUp', size: 16 }) %><span>Toma 1 → 2: cambio mediano izq. <span class="num"><%= fmt.signed(PW.cambio.izq.mediana, 1) %> °C</span>, der. <span class="num"><%= fmt.signed(PW.cambio.der.mediana, 1) %> °C</span>; cambio local en <span class="num"><%= fmt.num(PW.cambio.izq.areaCambioLocalPct, 0) %> %</span> y <span class="num"><%= fmt.num(PW.cambio.der.areaCambioLocalPct, 0) %> %</span> del pie.</span></p>
+    <% } %>
+    <% } else { %>
+    <p class="muted">No disponible para este estudio.</p>
+    <% } %>
   </section>
 </div>
 
+<% if (PW) { %><%- include('../partials/pointwise-study', { analysis: a, study: s }) %><% } %>
+
 <div class="grid grid--2">
   <section class="card" aria-labelledby="fact-title">
-    <h2 id="fact-title" class="card__title">Factores que más contribuyen</h2>
+    <h2 id="fact-title" class="card__title">Variables del modelo preliminar</h2>
+    <% if (a.factores.length) { %>
     <ul class="factors">
       <% a.factores.forEach((f) => { %>
       <li>
         <span class="factors__name"><%= f.nombre %></span>
         <span class="factors__value"><%= f.valor %></span>
-        <span class="factors__bar" aria-hidden="true"><span style="width: <%= Math.round((Math.abs(f.contribucion) / maxContrib) * 100) %>%"></span></span>
-        <span class="factors__num num">+<%= fmt.num(f.contribucion, 2) %></span>
+        <span class="factors__bar<%= f.contribucion < 0 ? ' factors__bar--neg' : '' %>" aria-hidden="true"><span style="width: <%= Math.round((Math.abs(f.contribucion) / maxContrib) * 100) %>%"></span></span>
+        <span class="factors__num num"><%= fmt.signed(f.contribucion, 2) %></span>
       </li>
       <% }) %>
     </ul>
-    <p class="muted small">Contribución al log-odds del predictor simulado. Sirve para validar la interfaz, no para interpretación clínica.</p>
+    <p class="muted small">Contribución al log-odds (coeficiente × valor estandarizado). Sirve para entender el modelo, no para interpretación clínica.</p>
+    <% } else { %><p class="muted">Sin variables.</p><% } %>
   </section>
 
   <section class="card model-card" aria-labelledby="model-title">
     <h2 id="model-title" class="card__title">Ficha del modelo</h2>
     <dl class="kv kv--compact">
-      <div><dt>Predictor activo</dt><dd><code><%= a.predictorVersion %></code> <%= predictorInfo.nombre %></dd></div>
-      <div><dt>Modelo de referencia</dt><dd><%= M.nombre %> (<%= M.hiperparametros %>), validación <%= M.validacion %>, n = <%= M.n %></dd></div>
+      <div><dt>Análisis</dt><dd><code><%= a.predictorVersion %></code> <%= predictorInfo.nombre %></dd></div>
+      <% if (MOD) { %>
+      <div><dt>Modelo preliminar</dt><dd>Regresión logística L2 sobre <%= predictorInfo.modelo ? predictorInfo.modelo.features.join(', ').toLowerCase() : 'features punto a punto' %></dd></div>
+      <div><dt>Validación</dt><dd><%= MOD.metodo %>: AUC <span class="num"><%= fmt.num(MOD.auc, 3) %></span><% if (MOD.aucKFold !== null) { %>; 5 pliegues ×20: <span class="num"><%= fmt.num(MOD.aucKFold, 3) %></span><% } %> (n = <%= MOD.n %>)</dd></div>
+      <div><dt>Desenlace</dt><dd><%= MOD.desenlace %></dd></div>
+      <% } %>
+      <div><dt>Referencia (Parte 1)</dt><dd><%= M.nombre %> por regiones (<%= M.hiperparametros %>), <%= M.validacion %>, n = <%= M.n %>, AUC <span class="num"><%= fmt.num(M.auc, 3) %></span></dd></div>
     </dl>
-    <div class="model-metrics">
-      <div><span class="num"><%= fmt.num(M.auc, 3) %></span><small>AUC</small></div>
-      <div><span class="num"><%= fmt.num(M.sensibilidad, 1) %> %</span><small>Sensibilidad</small></div>
-      <div><span class="num"><%= fmt.num(M.especificidad, 1) %> %</span><small>Especificidad</small></div>
-      <div><span class="num"><%= fmt.num(M.vpp, 1) %> %</span><small>VPP</small></div>
-      <div><span class="num"><%= fmt.num(M.vpn, 1) %> %</span><small>VPN</small></div>
-    </div>
-    <p class="muted small"><%= M.fuente %>. Métricas mostradas como referencia; el resultado de esta pantalla es simulado.</p>
+    <p class="muted small">Un AUC cercano o menor a 0,5 indica que, con estos datos, la asimetría punto a punto no predice el desenlace sustituto. Se muestra por transparencia, no para decidir.</p>
   </section>
 </div>
+
+<details class="disclosure disclosure--card regions-ref">
+  <summary>Referencia: análisis por regiones (tesis parte 1)</summary>
+  <p class="muted small">Seis regiones por pie más la general, calculadas sobre la misma grilla registrada. ΔT por región = derecho − izquierdo (convención de la Parte 1). Umbral por región <span class="num"><%= fmt.num(a.umbral, 1) %> °C</span>.</p>
+  <div class="maps-compare">
+    <% regiones.forEach(([k, list], i) => { %>
+    <figure class="maps-compare__item">
+      <figcaption><span class="toma-dot toma-dot--<%= k %>"></span><strong><%= tomaLabel(k) %></strong> <span class="muted"><%= fmt.date(fechaToma(k)) %></span><% if (grupoDe(k)) { %> <%- include('../partials/grupo', { value: grupoDe(k), small: true }) %><% } %></figcaption>
+      <%- include('../partials/plantar-map', { rois: list, umbral: a.umbral, mapId: `res${i}` }) %>
+    </figure>
+    <% }) %>
+  </div>
+  <div class="roi-pair">
+    <% regiones.forEach(([toma, list]) => { %>
+    <div class="roi-pair__item">
+      <h3 class="roi-pair__title"><span class="toma-dot toma-dot--<%= toma %>"></span><%= tomaLabel(toma) %></h3>
+      <div class="table-wrap">
+      <table class="table table--num">
+        <caption class="sr-only">Temperaturas medias por región, toma <%= toma %></caption>
+        <thead><tr><th scope="col">Región</th><th scope="col">Media der.</th><th scope="col">Media izq.</th><th scope="col">ΔT</th><th scope="col">Máx. der./izq.</th></tr></thead>
+        <tbody>
+          <% list.forEach((r) => { const hot = r.roi !== 'general' && Math.abs(r.deltaT) >= a.umbral; %>
+          <tr class="<%= r.roi === 'general' ? 'row-total' : '' %><%= hot ? ' row-hot' : '' %>">
+            <th scope="row"><%= domain.ROI_NAMES[r.roi] %></th>
+            <td><%= fmt.num(r.avgDer, 2) %></td>
+            <td><%= fmt.num(r.avgIzq, 2) %></td>
+            <td><span class="delta<%= hot ? ' delta--hot' : '' %>"><%= fmt.signed(r.deltaT, 2) %></span></td>
+            <td class="muted"><%= fmt.num(r.maxDer, 1) %> / <%= fmt.num(r.maxIzq, 1) %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+</details>
 <% } %>
 
 <div class="grid grid--2">
   <section class="card" aria-labelledby="img-title">
     <h2 id="img-title" class="card__title">Termografías</h2>
     <div class="image-pair">
-      <% imageSlots.forEach((sl) => { %>
+      <% imageSlots.forEach((sl) => { if (sl.toma === 2 && !s.image('toma2')) { %>
+      <figure class="image-tile"><div class="image-tile__file image-tile__file--empty"><%- include('../partials/icon', { name: 'calendar', size: 24 }) %><span>Sin toma 2</span><small>No hay termografía de control para este estudio.</small></div><figcaption><%= slotTitulo(sl) %></figcaption></figure>
+      <% } else { %>
       <%- include('../partials/thermo-tile', { study: s, sl, sub: (sl.toma === 1 ? fmt.date(s.fechaToma1) : fmt.date(s.fechaHora)) + (sl.toma === 1 && s.toma1OrigenStudyId ? ' · reutilizada' : '') }) %>
-      <% }) %>
+      <% } }) %>
     </div>
   </section>
 
   <section class="card" aria-labelledby="acq-title">
     <h2 id="acq-title" class="card__title">Condiciones de adquisición</h2>
+    <% const env = (t, h, okT, okH) => (t === null && h === null) ? '<p class="muted small">Sin registro.</p>' : `<div class="env-summary"><span class="env-chip ${okT ? 'is-ok' : 'is-warn'}">${include('../partials/icon', { name: 'thermo', size: 16 })}<strong class="num">${fmt.num(t, 1)} °C</strong></span><span class="env-chip env-chip--key ${okH ? 'is-ok' : 'is-warn'}">${include('../partials/icon', { name: 'droplet', size: 16 })}HR <strong class="num">${fmt.num(h, 0)} %</strong></span></div>`; %>
     <div class="cond-grid">
       <div>
-        <h3 class="card__subtitle">Toma 2 · control</h3>
-        <div class="env-summary">
-          <span class="env-chip <%= C.tempOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'thermo', size: 16 }) %><strong class="num"><%= fmt.num(s.tempAmbiente, 1) %> °C</strong></span>
-          <span class="env-chip env-chip--key <%= C.humOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'droplet', size: 16 }) %>HR <strong class="num"><%= fmt.num(s.humedadRelativa, 0) %> %</strong></span>
-        </div>
+        <h3 class="card__subtitle">Toma 1 · basal</h3>
+        <%- env(s.tempAmbienteToma1, s.humedadRelativaToma1, C.toma1Ok, C.toma1Ok) %>
       </div>
       <div>
-        <h3 class="card__subtitle">Toma 1 · basal</h3>
-        <% if (s.tempAmbienteToma1 !== null || s.humedadRelativaToma1 !== null) { %>
-        <div class="env-summary">
-          <span class="env-chip <%= C.toma1Ok ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'thermo', size: 16 }) %><strong class="num"><%= fmt.num(s.tempAmbienteToma1, 1) %> °C</strong></span>
-          <span class="env-chip env-chip--key <%= C.toma1Ok ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'droplet', size: 16 }) %>HR <strong class="num"><%= fmt.num(s.humedadRelativaToma1, 0) %> %</strong></span>
-        </div>
-        <% } else { %><p class="muted small">Sin registro.</p><% } %>
+        <h3 class="card__subtitle"><%= t2 ? 'Toma 2 · control' : 'Toma 2' %></h3>
+        <% if (t2) { %><%- env(s.tempAmbiente, s.humedadRelativa, C.tempOk, C.humOk) %><% } else { %><p class="muted small">Sin toma 2.</p><% } %>
       </div>
     </div>
     <div class="env-summary">
       <span class="env-chip <%= s.valida ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: s.valida ? 'check' : 'alert', size: 16 }) %><%= s.valida ? 'Imágenes válidas' : 'Imágenes no válidas' %></span>
-      <span class="env-chip <%= s.intervaloOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'calendar', size: 16 }) %><%= s.diasEntreTomas !== null ? `${s.diasEntreTomas} días entre tomas` : 'Intervalo sin dato' %></span>
+      <% if (t2) { %><span class="env-chip <%= s.intervaloOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'calendar', size: 16 }) %><%= s.diasEntreTomas !== null ? `${s.diasEntreTomas} días entre tomas` : 'Intervalo sin dato' %></span><% } %>
     </div>
-    <% if (!C.ok) { %><p class="text-warn small">Condiciones de la toma 2 fuera del rango del protocolo (<%= fmt.num(C.temp.min, 1) %>–<%= fmt.num(C.temp.max, 1) %> °C, <%= C.hum.min %>–<%= C.hum.max %> %). Interpretá el resultado con cautela.</p><% } %>
+    <% if (t2 && s.tempAmbiente !== null && !C.ok) { %><p class="text-warn small">Condiciones de la toma 2 fuera del rango del protocolo (<%= fmt.num(C.temp.min, 1) %>–<%= fmt.num(C.temp.max, 1) %> °C, <%= C.hum.min %>–<%= C.hum.max %> %). Interpretá el resultado con cautela.</p><% } %>
     <% if (!s.valida && s.motivoInvalidez) { %><p class="text-warn small">Motivo: <%= s.motivoInvalidez %></p><% } %>
     <dl class="kv kv--compact kv--2col">
       <div><dt>Distancia</dt><dd class="num"><%= s.distanciaCm %> cm</dd></div>
@@ -220,22 +215,6 @@
     </form>
   </section>
 
-  <section class="card" aria-labelledby="pub-title">
-    <h2 id="pub-title" class="card__title">Visibilidad para el paciente</h2>
-    <% if (s.publicado) { %>
-    <p><span class="badge badge--ok"><span class="dot" aria-hidden="true"></span>Visible</span> desde el <%= fmt.dateTime(s.publicadoAt) %>. El paciente ve un resumen en lenguaje simple, sin métricas del modelo.</p>
-    <% } else { %>
-    <p><span class="badge badge--outline">No publicado</span> El paciente ve que se realizó el estudio, pero no el resultado.</p>
-    <% } %>
-    <form method="post" action="/medico/estudios/<%= s.id %>/publicacion"<%- s.publicado ? ' data-confirm="¿Ocultar el resultado al paciente?"' : '' %>>
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <% if (!s.publicado) { %><input type="hidden" name="publicado" value="on"><% } %>
-      <button type="submit" class="btn <%= s.publicado ? 'btn--ghost' : 'btn--primary' %> btn--sm"><%= s.publicado ? 'Ocultar al paciente' : 'Hacer visible al paciente' %></button>
-    </form>
-  </section>
-</div>
-
-<div class="grid grid--2">
   <section class="card" id="control" aria-labelledby="ctl-title">
     <h2 id="ctl-title" class="card__title">Próximo control</h2>
     <% if (proximo) { %>
@@ -255,12 +234,12 @@
       </div>
       <button type="submit" class="btn btn--primary btn--sm"><%= proximo ? 'Reprogramar' : 'Programar control' %></button>
     </form>
-    <p class="hint">Sugerido: <%= settings.diasControl %> días después de la toma 2. Un control nuevo reemplaza al pendiente.</p>
-  </section>
-
-  <section class="card" id="desenlace" aria-labelledby="out-title">
-    <h2 id="out-title" class="card__title">Desenlace real</h2>
-    <p class="muted small">Se registra por paciente al finalizar el seguimiento y alimenta la validación del modelo.</p>
-    <%- include('../partials/outcome-form', { patient: p, volver: `/medico/estudios/${s.id}#desenlace` }) %>
+    <p class="hint">Sugerido: <%= settings.diasControl %> días después de la última toma. Un control nuevo reemplaza al pendiente.</p>
   </section>
 </div>
+
+<section class="card" id="desenlace" aria-labelledby="out-title">
+  <h2 id="out-title" class="card__title">Desenlace real</h2>
+  <p class="muted small">Se registra por paciente al finalizar el seguimiento y alimenta la validación del modelo.</p>
+  <%- include('../partials/outcome-form', { patient: p, volver: `/medico/estudios/${s.id}#desenlace` }) %>
+</section>

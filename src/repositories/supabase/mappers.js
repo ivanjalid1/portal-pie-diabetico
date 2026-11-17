@@ -120,6 +120,7 @@ const COLUMNS = {
     'horizonteSemanas',
     'parametros',
     'factores',
+    'puntual',
     'simulado',
     'createdAt',
   ],

@@ -33,7 +33,7 @@ describe('Controles: próximos, vencidos y realizados', () => {
       expect(res.status).toBe(200);
     }
     const realizados = await agent.get('/medico/controles?vista=realizados');
-    expect(realizados.text).toContain('Estudio comparativo');
+    expect(realizados.text).toContain('Área |ΔT| &gt; umbral');
     const alto = await agent.get('/medico/controles?vista=realizados&riesgo=alto');
     expect(alto.text).toContain('Alto riesgo');
     expect(alto.text).not.toContain('Sin riesgo ');

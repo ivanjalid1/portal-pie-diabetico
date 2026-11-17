@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { DEMO_PASSWORD, STAFF, PATIENTS, NOTAS } = require('./demoData');
 const { pares: DEMO_PAIRS } = require('./demoImages.json');
+const { pares: DEMO_PUNTUAL } = require('./demoPointwise.json');
 const { ACQUISITION, CAPTURE_CHECKLIST, CONSENT_VERSION } = require('../config/domain');
 const { seededRandom, round, uuid } = require('../utils/random');
 
@@ -192,7 +193,11 @@ async function seedDemoData({ repos, authProvider, predictor }, options = {}) {
       patient,
       study,
       images: [],
-      hints: { toma1: pair.toma1.rois, toma2: pair.toma2.rois, fuente: 'imagen' },
+      hints: puntualHints(estudio.par, fechaToma1, fecha) || {
+        toma1: pair.toma1.rois,
+        toma2: pair.toma2.rois,
+        fuente: 'imagen',
+      },
     });
     const analysis = await repos.analyses.create({
       ...output,
@@ -245,6 +250,18 @@ async function seedDemoData({ repos, authProvider, predictor }, options = {}) {
     daysAgo(now, 1, 8, 12),
   );
   return staff;
+}
+
+/** Grillas punto a punto precalculadas del par demo (src/seed/demoPointwise.json). */
+function puntualHints(par, fechaToma1, fecha) {
+  const pw = DEMO_PUNTUAL.find((x) => x.par === par);
+  if (!pw) return null;
+  return {
+    puntual: {
+      toma1: { ...pw.toma1, fecha: fechaToma1.toISOString() },
+      toma2: { ...pw.toma2, fecha: fecha.toISOString() },
+    },
+  };
 }
 
 async function demoImages({ repos, patient, studyId, pair, upload }) {

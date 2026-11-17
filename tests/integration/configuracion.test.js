@@ -64,8 +64,13 @@ describe('Configuración de los parámetros del análisis', () => {
       const alto = await svc.preview({ umbralAsimetria: 3 });
       expect(base.total).toBeGreaterThan(0);
       expect(alto.conAsimetria).toBeLessThanOrEqual(base.conAsimetria);
-      const r = await svc.preview({ corteModerado: 1, corteAlto: 2 });
-      expect(r.riesgo.alto).toBe(r.total);
+      // Análisis punto a punto: el área mínima cambia cuántos estudios quedan «con asimetría».
+      const estricto = await svc.preview({ areaMinima: 50 });
+      const laxo = await svc.preview({ areaMinima: 0.5 });
+      expect(estricto.puntuales).toBe(estricto.total);
+      expect(estricto.conAsimetriaPuntual).toBeLessThanOrEqual(laxo.conAsimetriaPuntual);
+      // Mientras el modelo no esté validado, la categoría sale del hallazgo térmico (no de los cortes).
+      expect(estricto.riesgo.sin_riesgo).toBe(estricto.total - estricto.conAsimetriaPuntual);
       expect((await svc.get()).corteAlto).toBe(70);
     });
   });
@@ -94,8 +99,8 @@ describe('Configuración de los parámetros del análisis', () => {
       const after = await container.repos.analyses.findByStudyId(a0.studyId);
       expect(after.parametros.umbral).toBe(1);
       const page = await medico.get(`/medico/estudios/${a0.studyId}`);
-      expect(page.text).toMatch(/Umbral <span class="num">1,0 °C/);
-      expect(page.text).toContain('&lt; 1,0</small>');
+      expect(page.text).toMatch(/Umbral por región <span class="num">1,0 °C/);
+      expect(page.text).toMatch(/Umbral por punto <strong class="num">1,0 °C/);
     });
 
     it('rechaza valores inválidos y muestra el error en el formulario', async () => {
@@ -120,7 +125,7 @@ describe('Configuración de los parámetros del análisis', () => {
       const [entry] = await container.repos.audit.list({ action: EVENTS.ANALYSES_RECALCULATED });
       expect(entry.detail).toMatch(/\d+ estudios recalculados/);
       const page = await medico.get(`/medico/estudios/${all[0].studyId}`);
-      expect(page.text).toMatch(/Umbral <span class="num">2,2 °C/);
+      expect(page.text).toMatch(/Umbral por región <span class="num">2,2 °C/);
       const csv = await medico.get('/medico/pacientes/exportar.csv');
       expect(csv.text).toContain('CORTE SIMETRIA');
     });

@@ -261,7 +261,7 @@ const PROJECT = Object.freeze({
 });
 
 const DISCLAIMER =
-  'Herramienta exploratoria complementaria, no diagnóstica. Resultado simulado (mockup) — el algoritmo de procesamiento de imágenes está en desarrollo.';
+  'Herramienta exploratoria complementaria, no diagnóstica. Análisis punto a punto con temperaturas aproximadas y modelo de probabilidad preliminar, no validado clínicamente.';
 
 /** Alias histórico: lista de centros para los formularios. */
 const INSTITUCIONES = CENTRO_NOMBRES;

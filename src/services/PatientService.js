@@ -191,7 +191,23 @@ class PatientService {
           deltaTMax: Math.abs(i.analysis.deltaTMax),
         },
       ]);
-    return { items, serie };
+    // Serie punto a punto: un punto por toma (área caliente) y la probabilidad
+    // del modelo preliminar en la toma usada por el análisis.
+    const seriePuntual = items
+      .filter((i) => i.analysis?.puntual)
+      .slice()
+      .reverse()
+      .flatMap(({ study, analysis }) =>
+        analysis.puntual.tomas.map((t) => ({
+          studyId: study.id,
+          fecha: t.toma === 1 ? study.fechaToma1 : study.fechaHora,
+          toma: t.toma,
+          areaCalientePct: t.metricas ? t.metricas.areaCalientePct : null,
+          conAsimetria: t.conAsimetria,
+          probabilidad: t.toma === analysis.puntual.tomaActual ? analysis.probabilidad : null,
+        })),
+      );
+    return { items, serie, seriePuntual };
   }
 
   /* ---------- Consentimiento informado ---------- */

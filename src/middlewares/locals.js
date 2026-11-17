@@ -1,6 +1,7 @@
 'use strict';
 
 const domain = require('../config/domain');
+const pointwiseView = require('../utils/pointwiseView');
 const { fmt } = require('../utils/format');
 const thermal = require('../utils/thermal');
 const settingsConfig = require('../config/settings');
@@ -34,6 +35,7 @@ function locals(config) {
   return function localsMiddleware(req, res, next) {
     res.locals.fmt = fmt;
     res.locals.thermal = thermal;
+    res.locals.pw = pointwiseView;
     const isIs2 = (img) => img?.mime === 'application/x-fluke-is2';
     // Los IS2 se muestran como PNG generado en el servidor (?vista=png).
     res.locals.imageUrl = (study, slot) =>
@@ -96,6 +98,7 @@ function locals(config) {
       item.exact ? fullPath === item.href : fullPath === item.href || fullPath.startsWith(`${item.href}/`);
     res.locals.navFor = (role) => NAV[role] || [];
     res.locals.dataDriver = config.dataDriver;
+    res.locals.seedMode = config.seed === 'real' && req.app.locals.seedMode === 'real' ? 'real' : 'demo';
     next();
   };
 }

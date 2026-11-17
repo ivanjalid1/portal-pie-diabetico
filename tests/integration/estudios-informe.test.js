@@ -85,16 +85,20 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
       const res = await medico.get('/medico');
       expect(res.status).toBe(200);
       expect(res.text).toMatch(/con asimetría/);
-      expect(res.text).toContain('Asimetría en aumento');
+      expect(res.text).toContain('Mayor asimetría punto a punto');
+      expect(res.text).not.toContain('Asimetría en aumento');
       expect(res.text).not.toContain('en grupo P');
     });
 
-    it('la ficha del paciente usa gráficos SVG sin doble eje ni Chart.js', async () => {
+    it('la ficha del paciente muestra la evolución punto a punto (SVG + mapas) sin el bloque de evolución por regiones', async () => {
       const studies = await container.repos.studies.listByMedico(medicoUser.id);
       const res = await medico.get(`/medico/pacientes/${studies[0].patientId}`);
       expect(res.status).toBe(200);
-      expect(res.text).toContain('class="dumbbell');
-      expect(res.text).toContain('class="slope"');
+      expect(res.text).toContain('class="pw-evo__chart"');
+      expect(res.text).toMatch(/data-pw-map="\d:dt"/);
+      expect(res.text).not.toContain('Evolución entre tomas');
+      expect(res.text).not.toContain('class="dumbbell');
+      expect(res.text).not.toContain('Mayor diferencia entre pies');
       expect(res.text).not.toMatch(/chart\.js|chart\.umd/i);
     });
   });
@@ -110,7 +114,9 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
       const paciente = await loginAs(app, 'paciente@demo.com');
       const det = await paciente.get(`/paciente/estudios/${publicado.id}`);
       expect(det.status).toBe(200);
-      expect(det.text).toContain('Tu informe');
+      expect(det.text).toContain('Qué mostró tu estudio');
+      expect(det.text).not.toContain('Primer estudio → control');
+      expect(det.text).not.toContain('Mayor diferencia de temperatura entre tus pies');
       expect(det.text).toContain('Descargar informe (PDF)');
 
       const inf = await paciente.get(`/paciente/estudios/${publicado.id}/informe`);
@@ -149,14 +155,17 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
   });
 
   describe('resultado y login', () => {
-    it('la clasificación por toma muestra magnitudes, simetría global y ambas tomas sin selectores', async () => {
+    it('el resultado muestra el análisis punto a punto de ambas tomas y las regiones sólo como referencia', async () => {
       const studies = await container.repos.studies.listByMedico(medicoUser.id);
       const res = await medico.get(`/medico/estudios/${studies[0].id}`);
-      expect(res.text).toContain('Simetría global');
-      expect(res.text).toMatch(/pie (izq|der)\. más caliente/);
-      expect(res.text).toContain('evo-banner');
+      expect(res.text).toContain('Resumen punto a punto');
+      expect(res.text).toContain('data-pw-map="1:dt"');
+      expect(res.text).toContain('data-pw-map="2:dt"');
+      expect(res.text).toContain('Cambio toma 1 → toma 2');
+      expect(res.text).toMatch(/<details class="disclosure disclosure--card regions-ref">/);
+      expect(res.text).not.toContain('evo-banner');
+      expect(res.text).not.toContain('Visibilidad para el paciente');
       expect(res.text).not.toContain('data-tabs=');
-      expect(res.text).not.toContain('Umbral de asimetría');
       expect((res.text.match(/class="roi-pair__item"/g) || []).length).toBe(2);
     });
 

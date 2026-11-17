@@ -77,7 +77,7 @@ function createMedicoController({
 
     async patientDetail(req, res) {
       const patient = await patientService.getForMedico(req.params.id, req.user.id);
-      const [{ items, serie }, appointments, consents] = await Promise.all([
+      const [{ items, serie, seriePuntual }, appointments, consents] = await Promise.all([
         patientService.history(patient.id),
         appointmentService.listForPatient(patient.id),
         patientService.listConsents(patient.id),
@@ -87,6 +87,7 @@ function createMedicoController({
         patient,
         items,
         serie,
+        seriePuntual,
         appointments,
         consents,
         proximo: appointments.find((a) => a.estado === 'pendiente') || null,

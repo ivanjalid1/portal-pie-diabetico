@@ -13,7 +13,7 @@
   <script src="/js/report.js" defer></script>
 </head>
 <body class="report">
-  <% const a = analysis; const s = study; const p = patient; const cat = domain.RISK_CATEGORIES[a.categoria]; const nivel = { sin_riesgo: 'bajo', moderado: 'moderado', alto: 'alto' }; %>
+  <% const a = analysis; const s = study; const p = patient; const cat = domain.RISK_CATEGORIES[a.categoria]; %>
   <div class="report__toolbar no-print">
     <button type="button" class="btn btn--primary" data-print><%- include('../partials/icon', { name: 'printer', size: 18 }) %>Imprimir o guardar como PDF</button>
     <a class="btn btn--ghost" href="/paciente/estudios/<%= s.id %>">Volver</a>
@@ -23,35 +23,26 @@
       <div class="brand"><img src="/img/logo.svg" alt="" width="36" height="36"><span class="brand__text"><strong><%= appName %></strong><small>Termografía plantar</small></span></div>
       <div class="report__meta"><strong>Mi informe de termografía</strong><span><%= p.nombreCompleto %> · <%= fmt.dateLong(s.fechaHora) %></span></div>
     </header>
-    <p class="report__disclaimer">Resultado orientativo y simulado, parte de un proyecto de investigación (FCEFyN – UNC). No es un diagnóstico: tu médico interpreta el estudio junto con tu revisión clínica.</p>
-
+    <p class="report__disclaimer">Resultado orientativo, parte de un proyecto de investigación (FCEFyN – UNC). No es un diagnóstico: tu médico interpreta el estudio junto con tu revisión clínica.</p>
+    <% const t = a.puntualActual; const m = t && t.metricas; const z = t ? pw.zonasTexto(t) : null; %>
     <section class="report__result">
       <div class="report__big">
-        <span class="label">Probabilidad estimada de úlcera (<%= a.horizonteSemanas %> semanas)</span>
-        <span class="num report__pct"><%= fmt.num(a.probabilidad, 0) %> %</span>
-        <span class="badge badge--<%= cat.tono %>">Nivel <%= nivel[a.categoria] %></span>
-      </div>
-      <div class="report__big">
-        <span class="label">Mayor diferencia entre pies</span>
-        <span class="num report__pct"><%= a.deltaTMaxToma1 !== null ? fmt.num(Math.abs(a.deltaTMaxToma1), 1) : '—' %> → <%= fmt.num(Math.abs(a.deltaTMax), 1) %> °C</span>
-        <span>Primer estudio → control</span>
-      </div>
-      <div class="report__big">
-        <span class="label">Qué significa</span>
+        <span class="label">Tu resultado</span>
+        <span class="badge badge--<%= cat.tono %>"><%= cat.paciente %></span>
         <span><%= cat.mensajePaciente %></span>
       </div>
-    </section>
-
-    <section class="report__grid">
-      <figure class="report__map"><figcaption>Zonas con más diferencia en el control</figcaption><%- include('../partials/plantar-map', { rois: a.rois, umbral: a.umbral, mapId: 'prep', values: false }) %></figure>
-      <table class="table table--dense">
-        <thead><tr><th scope="col">Zona</th><th scope="col">Primer estudio</th><th scope="col">Control</th><th scope="col">Cambio</th></tr></thead>
-        <tbody>
-          <% a.evolucion.filter((e) => e.roi !== 'general').forEach((e) => { %>
-          <tr><th scope="row"><%= domain.ROI_NAMES[e.roi] %></th><td class="num"><%= fmt.num(Math.abs(e.dt1), 1) %> °C</td><td class="num"><%= fmt.num(Math.abs(e.dt2), 1) %> °C</td><td><%= e.tendencia === 'empeora' ? '↑ aumentó' : e.tendencia === 'mejora' ? '↓ disminuyó' : '= igual' %></td></tr>
-          <% }) %>
-        </tbody>
-      </table>
+      <% if (m) { %>
+      <div class="report__big">
+        <span class="label">Diferencia de temperatura entre tus pies</span>
+        <span class="num report__pct"><%= Math.round(m.areaCalientePct) %> de 100</span>
+        <span>puntos de la planta con más de <%= fmt.num(a.puntual.umbralPixel, 1) %> °C de diferencia</span>
+      </div>
+      <div class="report__big">
+        <span class="label">Zona con más diferencia</span>
+        <span><%= pw.ZONA_NOMBRES[m.hotspot.zona] %> del pie <%= m.hotspot.pieMasCaliente %></span>
+        <% if (z) { %><span>No se analizó: <%= z.noAnalizado %></span><% } %>
+      </div>
+      <% } %>
     </section>
 
     <section class="report__images">

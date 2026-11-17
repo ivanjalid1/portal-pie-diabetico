@@ -75,9 +75,9 @@
     <div class="control-card__result">
       <% if (analysis) { %>
       <a class="control-card__study" href="/medico/estudios/<%= appt.studyId %>">
-        <span class="small muted">Estudio comparativo</span>
-        <span class="control-card__groups"><span class="grupo-trans" title="<%= grupoAyuda() %>"><%- include('../partials/grupo', { value: analysis.grupoToma1, small: true }) %><span class="grupo-arrow" aria-hidden="true">→</span><%- include('../partials/grupo', { value: analysis.grupo, small: true }) %></span></span>
-        <span class="small"><%= analysis.roisQueEmpeoran.length ? `Asimetría +${fmt.num(analysis.maxEmpeoramiento, 1)} °C` : 'Asimetría estable' %></span>
+        <span class="small muted">Estudio</span>
+        <% const tA = analysis.puntualActual; %>
+        <span class="small"><%= tA && tA.metricas ? `Área |ΔT| > umbral: ${fmt.num(tA.metricas.areaCalientePct, 1)} %` : `ΔT máx. por región ${fmt.num(Math.abs(analysis.deltaTMax), 1)} °C` %></span>
         <%- include('../partials/risk-badge', { analysis, showPct: true }) %>
       </a>
       <% } else if (row.ultimoAnalisis) { %>

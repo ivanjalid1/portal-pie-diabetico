@@ -4,7 +4,7 @@
     return { cls: d > 0 ? 'up' : 'down', icon: d > 0 ? 'trendUp' : 'trendDown', text: `${d > 0 ? '+' : '−'}${Math.abs(d)} ${unidad} vs. mes anterior` };
   };
   const kpiCards = [
-    { label: 'Pacientes', value: kpis.pacientes, href: '/medico/pacientes', serie: meses.map((m) => m.pacientes), t: trend(tendencias.pacientes, 'nuevos'), meta: `${grupos.P} con asimetría, ${grupos.C} sin asimetría` },
+    { label: 'Pacientes', value: kpis.pacientes, href: '/medico/pacientes', serie: meses.map((m) => m.pacientes), t: trend(tendencias.pacientes, 'nuevos'), meta: `${grupos.P} con asimetría punto a punto, ${grupos.C} sin` },
     { label: 'Estudios del mes', value: kpis.estudiosMes, href: '/medico/estudios', serie: meses.map((m) => m.estudios), t: trend(tendencias.estudios, 'estudios') },
     { label: 'Controles realizados', value: meses[meses.length - 1].controles, href: '/medico/controles?vista=realizados', serie: meses.map((m) => m.controles), t: trend(tendencias.controles, 'controles'), meta: 'este mes' },
   ];
@@ -102,24 +102,22 @@
     <div class="empty">
       <%- include('../partials/icon', { name: 'scan', size: 28 }) %>
       <h3>Todavía no hay estudios</h3>
-      <p>Cargá la primera toma de un paciente para ver el análisis por región.</p>
+      <p>Cargá la primera toma de un paciente para ver el análisis punto a punto.</p>
       <a class="btn btn--primary" href="/medico/estudios/nuevo">Nuevo estudio</a>
     </div>
     <% } else { %>
     <ul class="study-list">
       <% recientes.filter((r) => r.patient).forEach(({ study, patient, analysis }) => {
-        const img = study.image?.('toma2');
-        const cambio = analysis && analysis.deltaTMaxToma1 !== null ? Math.abs(analysis.deltaTMax) - Math.abs(analysis.deltaTMaxToma1) : 0;
-        const dir = !analysis || Math.abs(cambio) < paramsOf(analysis).cambioRelevante ? 'flat' : cambio > 0 ? 'up' : 'down';
+        const slot = study.image?.('toma2') ? 'toma2' : 'toma1';
+        const img = study.image?.(slot);
+        const tA = analysis && analysis.puntualActual;
       %>
       <li>
         <a class="study-list__item" href="/medico/estudios/<%= study.id %>">
-          <span class="study-list__thumb"><% if (img && canPreview(img)) { %><img src="<%= imageUrl(study, 'toma2') %>" alt="" width="64" height="48" loading="lazy" decoding="async"><% } else { %><%- include('../partials/icon', { name: 'scan', size: 20 }) %><% } %></span>
-          <span class="study-list__who"><strong><span class="code"><%= patient.codigo %></span> <%= patient.nombreCompleto %></strong><small><%= fmt.date(study.fechaHora) %><% if (study.diasEntreTomas) { %>, <span class="num"><%= study.diasEntreTomas %></span> d entre tomas<% } %></small></span>
+          <span class="study-list__thumb"><% if (img && canPreview(img)) { %><img src="<%= imageUrl(study, slot) %>" alt="" width="64" height="48" loading="lazy" decoding="async"><% } else { %><%- include('../partials/icon', { name: 'scan', size: 20 }) %><% } %></span>
+          <span class="study-list__who"><strong><span class="code"><%= patient.codigo %></span> <%= patient.nombreCompleto %></strong><small><%= fmt.date(study.fechaHora) %><%= analysis && !analysis.tieneToma2 ? ', sin toma 2' : '' %></small></span>
           <% if (analysis) { %>
-          <span class="study-list__dt trend-sym trend-sym--<%= dir %>" title="Mayor ΔT en la toma 2: <%= fmt.signed(analysis.deltaTMax, 2) %> °C (<%= domain.ROI_NAMES[analysis.deltaTMaxRoi] %>). <%= dir === 'up' ? 'La asimetría aumentó' : dir === 'down' ? 'La asimetría disminuyó' : 'Sin cambio relevante' %> respecto de la toma 1<%= analysis.deltaTMaxToma1 !== null ? ` (${fmt.num(Math.abs(analysis.deltaTMaxToma1), 1)} °C)` : "" %>.">
-            <%- include('../partials/icon', { name: dir === 'up' ? 'trendUp' : dir === 'down' ? 'trendDown' : 'minus', size: 16 }) %><span class="num"><%= fmt.num(Math.abs(analysis.deltaTMax), 1) %> °C</span>
-          </span>
+          <% if (tA && tA.metricas) { %><span class="study-list__dt" title="Área de la planta con |ΔT| sobre el umbral (toma <%= tA.toma %>)"><span class="num"><%= fmt.num(tA.metricas.areaCalientePct, 0) %> %</span></span><% } %>
           <span class="study-list__risk"><%- include('../partials/risk-badge', { analysis, showPct: true }) %></span>
           <% } else { %><span class="badge badge--muted">Sin resultado</span><% } %>
         </a>
@@ -131,18 +129,18 @@
 
   <section class="card dash-grid__worse" aria-labelledby="worse-title">
     <div class="card__head">
-      <h2 id="worse-title" class="card__title">Asimetría en aumento</h2>
-      <span class="help-dot" tabindex="0" title="Pacientes cuyo último estudio muestra al menos una región donde |ΔT| creció <%= fmt.num(settings.cambioRelevante, 1) %> °C o más entre la toma 1 y la toma 2.">?</span>
+      <h2 id="worse-title" class="card__title">Mayor asimetría punto a punto</h2>
+      <span class="help-dot" tabindex="0" title="Pacientes cuya última toma tiene más área plantar con |ΔT| sobre el umbral por punto (<%= fmt.num(settings.umbralPixel, 1) %> °C).">?</span>
     </div>
-    <% if (!empeorando.length) { %>
-    <p class="muted small">Ningún paciente empeoró entre tomas.</p>
+    <% if (!mayorArea.length) { %>
+    <p class="muted small">Ningún paciente supera el área mínima de asimetría.</p>
     <% } else { %>
     <ul class="worse-list">
-      <% empeorando.forEach(({ patient, analysis, study }) => { const top = analysis.roisQueEmpeoran.sort((a, b) => b.cambio - a.cambio)[0]; %>
+      <% mayorArea.forEach(({ patient, study, toma }) => { %>
       <li>
         <a href="/medico/estudios/<%= study.id %>">
-          <span><strong><span class="code"><%= patient.codigo %></span> <%= patient.nombreCompleto %></strong><small><%= domain.ROI_NAMES[top.roi] %>: <span class="num"><%= fmt.num(Math.abs(top.dt1), 1) %> → <%= fmt.num(Math.abs(top.dt2), 1) %> °C</span><% if (analysis.roisQueEmpeoran.length > 1) { %> y <%= analysis.roisQueEmpeoran.length - 1 %> región<%= analysis.roisQueEmpeoran.length > 2 ? 'es' : '' %> más<% } %></small></span>
-          <span class="trend-sym trend-sym--up num">+<%= fmt.num(analysis.maxEmpeoramiento, 1) %> °C</span>
+          <span><strong><span class="code"><%= patient.codigo %></span> <%= patient.nombreCompleto %></strong><small>Toma <%= toma.toma %> · máx. <span class="num"><%= fmt.num(toma.metricas.maxAbs, 1) %> °C</span> en <%= pw.ZONA_NOMBRES[toma.metricas.hotspot.zona] %></small></span>
+          <span class="trend-sym trend-sym--up num"><%= fmt.num(toma.metricas.areaCalientePct, 0) %> %</span>
         </a>
       </li>
       <% }) %>

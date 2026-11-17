@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/css/print.css">
   <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
   <script src="/js/report.js" defer></script>
+  <script src="/js/pointwise.js" defer></script>
 </head>
 <body class="report">
   <div class="report__toolbar no-print">
@@ -32,58 +33,76 @@
     <section class="report__grid">
       <dl class="kv kv--compact">
         <div><dt>Paciente</dt><dd><strong><%= p.codigo %></strong>, <%= p.nombreCompleto %></dd></div>
-        <div><dt>Edad / sexo</dt><dd><%= p.edad(new Date(s.fechaHora)) %> años, <%= p.sexo %></dd></div>
+        <div><dt>Edad / sexo</dt><dd><%= p.edad(new Date(s.fechaHora)) ?? '—' %> años, <%= p.sexo || '—' %></dd></div>
         <div><dt>Diabetes</dt><dd>Tipo <%= p.tipoDm %>, <%= fmt.num(p.aniosEvolucionDm, 1) %> años<%= p.insulinorequiriente ? ', insulinorequiriente' : '' %></dd></div>
         <div><dt>HbA1c</dt><dd><%= p.hba1c !== null ? `${fmt.num(p.hba1c, 1)} % (${fmt.date(p.hba1cFecha)})` : '—' %></dd></div>
         <div><dt>Neuropatía</dt><dd><%= p.gradoNeuropatia %></dd></div>
       </dl>
       <dl class="kv kv--compact">
         <div><dt>Toma 1 (basal)</dt><dd><%= fmt.date(s.fechaToma1) %></dd></div>
-        <div><dt>Toma 2 (control)</dt><dd><%= fmt.dateTime(s.fechaHora) %><%= s.diasEntreTomas !== null ? ` (${s.diasEntreTomas} días)` : '' %></dd></div>
+        <div><dt>Toma 2 (control)</dt><dd><%= a && a.puntual && !a.puntual.tieneToma2 ? 'Sin toma 2' : fmt.date(s.fechaHora) + (s.diasEntreTomas !== null ? ` (${s.diasEntreTomas} días)` : '') %></dd></div>
         <div><dt>Centro</dt><dd><%= s.centro %></dd></div>
         <div><dt>Médico/a</dt><dd><%= medico.nombreCompleto %><%= medico.matricula ? `, ${medico.matricula}` : '' %></dd></div>
-        <div><dt>Ambiente</dt><dd><%= fmt.num(s.tempAmbiente, 1) %> °C, HR <%= fmt.num(s.humedadRelativa, 0) %> % <%= s.condiciones(paramsOf(a).protocolo).ok ? '(dentro del protocolo)' : '(fuera del protocolo)' %></dd></div>
+        <div><dt>Ambiente</dt><dd><%= s.tempAmbiente === null ? 'Sin registro' : `${fmt.num(s.tempAmbiente, 1)} °C, HR ${fmt.num(s.humedadRelativa, 0)} % ${s.condiciones(paramsOf(a).protocolo).ok ? '(dentro del protocolo)' : '(fuera del protocolo)'}` %></dd></div>
         <div><dt>Imagen</dt><dd><%= s.valida ? 'Válida' : `No válida: ${s.motivoInvalidez || ''}` %></dd></div>
       </dl>
     </section>
 
-    <% if (a) { %>
+    <% if (a) { const PW = a.puntual; const MOD = PW && PW.modelo; %>
     <section class="report__result">
       <div class="report__big">
-        <span class="label">Probabilidad estimada (<%= a.horizonteSemanas %> semanas)</span>
-        <span class="num report__pct"><%= fmt.num(a.probabilidad, 1) %> %</span>
+        <span class="label">Categoría<%= PW && PW.categoriaPor === 'hallazgo_termico' ? ' (hallazgo térmico punto a punto)' : '' %></span>
         <span class="badge badge--<%= domain.RISK_CATEGORIES[a.categoria].tono %>"><%= domain.RISK_CATEGORIES[a.categoria].nombre %></span>
+        <% const tA = a.puntualActual; if (tA && tA.metricas) { %><span><span class="num"><%= fmt.num(tA.metricas.areaCalientePct, 1) %> %</span> del área con |ΔT| &gt; <%= fmt.num(PW.umbralPixel, 1) %> °C (toma <%= tA.toma %>)</span><% } %>
       </div>
       <div class="report__big">
-        <span class="label">ΔT máximo (toma 2)</span>
-        <span class="num report__pct"><%= fmt.signed(a.deltaTMax) %> °C</span>
-        <span><%= domain.ROI_NAMES[a.deltaTMaxRoi] %></span>
+        <span class="label">Modelo preliminar<%= MOD ? ' (no validado)' : ' (simulado)' %></span>
+        <span class="num report__pct"><%= fmt.num(a.probabilidad, 1) %> %</span>
+        <% if (MOD) { %><span>Prob. de HbA1c &gt; 7 % · AUC <%= fmt.num(MOD.auc, 2) %>, n = <%= MOD.n %></span><% } %>
       </div>
       <div class="report__big">
-        <span class="label">Asimetría térmica</span>
-        <span><%= transicionGrupo(a) %></span>
-        <span><%= a.simetrico ? 'Simétrica' : 'Asimétrica' %> (|ΔT general| < <%= fmt.num(paramsOf(a).corteSimetria, 1) %> °C), umbral regional <%= fmt.num(a.umbral, 1) %> °C</span>
+        <span class="label">Tomas</span>
+        <span><%= PW && !PW.tieneToma2 ? 'Sólo toma 1 (sin toma 2)' : 'Toma 1 y toma 2' %></span>
+        <% if (tA && tA.zonasNoAnalizadas.length) { %><span>No se analizó: <%= pw.zonasTexto(tA).noAnalizado %></span><% } %>
       </div>
     </section>
 
-    <section class="report__grid">
-      <figure class="report__map"><figcaption>Toma 1</figcaption><%- include('../partials/plantar-map', { rois: a.roisToma1, umbral: a.umbral, mapId: 'rep1', values: true }) %></figure>
-      <figure class="report__map"><figcaption>Toma 2</figcaption><%- include('../partials/plantar-map', { rois: a.rois, umbral: a.umbral, mapId: 'rep2', values: true }) %></figure>
-    </section>
+    <% if (PW) { const data = pw.payload(a); const srcId = `pw-rep-${s.id}`; %>
+    <script type="application/json" id="<%= srcId %>" data-pw-data><%- pw.json(data) %></script>
     <section>
+      <h2>Análisis punto a punto</h2>
       <table class="table table--num table--dense">
-        <thead><tr><th scope="col">Región</th><th scope="col">Der. T1</th><th scope="col">Izq. T1</th><th scope="col">ΔT T1</th><th scope="col">Der. T2</th><th scope="col">Izq. T2</th><th scope="col">ΔT T2</th><th scope="col">Cambio |ΔT|</th></tr></thead>
+        <thead><tr><th scope="col">Toma</th><th scope="col">Área |ΔT| &gt; umbral</th><th scope="col">|ΔT| medio</th><th scope="col">|ΔT| p95</th><th scope="col">|ΔT| máx.</th><th scope="col">Mayor diferencia</th><th scope="col">No analizado</th></tr></thead>
         <tbody>
-          <% a.rois.forEach((r) => { const r1 = a.roi(r.roi, 1) || {}; const e = a.evolucion.find((x) => x.roi === r.roi) || {}; const hot = r.roi !== 'general' && Math.abs(r.deltaT) >= a.umbral; %>
-          <tr class="<%= hot ? 'row-hot' : '' %><%= r.roi === 'general' ? ' row-total' : '' %>"><th scope="row"><%= domain.ROI_NAMES[r.roi] %></th><td><%= fmt.num(r1.avgDer, 2) %></td><td><%= fmt.num(r1.avgIzq, 2) %></td><td><%= fmt.signed(r1.deltaT, 2) %></td><td><%= fmt.num(r.avgDer, 2) %></td><td><%= fmt.num(r.avgIzq, 2) %></td><td><%= fmt.signed(r.deltaT, 2) %></td><td><%= fmt.signed(e.cambio, 2) %></td></tr>
+          <% PW.tomas.forEach((t) => { const m = t.metricas; %>
+          <tr class="<%= t.conAsimetria ? 'row-hot' : '' %>"><th scope="row">Toma <%= t.toma %></th><td><%= m ? fmt.num(m.areaCalientePct, 1) + ' %' : '—' %></td><td><%= m ? fmt.num(m.mediaAbs, 2) : '—' %></td><td><%= m ? fmt.num(m.p95Abs, 2) : '—' %></td><td><%= m ? fmt.num(m.maxAbs, 2) : '—' %></td><td><%= pw.hotspotTexto(m) %></td><td><%= t.zonasNoAnalizadas.length ? pw.zonasTexto(t).noAnalizado : '—' %></td></tr>
           <% }) %>
         </tbody>
       </table>
+      <div class="report__pwmaps">
+        <% PW.tomas.forEach((t) => { %>
+        <figure class="pw-map pw-map--dt"><canvas data-pw-map="<%= t.toma %>:dt" data-pw-src="<%= srcId %>"></canvas><figcaption>ΔT izq. − der. · toma <%= t.toma %></figcaption></figure>
+        <% }) %>
+        <% if (PW.cambio) { %>
+        <figure class="pw-map"><canvas data-pw-map="cambio:izq" data-pw-src="<%= srcId %>"></canvas><figcaption>T2 − T1 · pie izq.</figcaption></figure>
+        <figure class="pw-map"><canvas data-pw-map="cambio:der" data-pw-src="<%= srcId %>"></canvas><figcaption>T2 − T1 · pie der.</figcaption></figure>
+        <% } %>
+      </div>
+      <p class="small">ΔT = izquierdo − derecho espejado (rojo: izquierdo más caliente; azul: derecho). Escala ±3 °C; contorno: |ΔT| &gt; <%= fmt.num(PW.umbralPixel, 1) %> °C; gris: zona sin par.<% if (PW.cambio) { %> Mapas T2 − T1 centrados en el cambio mediano de cada pie (izq. <%= fmt.signed(PW.cambio.izq && PW.cambio.izq.mediana, 1) %> °C, der. <%= fmt.signed(PW.cambio.der && PW.cambio.der.mediana, 1) %> °C).<% } %></p>
     </section>
+    <% } %>
 
     <section>
-      <h2>Factores principales</h2>
-      <p><%= a.factores.slice(0, 4).map((f) => `${f.nombre} (${f.valor})`).join('; ') %>.</p>
+      <h2>Referencia: regiones (Parte 1)</h2>
+      <% const regs = a.tieneToma2 && a.roisToma1.length ? [[1, a.roisToma1], [2, a.rois]] : [[PW ? PW.tomaActual : 2, a.rois]]; %>
+      <table class="table table--num table--dense">
+        <thead><tr><th scope="col">Región</th><% regs.forEach(([k]) => { %><th scope="col">Der. T<%= k %></th><th scope="col">Izq. T<%= k %></th><th scope="col">ΔT T<%= k %></th><% }) %></tr></thead>
+        <tbody>
+          <% regs[0][1].forEach((r) => { %>
+          <tr class="<%= r.roi === 'general' ? 'row-total' : '' %>"><th scope="row"><%= domain.ROI_NAMES[r.roi] %></th><% regs.forEach(([, list]) => { const x = list.find((y) => y.roi === r.roi) || {}; %><td><%= fmt.num(x.avgDer, 2) %></td><td><%= fmt.num(x.avgIzq, 2) %></td><td><%= fmt.signed(x.deltaT, 2) %></td><% }) %></tr>
+          <% }) %>
+        </tbody>
+      </table>
     </section>
     <% } %>
 
@@ -98,7 +117,7 @@
     <% } %>
 
     <footer class="report__foot">
-      <p>Predictor <%= a ? a.predictorVersion : '—' %>. Modelo de referencia (Parte 1): <%= M.nombre %>, <%= M.hiperparametros %>, <%= M.validacion %>, n = <%= M.n %>, AUC <%= fmt.num(M.auc, 3) %>, sensibilidad <%= fmt.num(M.sensibilidad, 1) %> %, especificidad <%= fmt.num(M.especificidad, 1) %> %.</p>
+      <p>Análisis <%= a ? a.predictorVersion : '—' %><%= a && a.puntual && a.puntual.modelo ? ` · modelo preliminar ${a.puntual.modelo.version} (desenlace sustituto HbA1c > 7 %, AUC ${fmt.num(a.puntual.modelo.auc, 2)}, n = ${a.puntual.modelo.n}; no validado)` : '' %>. Modelo de referencia (Parte 1): <%= M.nombre %>, <%= M.hiperparametros %>, <%= M.validacion %>, n = <%= M.n %>, AUC <%= fmt.num(M.auc, 3) %>, sensibilidad <%= fmt.num(M.sensibilidad, 1) %> %, especificidad <%= fmt.num(M.especificidad, 1) %> %.</p>
       <p>Documento con datos de salud: tratamiento confidencial según Ley 25.326 y Ley 26.529.</p>
       <div class="report__sign"><span>Firma y sello</span></div>
     </footer>

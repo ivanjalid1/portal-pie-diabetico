@@ -221,15 +221,44 @@ class MemoryFileStorage extends contracts.FileStorage {
   constructor() {
     super();
     this.files = new Map();
+    this.mounts = [];
+  }
+
+  /**
+   * Monta una carpeta local de sólo lectura bajo un prefijo (p. ej. las
+   * imágenes precalculadas de data-local/). Los archivos se leen del disco en
+   * cada pedido: no se cargan en memoria.
+   */
+  mount(prefix, dir) {
+    this.mounts.push({ prefix, dir: require('node:path').resolve(dir) });
+  }
+
+  #fromDisk(storagePath) {
+    const path = require('node:path');
+    const fs = require('node:fs');
+    for (const m of this.mounts) {
+      if (!storagePath.startsWith(m.prefix)) continue;
+      const full = path.resolve(m.dir, storagePath.slice(m.prefix.length));
+      if (!full.startsWith(m.dir + path.sep) || !fs.existsSync(full)) return null;
+      return fs.readFileSync(full);
+    }
+    return null;
   }
   async save({ key, buffer, mime }) {
     this.files.set(key, { buffer: Buffer.from(buffer), mime });
     return { storagePath: key };
   }
   async read(storagePath) {
-    return this.files.get(storagePath)?.buffer || null;
+    return this.files.get(storagePath)?.buffer || this.#fromDisk(storagePath);
   }
   async getAccess(storagePath) {
+    const disk = this.files.has(storagePath) ? null : this.#fromDisk(storagePath);
+    if (disk)
+      return {
+        type: 'buffer',
+        buffer: disk,
+        mime: /\.png$/i.test(storagePath) ? 'image/png' : 'application/octet-stream',
+      };
     const f = this.files.get(storagePath);
     if (!f) return null;
     return { type: 'buffer', buffer: f.buffer, mime: f.mime };

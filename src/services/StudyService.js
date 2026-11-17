@@ -99,7 +99,12 @@ class StudyService {
     });
 
     const analysis = await this.analysisService.run({ study, patient, images }, actor);
-    study = await this.studies.update(study.id, { estado: 'analizado' });
+    // El resumen en lenguaje simple queda visible para el paciente al terminar el análisis.
+    study = await this.studies.update(study.id, {
+      estado: 'analizado',
+      publicado: true,
+      publicadoAt: new Date().toISOString(),
+    });
     // El control pendiente del paciente queda realizado y vinculado a este estudio.
     // Es un efecto secundario: si falla, el estudio ya guardado no se pierde.
     try {
@@ -239,7 +244,8 @@ class StudyService {
       fecha: (i) => new Date(i.study.fechaHora).getTime(),
       codigo: (i) => i.patient.codigo,
       probabilidad: (i) => i.analysis.probabilidad,
-      dt: (i) => Math.abs(i.analysis.deltaTMax),
+      // Área con |ΔT| sobre el umbral en la última toma (análisis punto a punto); si no, ΔT máx. por región.
+      dt: (i) => i.analysis.puntualActual?.metricas?.areaCalientePct ?? Math.abs(i.analysis.deltaTMax),
     };
     const key = keys[f.orden] || keys.fecha;
     const dir = f.dir === 'asc' ? 1 : -1;

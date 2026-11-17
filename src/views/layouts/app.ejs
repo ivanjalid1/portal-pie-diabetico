@@ -55,7 +55,7 @@
       <header class="topbar">
         <a href="<%= user ? ROLE_HOME[user.role] : '/' %>" class="brand brand--compact"><img src="/img/logo.svg" alt="" width="30" height="30"><strong><%= appName %></strong></a>
         <% if (dataDriver === 'memory') { %>
-        <span class="env-pill" title="Los datos de demostración se reinician periódicamente">Demo</span>
+        <% if (seedMode === 'real') { %><span class="env-pill" title="Pacientes reales cargados sólo en este equipo (data-local/)">Local</span><% } else { %><span class="env-pill" title="Los datos de demostración se reinician periódicamente">Demo</span><% } %>
         <% } else { %>
         <span class="env-spacer"></span>
         <% } %>

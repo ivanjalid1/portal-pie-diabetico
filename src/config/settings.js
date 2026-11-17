@@ -24,10 +24,16 @@ const PALETA_CAMARA = Object.freeze({
 
 const GROUPS = Object.freeze([
   Object.freeze({
+    key: 'puntual',
+    titulo: 'Análisis punto a punto',
+    icono: 'scan',
+    descripcion: 'Umbrales del mapa de diferencias píxel a píxel entre ambos pies y entre tomas.',
+  }),
+  Object.freeze({
     key: 'asimetria',
-    titulo: 'Asimetría',
+    titulo: 'Referencia por regiones (Parte 1)',
     icono: 'thermo',
-    descripcion: 'Cómo se clasifica cada toma y cuándo un cambio entre tomas es relevante.',
+    descripcion: 'Clasificación por regiones de la tesis de la Parte 1, que se muestra como referencia secundaria.',
   }),
   Object.freeze({
     key: 'riesgo',
@@ -62,6 +68,50 @@ const FUENTE_PROTOCOLO = 'Protocolo de adquisición del equipo (cámara Fluke Ti
  * `presets`: valores sugeridos que se muestran como chips.
  */
 const DEFINITIONS = Object.freeze([
+  {
+    key: 'umbralPixel',
+    group: 'puntual',
+    type: 'number',
+    label: 'Umbral de diferencia por píxel (|ΔT|)',
+    unit: '°C',
+    min: 0.1,
+    max: 5,
+    step: 0.1,
+    default: 1.0,
+    help: 'Un punto del pie se considera «caliente» si la diferencia con el mismo punto del otro pie (ya registrado) supera este valor.',
+    fuente: 'Mismo criterio de 1,0 °C de la solicitud del PI, aplicado a cada punto en lugar de a cada región.',
+    presets: [
+      { value: 1.0, label: '1,0 °C', detalle: 'Solicitud PI (criterio por región)' },
+      { value: 2.2, label: '2,2 °C', detalle: 'Referencia bibliográfica' },
+    ],
+  },
+  {
+    key: 'areaMinima',
+    group: 'puntual',
+    type: 'number',
+    label: 'Área caliente mínima para marcar asimetría',
+    unit: '%',
+    min: 0.5,
+    max: 50,
+    step: 0.5,
+    default: 10,
+    help: 'Una toma se marca «Con asimetría punto a punto» si al menos este porcentaje del área plantar analizada supera el umbral por píxel.',
+    fuente:
+      'Calibrado con la toma 1 de los 54 pacientes de la hoja «DifT°»: con 10 % se marcan 27 tomas (la Parte 1 clasificó 26 como P) y coincide en 43 de 54. A validar por el equipo.',
+  },
+  {
+    key: 'umbralCambio',
+    group: 'puntual',
+    type: 'number',
+    label: 'Cambio local relevante entre tomas',
+    unit: '°C',
+    min: 0.1,
+    max: 5,
+    step: 0.1,
+    default: 1.0,
+    help: 'En el mapa toma 1 → toma 2 de cada pie, cuenta los puntos cuyo cambio difiere en más de este valor del cambio mediano del pie (el cambio mediano refleja el ambiente y el día).',
+    fuente: 'Criterio del portal (propuesta a validar con los datos del equipo).',
+  },
   {
     key: 'umbralAsimetria',
     group: 'asimetria',
@@ -374,6 +424,9 @@ function withDefaults(values = {}) {
 function analysisParams(settings = DEFAULTS) {
   const s = withDefaults(settings);
   return {
+    umbralPixel: s.umbralPixel,
+    areaMinima: s.areaMinima,
+    umbralCambio: s.umbralCambio,
     umbral: s.umbralAsimetria,
     corteSimetria: s.corteSimetria,
     referencia: s.referenciaBibliografica,

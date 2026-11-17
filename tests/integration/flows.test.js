@@ -51,7 +51,7 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
     expect(form.text).toContain('Revisá los campos marcados');
   });
 
-  it('carga un estudio con 2 imágenes, analiza, publica y el paciente lo ve', async () => {
+  it('carga un estudio con 2 imágenes (PNG), analiza y el paciente ve el resumen', async () => {
     const medico = await loginAs(app, 'medico@demo.com');
     const ondina = await container.repos.patients.findByCodigo('DEMO-001');
     const wizard = await medico.get(`/medico/estudios/nuevo?paciente=${ondina.id}`);
@@ -88,29 +88,19 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
 
     const result = await medico.get(location);
     expect(result.status).toBe(200);
-    expect(result.text).toContain('Probabilidad de úlcera');
-    expect(result.text).toContain('Clasificación térmica por toma');
-    expect(result.text).toContain('Evolución de la asimetría');
+    // Con imágenes no radiométricas (PNG) no hay análisis punto a punto: se informa como simulado.
     expect(result.text).toContain('Resultado simulado');
+    expect(result.text).toContain('No se pudo hacer el análisis punto a punto');
+    expect(result.text).not.toContain('Visibilidad para el paciente');
 
     // La imagen subida se sirve con control de acceso.
     const img = await medico.get(`/media/estudios/${studyId}/toma1`);
     expect(img.status).toBe(200);
     expect(img.headers['content-type']).toBe('image/png');
 
-    // El paciente ve el estudio pero no el resultado hasta que se publica.
+    // El paciente ve el resumen en lenguaje simple apenas termina el análisis.
     const paciente = await loginAs(app, 'paciente@demo.com');
-    let detail = await paciente.get(`/paciente/estudios/${studyId}`);
-    expect(detail.text).toContain('todavía está revisando');
-
-    const pubCsrf = extractCsrf(result.text);
-    const pub = await medico
-      .post(`/medico/estudios/${studyId}/publicacion`)
-      .type('form')
-      .send({ _csrf: pubCsrf, publicado: 'on' });
-    expect(pub.status).toBe(303);
-
-    detail = await paciente.get(`/paciente/estudios/${studyId}`);
+    const detail = await paciente.get(`/paciente/estudios/${studyId}`);
     expect(detail.text).not.toContain('todavía está revisando');
     expect(detail.text).not.toContain('AUC'); // sin métricas crudas del modelo
     expect((await paciente.get(`/media/estudios/${studyId}/toma2`)).status).toBe(200);
@@ -118,7 +108,7 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
     // Exportación del informe y auditoría.
     expect((await medico.get(`/medico/estudios/${studyId}/informe`)).status).toBe(200);
     const actions = (await container.repos.audit.list({ limit: 50 })).map((e) => e.action);
-    expect(actions).toEqual(expect.arrayContaining(['study.created', 'analysis.completed', 'result.published']));
+    expect(actions).toEqual(expect.arrayContaining(['study.created', 'analysis.completed']));
   });
 
   it('rechaza un archivo que no es imagen aunque tenga extensión .png', async () => {
@@ -200,6 +190,49 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
     const img = await medico.get(`/media/estudios/${studyId}/toma2?vista=png`);
     expect(img.status).toBe(200);
     expect(img.headers['content-type']).toBe('image/png');
+    // El IS2 de la toma 2 se analizó punto a punto (la toma 1 reutilizada es un PNG no radiométrico).
+    const analysis = await container.repos.analyses.findByStudyId(studyId);
+    expect(analysis.puntual).toBeTruthy();
+    expect(analysis.simulado).toBe(false);
+  });
+
+  it('analiza punto a punto dos IS2 y muestra mapas, histograma y cambio entre tomas', async () => {
+    const medico = await loginAs(app, 'medico@demo.com');
+    const ondina = await container.repos.patients.findByCodigo('DEMO-001');
+    const csrf = await csrfFrom(medico, `/medico/estudios/nuevo?paciente=${ondina.id}`);
+    const res = await medico
+      .post('/medico/estudios')
+      .field('_csrf', csrf)
+      .field('patientId', ondina.id)
+      .field('fechaToma1', '2026-10-12')
+      .field('fechaHora', '2026-11-12T09:30')
+      .field('centro', 'Hospital Córdoba')
+      .field('tempAmbiente', '22')
+      .field('humedadRelativa', '50')
+      .field('distanciaCm', '80')
+      .field('emisividad', '0,98')
+      .field('rangoMin', '24')
+      .field('rangoMax', '35')
+      .field('paleta', 'High Contrast')
+      .field('tiempoEstabilizacionMin', '15')
+      .field('fondo', 'Cartulina')
+      .field('valida', 'si')
+      .field('consentimientoVerificado', 'on')
+      .attach('toma1', fakeIs2(), 'IR_00010.IS2')
+      .attach('toma2', fakeIs2({ asym: 200 }), 'IR_00011.IS2');
+    expect(res.status).toBe(303);
+    const page = await medico.get(res.headers.location);
+    expect(page.status).toBe(200);
+    expect(page.text).toContain('Análisis punto a punto');
+    expect(page.text).toContain('data-pw-map="1:dt"');
+    expect(page.text).toContain('data-pw-map="2:dt"');
+    expect(page.text).toContain('data-pw-hist="2"');
+    expect(page.text).toContain('data-pw-map="cambio:izq"');
+    expect(page.text).toContain('Modelo preliminar');
+    expect(page.text).toMatch(/AUC/);
+    expect(page.text).toContain('Referencia: análisis por regiones (tesis parte 1)');
+    expect(page.text).not.toContain('Visibilidad para el paciente');
+    expect(page.text).not.toContain('Evolución de la asimetría');
   });
 
   it('multipart sin CSRF es rechazado', async () => {

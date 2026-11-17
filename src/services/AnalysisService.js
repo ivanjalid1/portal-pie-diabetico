@@ -61,7 +61,9 @@ class AnalysisService {
       const out = await this.predictor.predict({
         study,
         patient,
-        hints: { toma1: a.roisToma1, toma2: a.rois, fuente: a.fuenteRois },
+        hints: a.puntual
+          ? { puntual: Object.fromEntries(a.puntual.tomas.map((t) => [`toma${t.toma}`, t])) }
+          : { toma1: a.roisToma1, toma2: a.rois, fuente: a.fuenteRois },
         params,
       });
       const { rois: _r, roisToma1: _r1, ...fields } = out;

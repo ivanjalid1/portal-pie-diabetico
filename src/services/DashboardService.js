@@ -54,7 +54,12 @@ class DashboardService {
     const conEstudio = new Set(studies.map((s) => s.patientId));
     const sinDesenlace = patients.filter((p) => conEstudio.has(p.id) && p.generoLesion === null).length;
     const grupos = { P: 0, C: 0 };
-    for (const a of ultimo.values()) if (a.grupo) grupos[a.grupo] += 1;
+    // «P/C» del tablero: hallazgo punto a punto de la última toma (si no hay, la clasificación por regiones).
+    for (const a of ultimo.values()) {
+      const t = a.puntualActual;
+      const g = t && t.conAsimetria !== null ? (t.conAsimetria ? 'P' : 'C') : a.grupo;
+      if (g) grupos[g] += 1;
+    }
 
     // Series mensuales (6 meses) para tendencias y sparklines.
     const meses = [];
@@ -72,15 +77,16 @@ class DashboardService {
     const prev = meses[meses.length - 2];
     const cur = meses[meses.length - 1];
 
-    // Pacientes cuya asimetría aumentó entre tomas (último estudio).
-    const empeorando = [];
+    // Pacientes con mayor área de asimetría punto a punto en su última toma.
+    const mayorArea = [];
     for (const [patientId, a] of ultimo.entries()) {
-      if (a.roisQueEmpeoran.length) {
+      const t = a.puntualActual;
+      if (t?.conAsimetria && t.metricas) {
         const study = studies.find((s) => s.id === a.studyId);
-        empeorando.push({ patient: pById.get(patientId), analysis: a, study });
+        mayorArea.push({ patient: pById.get(patientId), analysis: a, study, toma: t });
       }
     }
-    empeorando.sort((x, y) => y.analysis.maxEmpeoramiento - x.analysis.maxEmpeoramiento);
+    mayorArea.sort((x, y) => y.toma.metricas.areaCalientePct - x.toma.metricas.areaCalientePct);
     const vencidos = pendientes
       .filter((a) => a.vencido(now))
       .map((appt) => ({ appt, patient: pById.get(appt.patientId) }));
@@ -92,7 +98,7 @@ class DashboardService {
         pacientes: cur.pacientes - prev.pacientes,
         controles: cur.controles - prev.controles,
       },
-      empeorando: empeorando.filter((e) => e.patient).slice(0, 5),
+      mayorArea: mayorArea.filter((e) => e.patient).slice(0, 5),
       vencidos: vencidos.filter((v) => v.patient),
       kpis: {
         pacientes: patients.length,

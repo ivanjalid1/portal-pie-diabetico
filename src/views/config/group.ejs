@@ -64,6 +64,16 @@
 
   <% if (sharedSrc) { %><p class="cfg-field__src cfg-card__src"><%- include('../partials/icon', { name: 'file', size: 13 }) %><span>Fuente de todos los rangos: <%= sharedSrc %></span></p><% } %>
 
+  <% if (g.key === 'puntual' && preview.puntuales) { %>
+  <div class="cfg-preview" data-preview="puntual" aria-live="polite">
+    <div class="cfg-preview__row">
+      <span class="cfg-preview__label">Con estos umbrales</span>
+      <span><strong class="num" data-pv="conAsimetriaPuntual"><%= preview.conAsimetriaPuntual %></strong> de <strong class="num" data-pv="puntuales"><%= preview.puntuales %></strong> estudios tendrían «asimetría punto a punto» en su última toma <span class="muted">(hoy: <span class="num"><%= preview.conAsimetriaPuntualActual %></span>)</span></span>
+    </div>
+    <div class="cfg-bar" aria-hidden="true"><span data-pv-bar="conAsimetriaPuntual" style="width: <%= preview.puntuales ? Math.round((preview.conAsimetriaPuntual / preview.puntuales) * 100) : 0 %>%"></span></div>
+  </div>
+  <% } %>
+
   <% if (g.key === 'asimetria') { %>
   <div class="cfg-preview" data-preview="asimetria" aria-live="polite">
     <div class="cfg-preview__row">
@@ -82,7 +92,7 @@
   <div class="cfg-preview" data-preview="riesgo" aria-live="polite">
     <div class="cfg-preview__row">
       <span class="cfg-preview__label">Con estos cortes</span>
-      <span>los <span class="num"><%= preview.total %></span> estudios quedarían así (misma probabilidad, otra clasificación):</span>
+      <span>los <span class="num"><%= preview.total %></span> estudios quedarían así (mientras el modelo no esté validado, la categoría sale del hallazgo térmico punto a punto):</span>
     </div>
     <div class="cfg-stack" aria-hidden="true">
       <% ['sin_riesgo', 'moderado', 'alto'].forEach((k) => { %><span class="cfg-stack__seg cfg-stack__seg--<%= domain.RISK_CATEGORIES[k].tono %>" data-pv-seg="<%= k %>" style="flex-grow: <%= preview.riesgo[k] %>"></span><% }) %>

@@ -5,7 +5,7 @@ const globals = require('globals');
 const prettier = require('eslint-config-prettier');
 
 module.exports = [
-  { ignores: ['node_modules/**', 'coverage/**', '.vercel/**', 'docs/**'] },
+  { ignores: ['node_modules/**', 'coverage/**', '.vercel/**', 'docs/**', 'data-local/**', 'tesis-2026info/**'] },
   js.configs.recommended,
   {
     files: ['**/*.js'],

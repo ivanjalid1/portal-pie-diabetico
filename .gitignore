@@ -25,3 +25,6 @@ data-local/
 
 # Mapeo local de imágenes demo a archivos de origen (privado)
 scripts/*.local.json
+
+# Caché de Python (scripts/ml)
+__pycache__/

@@ -14,7 +14,9 @@
     "seed:supabase": "node scripts/seed-supabase.js",
     "precompute:real": "node scripts/precompute-real.js",
     "train:model": "node scripts/train-pointwise-model.js",
-    "generate:pointwise": "node scripts/generate-demo-pointwise.js"
+    "generate:pointwise": "node scripts/generate-demo-pointwise.js",
+    "ml:export": "node scripts/ml/export-seg-data.js",
+    "ml:features": "node scripts/ml/export-features.js"
   },
   "license": "MIT",
   "dependencies": {
@@ -52,6 +54,13 @@
       "src/**/*.js",
       "!src/repositories/supabase/**"
     ],
-    "testTimeout": 30000
+    "testTimeout": 30000,
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/data-local/"
+    ],
+    "modulePathIgnorePatterns": [
+      "<rootDir>/data-local/"
+    ]
   }
 }

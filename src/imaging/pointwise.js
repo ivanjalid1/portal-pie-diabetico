@@ -231,8 +231,14 @@ function lengthFrames(fi, fd) {
 function canonicalFeet(img, opts = {}) {
   const { width: w, height: h } = img;
   const T = celsiusImage(img);
-  const seg = segmentFeetPointwise(T, img, opts);
+  // Máscaras externas (p. ej. de la U-Net, scripts/ml/): se usan si son plausibles;
+  // si no, se vuelve a la segmentación clásica.
+  const externas = plausibleMasks(opts.masks, w, h);
+  const seg = externas
+    ? { ok: true, feet: externas.map((mask) => ({ mask })), threshold: null }
+    : segmentFeetPointwise(T, img, opts);
   if (!seg.ok) return { ok: false, reason: seg.reason };
+  const segmentacion = externas ? opts.masksSource || 'externa' : 'clasica';
   // Pie izquierdo del paciente = izquierda de la imagen; el derecho se espeja.
   const maskI = seg.feet[0].mask;
   const maskD = flipX(seg.feet[1].mask, w, h);
@@ -249,7 +255,36 @@ function canonicalFeet(img, opts = {}) {
     cortado: f.cortado,
     recortes: f.recortes,
   });
-  return { ok: true, izq, der, marco: { izq: frame(fi), der: frame(fd) }, umbralFondo: seg.threshold };
+  return { ok: true, izq, der, marco: { izq: frame(fi), der: frame(fd) }, umbralFondo: seg.threshold, segmentacion };
+}
+
+/** Área mínima (px) de cada pie para aceptar una máscara externa. */
+const AREA_MINIMA_EXTERNA = 250;
+
+/**
+ * Valida un par de máscaras externas [izquierdo, derecho] (coordenadas de la
+ * imagen). Devuelve null si falta alguna o algún pie es demasiado chico.
+ */
+function plausibleMasks(masks, w, h) {
+  if (!Array.isArray(masks) || masks.length !== 2) return null;
+  for (const m of masks) {
+    if (!m || m.length !== w * h) return null;
+    let a = 0;
+    for (let i = 0; i < m.length; i += 1) a += m[i] ? 1 : 0;
+    if (a < AREA_MINIMA_EXTERNA) return null;
+  }
+  return masks;
+}
+
+/** Etiquetas por píxel (0 fondo, 1 pie izquierdo de la imagen, 2 derecho) → par de máscaras. */
+function labelsToMasks(labels) {
+  const a = new Uint8Array(labels.length);
+  const b = new Uint8Array(labels.length);
+  for (let i = 0; i < labels.length; i += 1) {
+    if (labels[i] === 1) a[i] = 1;
+    else if (labels[i] === 2) b[i] = 1;
+  }
+  return [a, b];
 }
 
 /* ---------------- Métricas sobre las grillas ---------------- */
@@ -500,18 +535,21 @@ module.exports = {
   qualityScore,
   footFrame,
   celsiusImage,
+  labelsToMasks,
+  plausibleMasks,
 };
 
 /**
  * Procesa un archivo .IS2 completo y devuelve las grillas serializadas
  * (listas para guardar en el análisis) junto con la calidad y el marco.
  */
-function analyzeIs2Pointwise(buffer) {
+function analyzeIs2Pointwise(buffer, opts = {}) {
   const { decodeIs2 } = require('./is2');
-  const cf = canonicalFeet(decodeIs2(buffer));
+  const cf = canonicalFeet(decodeIs2(buffer), opts);
   if (!cf.ok) return { ok: false, reason: cf.reason };
   return {
     ok: true,
+    segmentacion: cf.segmentacion,
     calidad: qualityScore(cf),
     marco: cf.marco,
     izq: encodeGrid(cf.izq),

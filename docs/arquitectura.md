@@ -54,7 +54,7 @@ flowchart LR
 | **MVC** | `controllers/`, `views/`, `models/` | Separar presentación, control y dominio. |
 | **Repository** | `repositories/contracts.js` (interfaces), `repositories/memory`, `repositories/supabase` | Aislar a los servicios de la tecnología de persistencia. |
 | **Factory** | `repositories/RepositoryFactory.js` (`DATA_DRIVER`), `services/predictors/PredictorFactory.js` (`PREDICTOR`) | Elegir implementaciones concretas por configuración. |
-| **Strategy** | `services/predictors/UlcerPredictor.js` → `MockUlcerPredictor`, `LogisticRegressionPredictor`, `CnnPredictor`; `services/auth/AuthProvider.js` → `PasswordAuthProvider`, `SupabaseAuthProvider`, `GoogleOAuthProvider` | Intercambiar el algoritmo de predicción y el mecanismo de autenticación sin tocar los casos de uso. |
+| **Strategy** | `services/predictors/UlcerPredictor.js` → `PointwisePredictor` (por defecto, análisis punto a punto + modelo preliminar), `MockUlcerPredictor` (respaldo para imágenes no radiométricas), `LogisticRegressionPredictor`, `CnnPredictor`; `services/auth/AuthProvider.js` → `PasswordAuthProvider`, `SupabaseAuthProvider`, `GoogleOAuthProvider` | Intercambiar el algoritmo de predicción y el mecanismo de autenticación sin tocar los casos de uso. |
 | **Singleton** | `config/index.js` (`getConfig`), `config/supabase.js` (`getSupabaseClients`) | Una sola configuración inmutable y un único cliente de base de datos por proceso. |
 | **Chain of Responsibility** | `app.js` (cadena global) y `routes/index.js` (`requireAuth → requireRole → multer → verifyCsrf → validate → controlador`) | Cada eslabón decide si corta (redirección, 403, error de validación) o delega. |
 | **Observer** | `utils/eventBus.js` (`DomainEventBus`), `services/AuditService.js` | Los servicios publican eventos (`patient.created`, `analysis.completed`, …) y la auditoría se suscribe sin acoplamiento. |
@@ -80,6 +80,11 @@ classDiagram
     +info
     +predict(input) PredictionOutput
   }
+  class PointwisePredictor {
+    -model: pointwise-logreg.json
+    +predict(input)
+  }
+  UlcerPredictor <|.. PointwisePredictor
   class MockUlcerPredictor {
     -umbral: number
     +predict(input)
@@ -166,7 +171,7 @@ sequenceDiagram
   participant PS as PatientService
   participant FS as FileStorage
   participant A as AnalysisService
-  participant P as UlcerPredictor (mock-v0)
+  participant P as UlcerPredictor (puntual-v1)
   participant EV as DomainEventBus
   participant AU as AuditService
 
@@ -181,7 +186,7 @@ sequenceDiagram
   EV-->>AU: record()
   S->>A: run(study, patient, images)
   A->>P: predict()
-  P-->>A: ROIs, ΔT, grupo P/C, probabilidad, factores
+  P-->>A: grillas canónicas, mapa ΔT, métricas por toma, cambio T2−T1, zonas no analizadas, probabilidad preliminar, ROIs de referencia
   A->>EV: publish(analysis.completed)
   A-->>S: AnalysisResult
   S-->>C: estudio analizado
@@ -221,11 +226,14 @@ flowchart TB
 
 ## 5.1 Visualización de datos
 
-Los gráficos se generan como **SVG en el servidor** (parciales `dumbbell`, `slope`, `sparkline`, `gauge`, `plantar-map`), sin librerías de gráficos en el cliente:
+Los gráficos del análisis punto a punto se dibujan en **canvas** en el navegador (`public/js/pointwise.js`). Lee las grillas desde un `<script type="application/json">`, que no se ejecuta y respeta la CSP `script-src 'self'`. Los gráficos de resumen se generan como **SVG en el servidor** (`pw-evolution`, `sparkline`, `gauge`, `plantar-map`). No se usa ninguna librería de gráficos.
 
-- **Sin doble eje.** La evolución del paciente se separa en *small multiples*: un *dumbbell* por región (ΔT de la toma 1 y de la toma 2 sobre un único eje en °C, con la banda ±umbral sombreada), una pendiente con el |ΔT| máximo de cada toma con la etiqueta de valor en cada punto, y la probabilidad como KPI por estudio.
-- **Colores de serie** validados para daltonismo y contraste: toma 1 `#7b6cf6` / toma 2 `#0a94a8` (oscuro: `#8a7cf5` / `#1a9fb0`). El texto usa siempre tintas neutras; la identidad la llevan las marcas y la leyenda.
-- Cada gráfico tiene `<title>` en español como *tooltip*, leyenda y una tabla `sr-only` equivalente. En pantallas angostas se usa una variante compacta para que el texto no baje de ~11 px.
+- **Mapas por toma:** pie izquierdo y derecho con escala de temperatura común (High Contrast), y mapa **ΔT izq. − der.** con escala divergente azul–blanco–rojo fija en ±3 °C, contorno de \|ΔT\| > umbral, guías de zona, marca del punto de mayor diferencia y gris para las celdas sin par.
+- **Histograma** de \|ΔT\| por punto (paso 0,2 °C), con la línea del umbral; las barras sobre el umbral van en rojo.
+- **Cambio toma 1 → toma 2** por pie (T2 − T1), con el color centrado en el cambio mediano y el valor de esa mediana informado.
+- **Ficha del paciente:** evolución del % de área caliente por toma (eje izquierdo) y de la probabilidad preliminar (eje derecho, línea discontinua y marcadores distintos), con la línea del área mínima. Al lado, los mapas ΔT del último estudio.
+- Se eliminaron el bloque «Evolución entre tomas» (dumbbell por región, pendiente del \|ΔT\| máximo, «Toma 1: con asimetría → Toma 2…») y el bloque «Visibilidad para el paciente». El resumen en lenguaje simple queda visible para el paciente al terminar el análisis.
+- **Colores de serie:** toma 1 `#7b6cf6`, toma 2 `#0a94a8`. Cada gráfico tiene `aria-label` o `<title>` en español.
 
 ### Paleta térmica Fluke High Contrast
 
@@ -256,3 +264,71 @@ El logo (`public/img/logo.svg`) muestra dos plantas sobre un mosaico verde azula
 | Service-role en servidor + RLS como defensa en profundidad | Cliente con anon key + JWT por usuario | El control fino ya está en los servicios; RLS protege ante una fuga de la anon key o futuros clientes directos. |
 | Driver `memory` por defecto | Base de datos obligatoria | Permite demostrar el producto sin infraestructura. |
 | Ficha clínica seudonimizada (`codigo`) separada del perfil | Una sola tabla de pacientes | Minimización de datos (Ley 25.326) y exportaciones anonimizadas. |
+
+## 8. Análisis punto a punto (Parte 2)
+
+El análisis principal del portal compara los pies **punto a punto (píxel a píxel)**. Las 6 regiones por pie de la Parte 1 se siguen calculando, pero sólo como **referencia secundaria**. Se obtienen de la misma grilla registrada y se muestran plegadas en «Referencia: análisis por regiones (tesis parte 1)».
+
+| Paso | Módulo | Detalle |
+| --- | --- | --- |
+| 1. Lectura | `src/imaging/is2.js` | Matriz `Images/Main/IR.data` del `.IS2` (320 × 240 cuentas, la primera fila es cabecera). Nunca se usan las fotos visibles. |
+| 2. Cuentas → °C | `src/imaging/thermogram.js` (`toCelsius`) | Ajuste lineal aproximado (r ≈ 0,88). No es una calibración radiométrica: las temperaturas son **aproximadas** y las diferencias entre pies son más confiables que los valores absolutos. |
+| 3. Segmentación | `src/imaging/segmentation.js` | Suavizado 3×3 y umbral de Otsu. Si más del 40 % del cuadro queda tibio, se repite Otsu sobre esa parte. Semillas en el núcleo caliente de cada pie; para un pie mucho más frío, la semilla se busca en su mitad de la imagen con un umbral propio. Luego viene un **crecimiento de regiones competitivo** (inundación desde lo más caliente): un punto se agrega si el descenso respecto del vecino es < 0,25 °C y está a menos de 40 px de la semilla. Así los dedos fríos se incluyen y la tela o la pierna, separadas por un salto brusco, no. Termina con apertura morfológica, relleno de huecos y componente mayor. |
+| 4. Espejado | `src/imaging/pointwise.js` | Convención del equipo: el pie a la izquierda de la imagen es el izquierdo. El derecho se espeja (x → W − 1 − x) para que ambos tengan el lado medial hacia +x. |
+| 5. Registro | `footFrame` / `lengthFrames` | Registro **afín** a un marco canónico por pie: **centroide + eje principal** (momentos de segundo orden) + **escala anisótropa** (largo por percentiles 0,5–99,5 % sobre el eje; ancho medido en el antepié). Se hace en dos pasadas: la segunda descarta los puntos fuera del ancho del antepié, como una cuña de pierna junto al talón, antes de recalcular el eje. No se deforma el pie (no es un registro elástico). |
+| 6. Grilla canónica | `sampleCanonical` | 40 × 100 celdas por pie, con remuestreo bilineal. La fila 0 es la punta de los dedos y la última el talón; la columna 0 es el borde lateral. Se descarta 1 px de contorno (mezcla piel/fondo). Fuera de la máscara la celda queda **sin dato** (NaN). |
+| 7. Mapa ΔT | `asymmetryMetrics` | **ΔT = T(izquierdo) − T(derecho espejado)** en las celdas con dato en ambos pies. Positivo: el pie izquierdo está más caliente. Métricas: % del área con \|ΔT\| > umbral por punto; \|ΔT\| medio, p95 y máximo (este último sobre el mapa suavizado 3×3 para no reaccionar a un píxel aislado); media con signo; ubicación del punto de mayor diferencia (zona, lado medial/lateral y pie más caliente). |
+| 8. Cambio entre tomas | `changeMetrics` | Cada pie de la toma 2 cae en la misma grilla canónica que el de la toma 1, así que el mapa **T2 − T1** se compara celda a celda. Se informa el cambio mediano (refleja sobre todo el ambiente y el día), el p95 y el % de «cambio local»: puntos que se apartan de la mediana más que el umbral configurable. En pantalla, el color se centra en la mediana de cada pie; los valores no se alteran. |
+| 9. Zonas no analizadas | `zoneCoverage` | Si un pie toca el borde de la imagen (dedos o talón fuera del cuadro) o es más de un 12 % más corto que el otro, se ancla en su extremo íntegro y se usa la longitud esperada. La parte faltante queda sin dato. Una zona (dedos 0–20 %, metatarso 20–42 %, arco 42–70 %, talón 70–100 % del largo) con menos del 50 % de celdas comparables se **excluye de las métricas** y se informa: «En este estudio no se analizó: dedos. Se analizó: metatarso, arco y talón». |
+
+Reglas que no se negocian: **no se usa IA generativa ni *inpainting*** y **nunca se modifican ni completan temperaturas**. Sólo se recorta, centra y alinea para mostrar, y las zonas sin dato se pintan en gris.
+
+Parámetros (Configuración → «Análisis punto a punto», con vista previa del efecto):
+
+- umbral por punto, 1,0 °C;
+- área mínima para marcar «con asimetría punto a punto», 10 %;
+- cambio local relevante entre tomas, 1,0 °C.
+
+Los 10 % se calibraron con la toma 1 de los 54 pacientes de la hoja «DifT°» de la Parte 1. Con ese valor se marcan 27 tomas (la Parte 1 clasificó 26 como P) y la clasificación coincide en 43 de 54. Como las grillas se guardan en cada análisis, cambiar un parámetro y recalcular **no vuelve a procesar las imágenes**.
+
+**Concordancia con la Parte 1.** El ΔT general por regiones calculado sobre la grilla tiene r = 0,83 con la planilla del equipo (54 pacientes, toma 1), con una diferencia mediana de 0,1 °C. El script de entrenamiento lo vuelve a calcular.
+
+### 8.1 Modelo preliminar
+
+`PointwisePredictor` (`puntual-v1`) es la estrategia por defecto (`PREDICTOR=puntual`) detrás de la interfaz `UlcerPredictor`. `MockUlcerPredictor` queda como respaldo sólo cuando se suben imágenes no radiométricas (JPG/PNG), y el resultado se rotula «simulado».
+
+- **Variables:** % de área con \|ΔT\| > 1 °C, \|ΔT\| medio y \|ΔT\| p95 de la última toma, con el umbral fijo del modelo.
+- **Ajuste:** regresión logística L2, C = 0,5 como en la Parte 1 (`src/services/predictors/logistic.js`).
+- **Desenlace:** el mismo sustituto que la Parte 1, **HbA1c > 7 %**, porque en la cohorte casi no hubo úlceras registradas.
+- **Muestra:** pacientes con HbA1c y toma 1 analizable. Se excluyen los marcados «PACIENTE NO VALIDO» en la planilla: **n = 53**, 35 positivos.
+- **Validación:**
+  - leave-one-out, con la estandarización dentro de cada pliegue: **AUC 0,27** (IC 95 % bootstrap 0,14–0,41);
+  - 5 pliegues estratificados × 20 repeticiones: AUC medio 0,42;
+  - AUC univariados 0,49–0,55.
+- **Conclusión:** con estos datos, **la asimetría punto a punto no predice el desenlace sustituto**. El AUC LOO menor a 0,5 es el sesgo conocido de LOO cuando no hay señal. Por eso:
+  - la probabilidad se muestra rotulada «Modelo preliminar · no validado», con su AUC y su n, y sin zonas de riesgo;
+  - mientras el AUC de validación sea < 0,7, la **categoría** (sin riesgo / moderado / alto) se toma del **hallazgo térmico** y no de la probabilidad: sin asimetría → sin riesgo; área ≥ mínima → moderado; además con \|ΔT\| p95 ≥ 2,2 °C → alto.
+- **Archivos:** los coeficientes, medias, desvíos y métricas agregadas están en `src/config/models/pointwise-logreg.json`, sin datos por paciente. Se regeneran con `npm run train:model`.
+
+**Limitaciones (a validar por el equipo):**
+
+- La conversión a °C es aproximada.
+- El registro es afín, sin correspondencia anatómica fina (dedos individuales).
+- La segmentación puede incluir tela o pierna junto al talón; el resultado se marca «Segmentación a revisar» si la calidad es < 0,6.
+- Las zonas «no analizadas» pueden deberse a dedos fuera del cuadro o a dedos demasiado fríos para segmentarlos.
+- Algunas cámaras tenían el reloj desconfigurado: esas fechas se estiman y se avisa en las notas.
+- El desenlace es sustituto y el n es chico.
+
+### 8.2 Datos reales sólo en local
+
+```mermaid
+flowchart LR
+  P[tesis-2026info/<br/>IS2 + planilla<br/>no versionada] -->|npm run precompute:real| D[data-local/real/<br/>dataset.json + PNG<br/>ignorada por git y Vercel]
+  D -->|npm run train:model| M[src/config/models/<br/>pointwise-logreg.json<br/>sólo agregados]
+  D -->|SEED=real| S[seed/realData.js<br/>driver memory]
+  S --> A[Portal en localhost]
+```
+
+- `scripts/precompute-real.js` procesa todas las réplicas `.IS2` de cada toma y elige la de mejor calidad: solapamiento y simetría de las máscaras, penalizando los cortes. Renderiza esa toma con High Contrast y guarda sus grillas en `data-local/real/`. No imprime nombres, DNI ni teléfonos.
+- Con `SEED=real` y esa carpeta presente, el contenedor carga los pacientes reales en el driver `memory`. Se conservan las cuentas del personal de demostración y se quitan los pacientes `DEMO-…`. Las imágenes se leen del disco al pedirlas (montaje de sólo lectura en el `FileStorage`), sin cargarlas en memoria.
+- Sin la carpeta (CI, Vercel, pruebas), el portal usa la semilla de demostración. Sus grillas punto a punto están en `src/seed/demoPointwise.json`: termogramas ya anonimizados, sin datos de identidad.

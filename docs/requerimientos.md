@@ -18,7 +18,7 @@
 | RF-16 | Visor de termografías con paleta Fluke High Contrast (por defecto), Ironbow y Grises, y escala en °C. | Media | Hecho |
 | RF-11 | Administración de usuarios y auditoría. | Media | Hecho |
 | RF-12 | Ingreso con Google (OAuth). | Baja | Previsto (interfaz `AuthProvider`) |
-| RF-13 | Procesamiento real de imágenes (segmentación, ROIs, modelo). | Alta | En desarrollo (punto de extensión `UlcerPredictor`) |
+| RF-13 | Procesamiento real de imágenes: segmentación, registro y comparación punto a punto, zonas no analizadas, cambio entre tomas y modelo preliminar. | Alta | Implementado (`PointwisePredictor`); modelo no validado clínicamente |
 | RF-14 | Invitación por correo al paciente. | Baja | Previsto |
 
 ## Requerimientos no funcionales

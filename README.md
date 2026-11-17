@@ -15,14 +15,14 @@ Portal médico–paciente para la **estimación del riesgo de úlcera de pie dia
 > Antecedente (Parte 1): «Correlación entre la termografía y la predicción de úlceras en pie diabético», Ana Paula Muñoz (FCEFyN – UNC).
 
 > [!WARNING]
-> **Herramienta exploratoria complementaria, no diagnóstica.** El portal está completo salvo el procesamiento de imágenes: el análisis actual es **simulado** (`mock-v0`) y determinístico. El algoritmo real se conecta reemplazando una única estrategia (ver [docs/despliegue.md](docs/despliegue.md#conectar-el-algoritmo-real)).
+> **Herramienta exploratoria complementaria, no diagnóstica.** El análisis compara ambos pies **punto a punto**: segmentación, espejado del pie derecho, registro afín y mapa ΔT píxel a píxel (estrategia `puntual-v1`). Las temperaturas son aproximadas (conversión lineal de las cuentas de la cámara). La probabilidad proviene de un **modelo preliminar no validado**: regresión logística, desenlace sustituto HbA1c > 7 %, AUC de validación cruzada 0,27 con n = 53. Por eso la categoría de riesgo resume el hallazgo térmico y no esa probabilidad. Detalles y limitaciones en [docs/arquitectura.md §8](docs/arquitectura.md#8-análisis-punto-a-punto-parte-2).
 
 ## Capturas
 
 | Ingreso | Tablero del médico |
 | --- | --- |
 | ![Ingreso](docs/screenshots/01-login.png) | ![Tablero](docs/screenshots/02-dashboard.png) |
-| **Resultado comparativo (toma 1 vs toma 2)** | **Evolución entre tomas (sin doble eje)** |
+| **Resultado punto a punto (mapas ΔT, histograma, cambio entre tomas)** | **Ficha del paciente: evolución punto a punto** |
 | ![Resultado](docs/screenshots/04-resultado.png) | ![Evolución](docs/screenshots/05-paciente-evolucion.png) |
 | **Estudios realizados** | **Controles** |
 | ![Estudios](docs/screenshots/06-estudios-realizados.png) | ![Controles](docs/screenshots/07-controles.png) |
@@ -40,17 +40,24 @@ Paletas disponibles en el visor (High Contrast, Ironbow, Grises): [docs/screensh
 ## Funcionalidades
 
 **Médico/a**
-- Tablero con KPIs y tendencia frente al mes anterior (con *sparklines*), distribución de riesgo, controles vencidos y próximos, últimos estudios con miniatura y cambio de asimetría ↑/↓, y pacientes con asimetría en aumento.
-- **Estudios realizados**: búsqueda por nombre, apellido o código, filtros (fechas, centro, riesgo, grupo, publicado, desenlace), orden, paginado, tarjetas en móvil y CSV del filtro actual.
+- Tablero con KPIs y tendencia frente al mes anterior (con *sparklines*), distribución de riesgo, controles vencidos y próximos, últimos estudios con miniatura y % de área con asimetría punto a punto, y los pacientes con mayor asimetría punto a punto.
+- **Estudios realizados**: búsqueda por nombre, apellido o código, filtros (fechas, centro, riesgo, grupo por regiones, desenlace), columna de % de área con \|ΔT\| sobre el umbral y marca de «sin toma 2», orden, paginado, tarjetas en móvil y CSV del filtro actual.
 - **Controles**: pestañas Próximos / Vencidos / Realizados, ausencia con motivo, marcado automático al guardar la toma 2, línea de tiempo en la ficha y CSV.
 - Registro de pacientes por su **correo (Gmail)**: verifica criterios de exclusión y consentimiento, crea la cuenta con contraseña temporal (se muestra una sola vez) y asigna el **código anónimo** (`P.<centro><nnn>`, p. ej. `P.HC901`; los pacientes demo usan `DEMO-001` … `DEMO-012`).
-- Ficha clínica completa (DM, HbA1c con alerta >12 meses o imputada, tabaquismo «a consultar», neuropatía con puntaje y grado, vibratoria 0–50 / «>50», antecedentes, hallazgos, campos futuros) con evolución entre tomas sin doble eje (dumbbell por región, pendiente del |ΔT| máximo y probabilidad por estudio).
+- Ficha clínica completa (DM, HbA1c con alerta >12 meses o imputada, tabaquismo «a consultar», neuropatía con puntaje y grado, vibratoria 0–50 / «>50», antecedentes, hallazgos, campos futuros), con la evolución punto a punto: % de área con asimetría por toma y probabilidad preliminar, más los mapas ΔT del último estudio.
 - **Asistente de estudio en 4 pasos** que sigue el protocolo: paciente, fechas de ambas tomas y consentimiento → condiciones ambientales (T 21–24 °C, HR 40–70 %, la humedad resaltada) y checklist de cámara → carga de **dos termografías: toma 1 (basal) y toma 2 (control ~30 días después)** (JPG/PNG/TIFF/IS2, arrastrar y soltar, vista previa; los IS2 de Fluke se previsualizan decodificando la matriz infrarroja en el servidor; la toma 1 puede reutilizarse de un estudio anterior) → análisis.
-- Resultado **comparativo**: probabilidad a 6 semanas que considera la evolución (gauge con cortes 50/70 %), temperaturas absolutas por ROI de cada toma (6 por pie + general), ΔT por toma y **variación de la asimetría** (regiones que empeoran), **grupo térmico de cada toma, mostrado como «Con asimetría (P)» / «Sin asimetría (C)» con ayuda contextual, y simetría** con el umbral usado (1,0 °C por defecto; 2,2 °C de la literatura), mapas plantares lado a lado, factores contribuyentes y ficha del modelo de referencia.
-- Notas, publicación del resultado al paciente, control a 6 semanas, **desenlace real** (¿generó lesión?, pie, ROI), informe imprimible («Guardar como PDF») y **exportación CSV** anonimizada con las columnas de la planilla del equipo.
+- Resultado **punto a punto**:
+  - mapas de cada pie, mapa **ΔT izq. − der.** con contorno del umbral y punto de mayor diferencia;
+  - histograma de \|ΔT\| por punto y métricas (% de área sobre el umbral, \|ΔT\| medio, p95 y máximo);
+  - mapa de **cambio toma 1 → toma 2** por pie;
+  - aviso de **zonas no analizadas** («En este estudio no se analizó: dedos…»);
+  - estudios **sin toma 2**;
+  - probabilidad del **modelo preliminar** con su AUC y n, y la ficha del modelo.
+  - Las 6 regiones por pie de la Parte 1 quedan como **referencia plegada**.
+- Notas, control a 6 semanas, **desenlace real** (¿generó lesión?, pie, ROI), informe imprimible («Guardar como PDF») y **exportación CSV** anonimizada con las columnas de la planilla del equipo.
 - Gestión del **consentimiento informado** (historial, revocación).
 
-**Paciente**: último resultado en lenguaje simple, estudios con imágenes (visor con paletas y escala en °C), **«Tu informe»** (probabilidad con nivel, mayor diferencia de temperatura en cada toma, mapa simplificado y tabla por región con ↑/↓/=, descargable en PDF) sólo cuando el médico lo publica, **mis controles**, autocuidado, sus datos y su consentimiento.
+**Paciente**: último resultado en lenguaje simple, estudios con imágenes (visor con paletas y escala en °C), **«Qué mostró tu estudio»** («X de cada 100 puntos de la planta con más de 1 °C de diferencia», zona con más diferencia, mapa simplificado y zonas no analizadas, descargable en PDF), sin métricas del modelo; **mis controles**, autocuidado, sus datos y su consentimiento.
 
 **Administrador/a**: alta de médicos, activación/desactivación, restablecimiento de contraseñas, estadísticas del sistema y **auditoría**. Por diseño no accede a datos clínicos.
 
@@ -60,6 +67,18 @@ Paletas disponibles en el visor (High Contrast, Ironbow, Grises): [docs/screensh
 npm install
 npm run dev          # http://localhost:3000 (driver memory con datos demo)
 ```
+
+### Datos reales (sólo en el equipo local)
+
+Los pacientes reales **nunca se versionan ni se despliegan**. Requieren la carpeta privada `tesis-2026info/` (no versionada):
+
+```bash
+npm run precompute:real   # tesis-2026info/ → data-local/real/ (ignorada por git y Vercel)
+npm run train:model       # reentrena el modelo preliminar (sólo guarda agregados)
+DATA_DRIVER=memory SEED=real npm start   # en PowerShell: $env:DATA_DRIVER='memory'; $env:SEED='real'; npm start
+```
+
+Con `SEED=real` se cargan todos los pacientes de la planilla con sus tomas. Las cuentas del personal se mantienen (`medico@demo.com`) y los pacientes `DEMO-…` no se cargan. Cada paciente tiene una cuenta de portal local `<código>@pacientes.local` (p. ej. `phc001@pacientes.local`, contraseña `Demo1234!`). Si falta `data-local/real/`, se usan los datos de demostración.
 
 ### Cuentas demo (contraseña `Demo1234!`)
 
@@ -84,6 +103,9 @@ El tema por defecto es **claro**; el oscuro se activa con el botón ☀/☾ y se
 | `npm run lint` | ESLint. |
 | `npm run format` / `format:check` | Prettier. |
 | `npm run generate:images` | Regenera las termografías demo de `public/demo` a partir de los IS2 de la carpeta privada `tesis-2026info/` (no versionada). |
+| `npm run precompute:real` | Análisis punto a punto de todos los pacientes reales (`tesis-2026info/` → `data-local/real/`, local). |
+| `npm run train:model` | Entrena y valida (LOO y 5 pliegues ×20) el modelo preliminar; escribe `src/config/models/pointwise-logreg.json` (sólo agregados). |
+| `npm run generate:pointwise` | Regenera las grillas punto a punto de los pares demo (`src/seed/demoPointwise.json`). |
 | `npm run seed:supabase` | Carga la semilla demo en Supabase (Auth + DB + Storage). Admite `-- --reset`. |
 
 ## Arquitectura en una línea

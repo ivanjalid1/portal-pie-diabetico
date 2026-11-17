@@ -19,7 +19,9 @@ Con `DATA_DRIVER=memory` la aplicación arranca con la semilla de demostración 
 | `PORT` | `3000` | Puerto local. |
 | `APP_URL` | `http://localhost:3000` | URL pública (se muestra al entregar credenciales). |
 | `DATA_DRIVER` | `memory` | `memory` o `supabase`. |
-| `PREDICTOR` | `mock` | Estrategia de predicción: `mock`, `logreg`, `cnn`. |
+| `PREDICTOR` | `puntual` | Estrategia de predicción: `puntual` (análisis punto a punto + modelo preliminar), `mock` (simulado), `logreg`, `cnn`. |
+| `SEED` | `demo` | Semilla del driver memory: `demo` o `real` (pacientes reales de `data-local/real/`; **sólo local**, nunca en Vercel). |
+| `REAL_DATA_DIR` | `data-local/real` | Carpeta de los datos reales precalculados. |
 | `ASYMMETRY_THRESHOLD` | `1.0` | Umbral |ΔT| (°C) del grupo P/C. `2.2` = referencia bibliográfica. |
 | `SESSION_SECRET` | — | **Obligatorio en producción.** Secreto de firma de la cookie. |
 | `SESSION_MAX_AGE_HOURS` | `8` | Duración de la sesión. |
@@ -109,7 +111,7 @@ El portal ya decodifica la imagen infrarroja de los `.IS2` (`src/imaging/`):
 5. **ROIs aproximadas** (`analyzeThermogram`): umbral de Otsu + componentes conexas para separar ambos pies (el pie izquierdo del paciente aparece a la izquierda de la imagen, convención validada contra las mediciones del equipo), bandas por longitud del pie (dedos 0–20 %, metatarso 20–42 %, arco 42–70 %, talón 70–100 %) y división medial/lateral.
 6. **Cuentas → °C**: `T ≈ −32,97 + 0,012978 · cuentas`, ajuste lineal entre cuentas medias por ROI y las temperaturas medidas por el equipo con el software del fabricante (34 termogramas, r = 0,88). Es una aproximación: la conversión exacta usa la calibración radiométrica de la cámara (`CalibrationData.gpbenc`), pendiente de implementar.
 
-Cuando se suben **ambas tomas en IS2**, el predictor `mock-v0` usa estas temperaturas reales por ROI (`fuente_rois = 'is2'`); la probabilidad sigue siendo simulada.
+Cuando se suben archivos **IS2**, la estrategia por defecto `puntual-v1` los analiza punto a punto (segmentación, espejado, registro afín y mapa ΔT; ver [arquitectura §8](arquitectura.md#8-análisis-punto-a-punto-parte-2)). Con JPG/PNG, que no son radiométricos, se usa el predictor simulado y el resultado lo indica.
 
 ### Imágenes demo a partir de termogramas reales
 

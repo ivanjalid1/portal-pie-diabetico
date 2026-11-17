@@ -7,7 +7,7 @@
 | **Médico/a** | Profesional del centro participante. Registra pacientes, carga tomas termográficas, interpreta resultados y registra el desenlace. |
 | **Paciente** | Persona adulta con DM1/DM2 incorporada al protocolo. Consulta sus estudios, resultados publicados y recomendaciones. |
 | **Administrador/a** | Gestiona cuentas y supervisa la auditoría. No accede a datos clínicos. |
-| **Predictor** (sistema) | Estrategia de análisis (`mock-v0` hoy; regresión logística / CNN en el futuro). |
+| **Predictor** (sistema) | Estrategia de análisis (`puntual-v1`: punto a punto + modelo preliminar; `mock-v0` sólo para imágenes no radiométricas). |
 | **Supabase** (sistema) | Autenticación, base de datos y almacenamiento de imágenes. |
 
 ## Diagrama
@@ -94,7 +94,7 @@ Como médica, quiero ver qué regiones superan el umbral de asimetría para orie
 - Veo los mapas plantares de ambas tomas lado a lado o de a uno.
 - El resultado indica el umbral usado (1,0 °C por defecto) y la referencia bibliográfica (2,2 °C).
 - Se informa el grupo térmico P/C y la simetría de cada toma.
-- El aviso «resultado simulado, no diagnóstico» es siempre visible.
+- El aviso «herramienta exploratoria, no diagnóstica» y el rótulo «modelo preliminar, no validado» son siempre visibles.
 
 **HU-04 · Resultado para el paciente**
 Como paciente, quiero entender mi resultado sin términos técnicos.

@@ -1,7 +1,7 @@
 /* Mapas punto a punto (canvas) a partir de las grillas canónicas del análisis.
  * Los datos llegan en <script type="application/json" data-pw-data id="..."> (no se ejecutan).
  * Lienzos:
- *   <canvas data-pw-map="1:izq|1:der|1:dt|cambio:izq|cambio:der" data-pw-src="id">
+ *   <canvas data-pw-map="1:izq|1:der|1:dt|cambio:izq|cambio:der|tci-1:izq|tci-1:der" data-pw-src="id">
  *   <canvas data-pw-hist="1" data-pw-src="id">
  * Nunca se modifican las temperaturas: las celdas sin dato se pintan en gris
  * o se dejan transparentes. */
@@ -80,7 +80,8 @@
         if (ok(izq[i])) all.push(izq[i]);
         if (ok(der[i])) all.push(der[i]);
       }
-      tomas[t.toma] = { ...t, izqG: izq, derG: der, dt };
+      const tci = t.tci && t.tci.mapas ? { izq: decode(t.tci.mapas.izq), der: decode(t.tci.mapas.der) } : null;
+      tomas[t.toma] = { ...t, izqG: izq, derG: der, dt, tciG: tci };
     }
     all.sort((a, b) => a - b);
     const lo = d.rango ? d.rango.lo : all[Math.floor(all.length * 0.02)];
@@ -425,6 +426,17 @@
       const med = s.cambio[`${foot}Mediana`] || 0;
       silhouette(L, s.W, s.H, unionMask(s.tomas[1][`${foot}G`], s.tomas[2][`${foot}G`]), flip, true);
       put(footImage(L, s.W, s.H, s.cambio[foot], (v) => diverging(v - med, 3), flip));
+      zones(L, { labels: true });
+      return;
+    }
+    if (which.startsWith('tci-')) {
+      // Desvío respecto del patrón de referencia del TCI (°C, sin modificar).
+      const tt = s.tomas[which.slice(4)];
+      if (!tt || !tt.tciG) return;
+      const g = tt.tciG[foot];
+      const flip = foot === 'der';
+      silhouette(L, s.W, s.H, unionMask(foot === 'izq' ? tt.izqG : tt.derG), flip, true);
+      put(footImage(L, s.W, s.H, g, (v) => diverging(v, 4), flip));
       zones(L, { labels: true });
       return;
     }

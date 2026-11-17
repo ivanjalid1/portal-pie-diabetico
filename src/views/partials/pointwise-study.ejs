@@ -10,6 +10,10 @@
   const u = fmt.num(PW.umbralPixel, 1);
   const tabs = PW.tomas.map((t) => ({ id: `t${t.toma}`, label: `Toma ${t.toma}`, sub: fmt.date(fecha(t)) }));
   if (PW.cambio) tabs.push({ id: 'cambio', label: 'Cambio', sub: 'T2 − T1' });
+  // TCI (índice de cambio térmico) de la última toma, si se calculó.
+  const tciToma = PW.tomas.find((t) => t.toma === PW.tomaActual && t.tci && t.tci.mapas) || null;
+  if (tciToma) tabs.push({ id: 'tci', label: 'TCI', sub: fmt.num(tciToma.tci.valor, 2) });
+  const tciTicks = [-4, -2, 0, 2, 4].map((v) => [(v + 4) / 8, v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '0']);
   const activa = `t${PW.tomaActual}`;
   const conTabs = tabs.length > 1;
   const DIV = 'linear-gradient(90deg, #2563a6 0%, #9dbbe0 30%, #f7f7f7 50%, #eba59f 70%, #d0342c 100%)';
@@ -95,6 +99,31 @@
         <% const ci = PW.cambio.izq; const cd = PW.cambio.der; if (ci && cd) { %>
         <p class="sr-panel__reading"><span>Cambio local (más de <%= fmt.num(PW.umbralCambio, 1) %> °C respecto de la mediana): <strong class="num"><%= fmt.num(ci.areaCambioLocalPct, 0) %> %</strong> del pie izquierdo y <strong class="num"><%= fmt.num(cd.areaCambioLocalPct, 0) %> %</strong> del derecho.</span></p>
         <% } %>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
+  <% if (tciToma) { const T = tciToma.tci; const ref = T.referencia || {}; %>
+  <div class="sr-panel" id="panel-tci" role="tabpanel" aria-labelledby="tab-tci" hidden>
+    <div class="sr-maps sr-maps--change">
+      <div class="sr-maps__group">
+        <div class="sr-maps__pair">
+          <% [['izq', 'Pie izquierdo'], ['der', 'Pie derecho']].forEach(([k, label]) => { %>
+          <figure class="pw-map">
+            <canvas data-pw-map="tci-<%= tciToma.toma %>:<%= k %>" data-pw-src="<%= srcId %>" role="img" aria-label="Desvío respecto del patrón de referencia, <%= label.toLowerCase() %>, toma <%= tciToma.toma %>"></canvas>
+            <figcaption><%= label %><% if (T[k] !== null && T[k] !== undefined) { %><span class="sr-fig-sub">TCI <span class="num"><%= fmt.num(T[k], 2) %></span></span><% } %></figcaption>
+          </figure>
+          <% }) %>
+        </div>
+      </div>
+      <div class="sr-maps__group sr-maps__group--side">
+        <%- include('scale', { gradient: DIV, ticks: tciTicks, ends: ['más frío que la referencia', 'más caliente'], label: 'Escala de desvío respecto del patrón de referencia, de −4 a +4 °C' }) %>
+        <p class="sr-caption">Diferencia de cada punto con el patrón de referencia (°C). Rojo: más caliente que la referencia; azul: más frío.</p>
+        <ul class="sr-keys">
+          <li><span class="sr-key sr-key--hatch" aria-hidden="true"></span>Sin dato en el pie o en la referencia</li>
+        </ul>
+        <p class="sr-panel__reading"><span><strong>TCI <span class="num"><%= fmt.num(T.valor, 2) %> °C</span></strong> (clase <%= T.clase %> de 5). Desvío medio por punto <span class="num"><%= fmt.signed(T.desvioMedio, 1) %> °C</span>. Referencia: <%= ref.fuente === 'cohorte' ? `${ref.miembros} pacientes simétricos de la cohorte${ref.looExcluido ? ', sin este paciente' : ''}` : 'pares de demostración' %>.</span></p>
       </div>
     </div>
   </div>

@@ -42,6 +42,7 @@ function payload(a) {
       der: t.der,
       zonasNoAnalizadas: t.zonasNoAnalizadas,
       metricas: t.metricas ? { hotspot: t.metricas.hotspot } : null,
+      tci: t.tci?.mapas ? { mapas: t.tci.mapas } : null,
     })),
   };
 }

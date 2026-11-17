@@ -194,6 +194,10 @@
         <div><dt>Umbral</dt><dd>Umbral por punto <strong class="num"><%= fmt.num(PW.umbralPixel, 1) %> °C</strong></dd></div>
         <div><dt>Área mínima</dt><dd><span class="num"><%= fmt.num(PW.areaMinima, 0) %> %</span> de la planta para marcar asimetría</dd></div>
         <div><dt>Cambio local</dt><dd>&gt; <span class="num"><%= fmt.num(PW.umbralCambio, 1) %> °C</span> respecto del cambio mediano del pie</dd></div>
+        <div><dt>Segmentación</dt><dd><%= PW.tomas.map((t) => `Toma ${t.toma}: ${t.segmentacion === 'unet' ? 'U-Net' : 'clásica'}`).join(' · ') %><span class="muted"> · U-Net entrenada con etiquetas débiles; sin máscara U-Net, la clásica (umbral y crecimiento de regiones)</span></dd></div>
+        <% const tciT = PW.tomas.filter((t) => t.tci); if (tciT.length) { const r0 = tciT[0].tci.referencia || {}; %>
+        <div><dt>TCI</dt><dd><%= tciT.map((t) => `Toma ${t.toma}: ${fmt.num(t.tci.valor, 2)} °C (clase ${t.tci.clase}; izq. ${fmt.num(t.tci.izq, 2)}, der. ${fmt.num(t.tci.der, 2)}; puntual ${fmt.num(t.tci.puntual, 2)})`).join(' · ') %>. Índice de cambio térmico (Hernández-Contreras et al., 2017): promedio de |T(angiosoma) − T(referencia)| en 4 angiosomas aproximados. Referencia: <%= r0.fuente === 'cohorte' ? `${r0.miembros} pacientes simétricos de la cohorte${r0.looExcluido ? ' (sin este paciente)' : ''}` : 'pares de demostración' %>.</dd></div>
+        <% } %>
         <div><dt>Análisis</dt><dd><code><%= a.predictorVersion %></code> <%= predictorInfo.nombre %></dd></div>
       </dl>
     </section>
@@ -225,6 +229,24 @@
       <% } %>
       <p class="muted small">Contribución al log-odds de cada variable. Un AUC cercano o menor a 0,5 indica que, con estos datos, la asimetría punto a punto no predice el desenlace sustituto: se muestra por transparencia, no para decidir.</p>
     </section>
+
+    <% const CMP = predictorInfo.comparacion; if (CMP && CMP.modelos && CMP.modelos.length) { %>
+    <section class="sr-tech__block" aria-labelledby="tech-cmp">
+      <h3 id="tech-cmp" class="card__subtitle">Comparación de modelos (validación cruzada por paciente)</h3>
+      <div class="table-wrap">
+        <table class="table table--num table--dense">
+          <caption class="sr-only">AUC de validación cruzada de cada modelo</caption>
+          <thead><tr><th scope="col">Modelo</th><th scope="col">AUC</th><th scope="col">IC 95 %</th><th scope="col">n (positivos)</th></tr></thead>
+          <tbody>
+            <% CMP.modelos.forEach((m) => { %>
+            <tr><th scope="row"><%= m.nombre %></th><td><%= fmt.num(m.auc, 2) %></td><td><%= fmt.num(m.aucIC95[0], 2) %>–<%= fmt.num(m.aucIC95[1], 2) %></td><td><%= m.n %> (<%= m.positivos %>)</td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted small"><%= CMP.conclusion %></p>
+    </section>
+    <% } %>
 
     <section class="sr-tech__block" aria-labelledby="tech-acq">
       <h3 id="tech-acq" class="card__subtitle">Termografías originales y adquisición</h3>

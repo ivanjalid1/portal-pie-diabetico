@@ -228,6 +228,11 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
     expect(page.text).toContain('data-pw-map="2:dt"');
     expect(page.text).toContain('data-pw-hist="2"');
     expect(page.text).toContain('data-pw-map="cambio:izq"');
+    // Pestaña TCI (desvío respecto del patrón de referencia) y segmentación usada.
+    expect(page.text).toContain('id="tab-tci"');
+    expect(page.text).toContain('data-pw-map="tci-2:izq"');
+    expect(page.text).toMatch(/<dt>Segmentación<\/dt><dd>Toma 1: clásica · Toma 2: clásica/);
+    expect(page.text).toContain('Comparación de modelos');
     expect(page.text).toContain('Modelo preliminar');
     expect(page.text).toMatch(/AUC/);
     // Las regiones de la Parte 1 (tesis previa) ya no se muestran en el resultado.

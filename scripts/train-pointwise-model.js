@@ -24,6 +24,7 @@ const path = require('node:path');
 const { analyzePointwise } = require('../src/services/predictors/pointwiseAnalysis');
 const { FEATURES, MODEL_PATH, featureVector } = require('../src/services/predictors/pointwiseModel');
 const L = require('../src/services/predictors/logistic');
+const { sinConsentimiento } = require('../src/seed/realData');
 
 const DATASET = path.join(__dirname, '..', 'data-local', 'real', 'dataset.json');
 const UMBRAL = 1.0;
@@ -56,6 +57,7 @@ function main() {
   let sinHba1c = 0;
   const concord = { nuestro: [], parte1: [] };
   for (const p of pacientes) {
+    if (sinConsentimiento(p)) continue; // nunca se usan pacientes sin consentimiento
     const t1 = p.tomas.find((t) => t.toma === 1 && t.ok);
     if (!t1) continue;
     const puntual = analyzePointwise({ toma1: t1 }, { umbralPixel: UMBRAL });

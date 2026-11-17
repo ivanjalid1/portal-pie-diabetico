@@ -21,6 +21,7 @@ const path = require('node:path');
 const { STAFF, DEMO_PASSWORD } = require('./demoData');
 const { CONSENT_VERSION, ACQUISITION } = require('../config/domain');
 const { uuid } = require('../utils/random');
+const { marcaSinConsentimiento } = require('../utils/consent');
 
 const DAY = 86400000;
 /** Intervalo típico entre tomas del estudio, para fechas de cámara no confiables. */
@@ -95,6 +96,11 @@ function clinicalFields(c, f1) {
   };
 }
 
+/** El paciente no dio su consentimiento según la planilla (marca en cualquiera de sus textos). */
+const sinConsentimiento = (p) =>
+  Boolean(p.sinConsentimiento) ||
+  [p.identidad?.nombre, p.clinica?.observaciones, ...(p.clinica?.textos || [])].some(marcaSinConsentimiento);
+
 const imagen = (t, slot) => ({
   slot,
   storagePath: `real/${t.imagen}`,
@@ -128,16 +134,20 @@ async function seedRealData({ repos, predictor }, { dataset, dir, passwordHash, 
   }
   // Todos los pacientes reales quedan a cargo de la cuenta médica principal.
   const medico = staff.medico;
-  const resumen = { pacientes: 0, estudios: 0, sinToma2: 0, conZonasFaltantes: 0 };
+  const resumen = { pacientes: 0, estudios: 0, sinToma2: 0, conZonasFaltantes: 0, excluidos: 0 };
 
   for (const p of dataset.pacientes) {
+    // Defensa en profundidad: aunque el precálculo ya los excluye, un paciente
+    // sin consentimiento nunca se carga.
+    if (sinConsentimiento(p)) {
+      resumen.excluidos += 1;
+      continue;
+    }
     const t1 = p.tomas.find((t) => t.toma === 1 && t.ok);
     const t2 = p.tomas.find((t) => t.toma === 2 && t.ok) || null;
     const { f1, f2, estimada } = fechasDe(p, t1 || { fecha: null }, t2);
     const alta = new Date(new Date(f1).getTime() - 3600000).toISOString();
-    // La planilla anota en la celda del nombre los casos sin consentimiento: se respeta.
-    const sinConsentimiento = /SIN\s+CONS?C?E[NM]T/i.test(p.identidad?.nombre || '');
-    const { nombre, apellido } = sinConsentimiento ? { nombre: '', apellido: '' } : splitNombre(p.identidad?.nombre);
+    const { nombre, apellido } = splitNombre(p.identidad?.nombre);
     const user = await repos.users.create({
       id: identity(),
       email: `${p.codigo.replace('.', '').toLowerCase()}@pacientes.local`,
@@ -157,23 +167,18 @@ async function seedRealData({ repos, predictor }, { dataset, dir, passwordHash, 
       centro: p.centro,
       userId: user.id,
       medicoId: medico.id,
-      consentimientoFirmado: !sinConsentimiento,
-      consentimientoFecha: sinConsentimiento ? null : f1.slice(0, 10),
-      observaciones:
-        [p.clinica?.observaciones, sinConsentimiento ? 'Planilla: sin consentimiento del paciente.' : null]
-          .filter(Boolean)
-          .join(' · ') || null,
+      consentimientoFirmado: true,
+      consentimientoFecha: f1.slice(0, 10),
       createdAt: alta,
     });
-    if (!sinConsentimiento)
-      await repos.consents.create({
-        patientId: patient.id,
-        version: CONSENT_VERSION,
-        fechaFirma: f1.slice(0, 10),
-        registradoPor: medico.id,
-        notas: 'Participante del estudio (planilla clínica del equipo).',
-        createdAt: alta,
-      });
+    await repos.consents.create({
+      patientId: patient.id,
+      version: CONSENT_VERSION,
+      fechaFirma: f1.slice(0, 10),
+      registradoPor: medico.id,
+      notas: 'Participante del estudio (planilla clínica del equipo).',
+      createdAt: alta,
+    });
     resumen.pacientes += 1;
     if (!t1) continue;
 
@@ -216,9 +221,9 @@ async function seedRealData({ repos, predictor }, { dataset, dir, passwordHash, 
     if (output.puntual?.tomas.some((t) => t.zonasNoAnalizadas.length)) resumen.conZonasFaltantes += 1;
   }
   log(
-    `datos reales: ${resumen.pacientes} pacientes, ${resumen.estudios} estudios, ${resumen.sinToma2} sin toma 2, ${resumen.conZonasFaltantes} con zonas no analizadas`,
+    `datos reales: ${resumen.pacientes} pacientes, ${resumen.estudios} estudios, ${resumen.sinToma2} sin toma 2, ${resumen.conZonasFaltantes} con zonas no analizadas, ${resumen.excluidos} excluidos sin consentimiento`,
   );
   return { staff, resumen };
 }
 
-module.exports = { loadRealDataset, seedRealData, DEMO_PASSWORD };
+module.exports = { loadRealDataset, seedRealData, sinConsentimiento, DEMO_PASSWORD };

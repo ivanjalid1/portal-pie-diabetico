@@ -29,6 +29,7 @@ const { renderThermogram, displayRange } = require('../src/imaging/thermogram');
 const { encodePng } = require('../src/imaging/png');
 const { highContrast } = require('../src/utils/thermal');
 const { analyzeIs2Pointwise, is2CaptureDate } = require('../src/imaging/pointwise');
+const { marcaSinConsentimiento } = require('../src/utils/consent');
 
 const ROOT = path.join(__dirname, '..');
 const PRIVATE = path.join(ROOT, 'tesis-2026info');
@@ -84,6 +85,8 @@ function readClinical(sheets) {
     const grado = r[11];
     const neuro = siNo(r[10]);
     out.set(codigo, {
+      // Todos los textos de la fila (para detectar la marca «sin consentimiento»).
+      textos: r.filter((v) => typeof v === 'string'),
       observaciones: obs,
       noValido: obs ? /NO VALIDO/i.test(obs) : false,
       generoLesion: siNo(r[2]),
@@ -120,11 +123,26 @@ function readContacts(sheets) {
       if (typeof row[c] !== 'string' || !/^ID PACIENTE/i.test(row[c].trim())) continue;
       const codigo = parseCode(row[c + 1]);
       if (!codigo) continue;
-      const cell = (dr) => (rows[r + dr] || [])[c + 1];
+      // El bloque del paciente termina en la próxima fila «ID PACIENTE» de la misma
+      // columna (hay bloques compactos de dos filas): nunca se toman datos del siguiente.
+      let alto = 1;
+      while (alto < 4) {
+        const v = (rows[r + alto] || [])[c];
+        if (typeof v === 'string' && /^ID PACIENTE/i.test(v.trim())) break;
+        alto += 1;
+      }
+      const cell = (dr) => (dr < alto ? (rows[r + dr] || [])[c + 1] : null);
       const nombre = typeof cell(1) === 'string' ? cell(1).trim() : null;
       const dni = cell(2) === null || cell(2) === undefined ? null : String(cell(2)).replace(/\D/g, '') || null;
       const tel = cell(3) === null || cell(3) === undefined ? null : String(cell(3)).trim() || null;
-      out.set(codigo, { nombre, dni, telefono: tel, fechaToma1: excelDate(row[c + 2]) });
+      const textos = [];
+      for (let dr = 0; dr < alto; dr += 1) {
+        for (let dc = 0; dc <= 2; dc += 1) {
+          const v = (rows[r + dr] || [])[c + dc];
+          if (typeof v === 'string') textos.push(v);
+        }
+      }
+      out.set(codigo, { nombre, dni, telefono: tel, fechaToma1: excelDate(row[c + 2]), textos });
     }
   }
   return out;
@@ -248,6 +266,8 @@ function main() {
     console.error('Falta la carpeta privada tesis-2026info/ (planilla o primeras fotos). No se generó nada.');
     process.exit(1);
   }
+  // Salida generada: se regenera completa (así no quedan imágenes de pacientes excluidos).
+  fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(IMG, { recursive: true });
   const sheets = readXlsx(fs.readFileSync(PLANILLA));
   const clinical = readClinical(sheets);
@@ -258,8 +278,17 @@ function main() {
 
   const pacientes = [];
   let n = 0;
+  let excluidos = 0;
   for (const codigo of codigos) {
     n += 1;
+    // Pacientes que según la planilla NO dieron su consentimiento: se excluyen por
+    // completo (sin ficha, sin tomas ni imágenes, sin entrenamiento).
+    const textos = [...(contacts.get(codigo)?.textos || []), ...(clinical.get(codigo)?.textos || [])];
+    if (textos.some(marcaSinConsentimiento)) {
+      excluidos += 1;
+      process.stdout.write(`[${n}/${codigos.length}] excluido (sin consentimiento)\n`);
+      continue;
+    }
     const prefijo = /^P\.([A-Z]+)/.exec(codigo)[1];
     const tomas = [];
     for (const [toma, files] of [
@@ -274,7 +303,7 @@ function main() {
       centro: CENTRO_POR_PREFIJO[prefijo] || 'Hospital Córdoba',
       identidad: { nombre: c.nombre || null, dni: c.dni || null, telefono: c.telefono || null },
       fechaToma1Planilla: c.fechaToma1 || null,
-      clinica: clinical.get(codigo) || null,
+      clinica: clinical.get(codigo) ? { ...clinical.get(codigo), textos: undefined } : null,
       ana: ana.get(codigo) || null,
       tomas,
     });
@@ -291,7 +320,7 @@ function main() {
   const conT1 = pacientes.filter((p) => p.tomas.some((t) => t.toma === 1 && t.ok)).length;
   const conT2 = pacientes.filter((p) => p.tomas.some((t) => t.toma === 2 && t.ok)).length;
   console.log(
-    `\nPacientes: ${pacientes.length} · con toma 1: ${conT1} · con toma 2: ${conT2} · ` +
+    `\nPacientes: ${pacientes.length} (excluidos sin consentimiento: ${excluidos}) · con toma 1: ${conT1} · con toma 2: ${conT2} · ` +
       `carpetas de toma 2 asociadas por nombre: ${inv.porNombre} · sin asociar: ${inv.sinMatch}`,
   );
   console.log(`Salida: ${path.relative(ROOT, OUT)}/dataset.json`);

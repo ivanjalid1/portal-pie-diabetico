@@ -6,6 +6,7 @@ const { segmentFeetPointwise } = require('../../src/imaging/segmentation');
 const P = require('../../src/imaging/pointwise');
 const { analyzePointwise, zonasTexto } = require('../../src/services/predictors/pointwiseAnalysis');
 const L = require('../../src/services/predictors/logistic');
+const { marcaSinConsentimiento } = require('../../src/utils/consent');
 
 /** Termograma sintético en °C: dos «pies» elípticos; opciones para recortar o calentar. */
 function syntheticImage({ cutTopRight = 0, hotRightToes = 0 } = {}) {
@@ -128,5 +129,26 @@ describe('Regresión logística y validación', () => {
     expect(L.auc([0.1, 0.4, 0.35, 0.8], [0, 0, 1, 1])).toBeCloseTo(0.75, 5);
     const kf = L.repeatedKFoldAuc(X, y, { k: 5, reps: 2 });
     expect(kf).toHaveLength(2);
+  });
+});
+
+describe('Marca «sin consentimiento» de la planilla', () => {
+  it('la detecta con variantes y errores de tipeo, sin falsos positivos', () => {
+    for (const t of [
+      'SIN CONCENTIMIENTO',
+      'sin consentimiento del paciente',
+      'No firmó el consentimiento',
+      'rechazó consentimiento',
+    ]) {
+      expect(marcaSinConsentimiento(t)).toBe(true);
+    }
+    for (const t of [
+      'Consentimiento firmado',
+      'PACIENTE NO VALIDO X IMAGEN',
+      'Consentimiento informado vigente',
+      null,
+    ]) {
+      expect(marcaSinConsentimiento(t)).toBe(false);
+    }
   });
 });

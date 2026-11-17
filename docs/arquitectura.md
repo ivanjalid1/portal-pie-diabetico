@@ -273,7 +273,7 @@ El análisis principal del portal compara los pies **punto a punto (píxel a pí
 | --- | --- | --- |
 | 1. Lectura | `src/imaging/is2.js` | Matriz `Images/Main/IR.data` del `.IS2` (320 × 240 cuentas, la primera fila es cabecera). Nunca se usan las fotos visibles. |
 | 2. Cuentas → °C | `src/imaging/thermogram.js` (`toCelsius`) | Ajuste lineal aproximado (r ≈ 0,88). No es una calibración radiométrica: las temperaturas son **aproximadas** y las diferencias entre pies son más confiables que los valores absolutos. |
-| 3. Segmentación | `src/imaging/segmentation.js` | Suavizado 3×3 y umbral de Otsu. Si más del 40 % del cuadro queda tibio, se repite Otsu sobre esa parte. Semillas en el núcleo caliente de cada pie; para un pie mucho más frío, la semilla se busca en su mitad de la imagen con un umbral propio. Luego viene un **crecimiento de regiones competitivo** (inundación desde lo más caliente): un punto se agrega si el descenso respecto del vecino es < 0,25 °C y está a menos de 40 px de la semilla. Así los dedos fríos se incluyen y la tela o la pierna, separadas por un salto brusco, no. Termina con apertura morfológica, relleno de huecos y componente mayor. |
+| 3. Segmentación | `scripts/ml/` (U-Net, §8.3) y `src/imaging/segmentation.js` (clásica) | Si existe la máscara de la **U-Net** (precálculo local) se usa esa; si no, o si no es plausible, la clásica. Clásica: suavizado 3×3 y umbral de Otsu. Si más del 40 % del cuadro queda tibio, se repite Otsu sobre esa parte. Semillas en el núcleo caliente de cada pie; para un pie mucho más frío, la semilla se busca en su mitad de la imagen con un umbral propio. Luego viene un **crecimiento de regiones competitivo** (inundación desde lo más caliente): un punto se agrega si el descenso respecto del vecino es < 0,25 °C y está a menos de 40 px de la semilla. Así los dedos fríos se incluyen y la tela o la pierna, separadas por un salto brusco, no. Termina con apertura morfológica, relleno de huecos y componente mayor. |
 | 4. Espejado | `src/imaging/pointwise.js` | Convención del equipo: el pie a la izquierda de la imagen es el izquierdo. El derecho se espeja (x → W − 1 − x) para que ambos tengan el lado medial hacia +x. |
 | 5. Registro | `footFrame` / `lengthFrames` | Registro **afín** a un marco canónico por pie: **centroide + eje principal** (momentos de segundo orden) + **escala anisótropa** (largo por percentiles 0,5–99,5 % sobre el eje; ancho medido en el antepié). Se hace en dos pasadas: la segunda descarta los puntos fuera del ancho del antepié, como una cuña de pierna junto al talón, antes de recalcular el eje. No se deforma el pie (no es un registro elástico). |
 | 6. Grilla canónica | `sampleCanonical` | 40 × 100 celdas por pie, con remuestreo bilineal. La fila 0 es la punta de los dedos y la última el talón; la columna 0 es el borde lateral. Se descarta 1 px de contorno (mezcla piel/fondo). Fuera de la máscara la celda queda **sin dato** (NaN). |
@@ -291,7 +291,7 @@ Parámetros (Configuración → «Análisis punto a punto», con vista previa de
 
 Los 10 % se calibraron con la toma 1 de los 54 pacientes de la hoja «DifT°» de la Parte 1. Con ese valor se marcan 27 tomas (la Parte 1 clasificó 26 como P) y la clasificación coincide en 43 de 54. Como las grillas se guardan en cada análisis, cambiar un parámetro y recalcular **no vuelve a procesar las imágenes**.
 
-**Concordancia con la Parte 1.** El ΔT general por regiones calculado sobre la grilla tiene r = 0,83 con la planilla del equipo (54 pacientes, toma 1), con una diferencia mediana de 0,1 °C. El script de entrenamiento lo vuelve a calcular.
+**Concordancia con la Parte 1.** El ΔT general por regiones calculado sobre la grilla tiene r = 0,84 con la planilla del equipo (54 pacientes, toma 1), con una diferencia mediana de 0,09 °C (con la segmentación clásica: r = 0,83). El script de entrenamiento lo vuelve a calcular.
 
 ### 8.1 Modelo preliminar
 
@@ -301,10 +301,12 @@ Los 10 % se calibraron con la toma 1 de los 54 pacientes de la hoja «DifT°» d
 - **Ajuste:** regresión logística L2, C = 0,5 como en la Parte 1 (`src/services/predictors/logistic.js`).
 - **Desenlace:** el mismo sustituto que la Parte 1, **HbA1c > 7 %**, porque en la cohorte casi no hubo úlceras registradas.
 - **Muestra:** pacientes con HbA1c y toma 1 analizable. Se excluyen los marcados «PACIENTE NO VALIDO» en la planilla: **n = 53**, 35 positivos.
-- **Validación:**
-  - leave-one-out, con la estandarización dentro de cada pliegue: **AUC 0,27** (IC 95 % bootstrap 0,14–0,41);
-  - 5 pliegues estratificados × 20 repeticiones: AUC medio 0,42;
-  - AUC univariados 0,49–0,55.
+- **Validación** (reentrenado con la segmentación U-Net):
+  - leave-one-out, con la estandarización dentro de cada pliegue: **AUC 0,02** (IC 95 % bootstrap 0–0,05);
+  - 5 pliegues estratificados × 20 repeticiones: AUC medio 0,31;
+  - AUC univariados 0,50–0,52;
+  - con la segmentación clásica eran 0,27 (LOO) y 0,42 (5 × 20). La caída no indica un modelo «peor»: sin señal, la validación cruzada en muestras chicas tiene un sesgo negativo conocido, extremo en LOO;
+  - comparación con los demás modelos en §8.5.
 - **Conclusión:** con estos datos, **la asimetría punto a punto no predice el desenlace sustituto**. El AUC LOO menor a 0,5 es el sesgo conocido de LOO cuando no hay señal. Por eso:
   - la probabilidad se muestra rotulada «Modelo preliminar · no validado», con su AUC y su n, y sin zonas de riesgo;
   - mientras el AUC de validación sea < 0,7, la **categoría** (sin riesgo / moderado / alto) se toma del **hallazgo térmico** y no de la probabilidad: sin asimetría → sin riesgo; área ≥ mínima → moderado; además con \|ΔT\| p95 ≥ 2,2 °C → alto.
@@ -314,7 +316,7 @@ Los 10 % se calibraron con la toma 1 de los 54 pacientes de la hoja «DifT°» d
 
 - La conversión a °C es aproximada.
 - El registro es afín, sin correspondencia anatómica fina (dedos individuales).
-- La segmentación puede incluir tela o pierna junto al talón; el resultado se marca «Segmentación a revisar» si la calidad es < 0,6.
+- La segmentación puede incluir tela o pierna junto al talón, o perder dedos fríos; el resultado se marca «Segmentación a revisar» si la calidad es < 0,6. La U-Net (§8.3) reduce mucho estos casos, pero aprendió de etiquetas débiles y no de contornos manuales.
 - Las zonas «no analizadas» pueden deberse a dedos fuera del cuadro o a dedos demasiado fríos para segmentarlos.
 - Algunas cámaras tenían el reloj desconfigurado: esas fechas se estiman y se avisa en las notas.
 - El desenlace es sustituto y el n es chico.
@@ -333,3 +335,134 @@ flowchart LR
 - Los pacientes cuya fila de la planilla tiene la marca de que **no dieron su consentimiento** («sin consentimiento», «no firmó el consentimiento», incluso con errores de tipeo; regla genérica en `src/utils/consent.js`) se **excluyen por completo**: no se procesan sus tomas ni se generan imágenes, no entran al dataset ni al entrenamiento, y el cargador los vuelve a descartar por si acaso.
 - Con `SEED=real` y esa carpeta presente, el contenedor carga los pacientes reales en el driver `memory`. Se conservan las cuentas del personal de demostración y se quitan los pacientes `DEMO-…`. Las imágenes se leen del disco al pedirlas (montaje de sólo lectura en el `FileStorage`), sin cargarlas en memoria.
 - Sin la carpeta (CI, Vercel, pruebas), el portal usa la semilla de demostración. Sus grillas punto a punto están en `src/seed/demoPointwise.json`: termogramas ya anonimizados, sin datos de identidad.
+
+### 8.3 Segmentación con U-Net (offline)
+
+La segmentación clásica falla sobre todo por **dedos fríos que quedan afuera** y por **puentes de tela entre los talones**; las fugas de pierna más allá del talón son raras. Para eso se entrenó una U-Net chica, sólo en CPU.
+
+| Paso | Script | Detalle |
+| --- | --- | --- |
+| Exportación | `scripts/ml/export-seg-data.js` (`npm run ml:export`) | Cada réplica IS2 de los pacientes con consentimiento → temperatura (`.npy`, 240 × 320) y máscara clásica. Clave = hash de la ruta (las carpetas pueden tener nombres). Todo en `data-local/ml/`. |
+| Etiquetas débiles | `build_labels.py` | Máscara clásica + apertura 3 × 3, componente mayor y relleno de huecos; **prior de forma** en el talón (largo / ancho del antepié ≤ 3,4 y recorte lateral del último 30 % a más de 0,6 anchos del eje); **recuperación de dedos fríos** con Otsu local, sólo hacia los dedos y dentro del ancho del antepié. Subconjunto «limpio» para entrenar: calidad clásica ≥ 0,6, largo / ancho 2,1–3,4 por pie y áreas parecidas (484 de 606 imágenes). |
+| Modelo | `train_unet.py` | U-Net de 4 niveles (16-32-64-128 canales, 0,48 M parámetros). Entrada: temperatura normalizada por imagen (percentiles 1–99), reducida a 120 × 160. Salida: 3 clases (fondo, pie a la izquierda, pie a la derecha). Pérdida: entropía cruzada + Dice. Aumento: espejado (intercambiando las clases), rotación ± 10°, escala ± 10 %, desplazamiento, contraste / brillo / gamma y ruido. 40 épocas, lotes de 8, 3 hilos. |
+| División | | **Por paciente**: 20 % de los pacientes a validación (21 pacientes, 131 imágenes; 111 limpias). |
+| Inferencia | `segment_unet.py` | Logits reescalados a 240 × 320, argmax, apertura, componente mayor y relleno por pie → `data-local/ml/unet-masks/`. Exportado también a ONNX (`data-local/models/unet-feet.onnx`, 1,9 MB). |
+| Autocomprobación | `selfcheck.py` | Datos sintéticos: prior de forma, post-proceso, división por paciente, formas de la red y validación cruzada. |
+
+Resultados (contra la etiqueta débil, pacientes de validación):
+
+- imágenes limpias: **Dice 0,978**, IoU 0,958;
+- todas las de validación: Dice 0,969, IoU 0,942.
+
+Indicadores automáticos sobre las 606 réplicas (clásica → U-Net):
+
+| Indicador | Todas | Marcadas «a revisar» (47) |
+| --- | --- | --- |
+| Puente entre pies (tela entre talones) | 67 → 16 | 12 → 7 |
+| Pie incompleto (largo / ancho < 2,0) | 95 → 35 | 37 → 15 |
+| Fuga en el talón (largo / ancho > 3,4) | 1 → 1 | 1 → 0 |
+
+**Revisión visual** de 24 réplicas marcadas «a revisar»:
+
+- la U-Net mejora 14, sobre todo pies fríos enteros y dedos;
+- quedan parecidas 6;
+- siguen mal 4: escenas atípicas, con objetos calientes en cuadro o pies superpuestos.
+
+En el portal, las tomas con «Segmentación a revisar» bajaron de 10 a 3 (de 178). Los estudios con zonas no analizadas bajaron de 26 a 11.
+
+`npm run precompute:real` usa las máscaras U-Net si existen (`SEGMENTACION=clasica` fuerza la clásica). Cada toma informa qué segmentación se usó, en «Detalle técnico».
+
+**Decisión: la U-Net corre sólo offline.** Para estudios nuevos subidos al portal se mantiene la segmentación clásica, por dos motivos:
+
+- `onnxruntime-node` agrega binarios nativos pesados a una aplicación que se despliega en Vercel;
+- las etiquetas son débiles.
+
+Todavía no se justifica. El ONNX queda listo para cuando se decida.
+
+### 8.4 Índice de cambio térmico (TCI)
+
+Definición publicada (Hernández-Contreras D., Peregrina-Barreto H., Rangel-Magdaleno J., González-Bernal J., Altamirano-Robles L. «A quantitative index for classification of plantar thermal changes in the diabetic foot». *Infrared Physics & Technology* 81 (2017) 242–249):
+
+TCI = ( Σ_a | CG_a − DM_a | ) / 4, con a ∈ {MPA, LPA, MCA, LCA}
+
+- CG_a: temperatura media del angiosoma a en el patrón de referencia (grupo control, «patrón mariposa»).
+- DM_a: temperatura media del angiosoma a en el pie evaluado.
+- Cada pie se compara con la referencia, no con el otro pie.
+- Clases de la publicación: 1 (≤ 2), 2 (2–3), 3 (3–4), 4 (4–5), 5 (> 5).
+
+**Incertidumbre.** No se pudo acceder al texto completo; la fórmula se verificó en trabajos que la citan. Algunos la reproducen sin valor absoluto. Aquí se usa el valor absoluto, como la mayoría, porque las clases suponen TCI ≥ 0. El TCI del estudio es el promedio de ambos pies; también se informa el de cada pie.
+
+Implementación (`src/imaging/tci.js`), sobre la grilla canónica registrada:
+
+- **Angiosomas aproximados** (no hay segmentación anatómica):
+  - MPA = mitad medial de 0–70 % del largo;
+  - LPA = mitad lateral de 0–70 %;
+  - MCA / LCA = mitades medial / lateral del talón (70–100 %).
+- **Versión punto a punto:** desvío por celda D = T(pie) − T(referencia). Es el mapa de la pestaña «TCI». También se calculan:
+  - el TCI puntual: media de |D|;
+  - el TCI de patrón: media de |D − mediana(D)|, sin el nivel general del pie.
+- **Referencia** (`src/services/predictors/tciReference.js`): a falta de grupo control, los pacientes **más simétricos de la cohorte**. Criterio, toma 1:
+  - no marcado «no válido» y calidad ≥ 0,6;
+  - |ΔT general| < 1 °C en la planilla de la Parte 1;
+  - área con |ΔT| > 1 °C menor al 10 %.
+
+  Con la U-Net son **20 pacientes** (25 con la clásica). El criterio no usa el desenlace. Al puntuar a un miembro se lo **excluye de su propia referencia** (leave-one-out). Los miembros se guardan sólo en `data-local/real/tci-reference.json`. Sin esa carpeta (demo, CI) se usa una referencia de demostración con los pares demo.
+- **Punto de extensión:** `REFERENCE_SOURCES.hernandez2019` reserva la base pública *Plantar Thermogram Database for the Study of Diabetic Foot Complications* (Hernández-Contreras et al., IEEE Access 2019). Para usarla hay que registrar los termogramas de su grupo control a la misma grilla canónica y pasarlos como miembros a `buildReference`. No se descargó.
+
+**Limitación importante.** El TCI usa temperaturas **absolutas**, y la conversión cuentas → °C es aproximada. Además, las temperaturas dependen del ambiente, del día y del centro: un mismo paciente puede pasar de clase 3 en la toma 1 a clase 1 en la toma 2. Por eso el TCI absoluto mide en buena parte las condiciones de adquisición (ver §8.5).
+
+### 8.5 Comparación de modelos
+
+Script: `scripts/ml/train_models.py`. Las features salen de `scripts/ml/export-features.js`, que usa las mismas funciones que el portal.
+
+- **Desenlace:** configurable con `--outcome`.
+  - `hba1c7` (por defecto): HbA1c > 7 %, el sustituto de la Parte 1.
+  - `lesion`: lesión en el seguimiento, que en el portal registra el médico como «Desenlace real». Hoy no tiene casos suficientes (0 utilizables en la muestra válida).
+- **Muestra:** n = 53, 35 positivos. Cada paciente es una fila, así que los pliegues son por paciente.
+- **Validación:**
+  - logísticas: 5 pliegues estratificados × 20 repeticiones, con C elegido en un CV interno (anidado) y estandarización dentro de cada pliegue;
+  - CNN: 5 × 4, con hiperparámetros fijados de antemano (2 bloques conv de 8–16 canales, dropout 0,5, weight decay 1e-3, aumento por intercambio de pies y desplazamientos);
+  - AUC media de las repeticiones con IC 95 % por bootstrap de pacientes;
+  - test de permutación (200) en las logísticas.
+- **Backbone preentrenado:** no se probó. Habría que descargarlo, y con n = 53 no es razonable.
+
+| Modelo | AUC (IC 95 %) | n (positivos) |
+| --- | --- | --- |
+| Logística actual: área, \|ΔT\| medio, \|ΔT\| p95 | 0,33 (0,26–0,39) | 53 (35) |
+| Logística: TCI + área + \|ΔT\| p95 | 0,64 (0,48–0,79), p perm. 0,09 | 53 (35) |
+| TCI solo (puntaje directo, mayor TCI = mayor riesgo) | 0,30 (0,15–0,45) | 53 (35) |
+| Logística: TCI + área + p95 + cambio entre tomas | 0,53 (0,36–0,70) | 35 (23) |
+| Logística actual, misma submuestra con toma 2 | 0,31 (0,21–0,41) | 35 (23) |
+| CNN chica: ΔT + desvío TCI | 0,61 (0,45–0,77) | 53 (35) |
+| CNN chica: sólo ΔT | 0,53 (0,43–0,63) | 53 (35) |
+| *Control: sólo el centro de atención* | *0,64 (0,50–0,77)* | 53 (35) |
+
+AUC univariadas:
+
+- TCI de patrón 0,44; TCI puntual 0,30;
+- área 0,50; \|ΔT\| medio 0,52; p95 0,51.
+
+**Conclusión: nada supera el azar de forma convincente.**
+
+- La regla de elección se fijó antes de mirar los resultados: IC 95 % con límite inferior > 0,5 y, entre esos, la mayor AUC. Ningún modelo la cumple.
+- La logística con TCI llega a 0,64, pero:
+  - el coeficiente del TCI es **negativo**: más TCI, menos riesgo, al revés de la hipótesis;
+  - el centro de atención solo da la misma AUC, porque la prevalencia del desenlace y las condiciones de adquisición varían por centro;
+  - la variante de patrón, sin el nivel absoluto, no tiene señal.
+
+  Es una **confusión por centro / adquisición**, no un hallazgo fisiológico. El control por centro se agregó después de ver el primer resultado y se informa como tal.
+- La CNN muestra el mismo patrón: con sólo ΔT queda en 0,53.
+- El modelo actual queda **por debajo** del azar. No hay señal, y la validación cruzada en muestras chicas tiene un sesgo negativo conocido.
+
+**Qué usa el portal.**
+
+- Sigue el modelo logístico preliminar, rotulado «Modelo preliminar · no validado»; la categoría sale del hallazgo térmico.
+- La regresión con TCI queda como estrategia opcional `TciPointwisePredictor` (`PREDICTOR=puntual-tci`, `src/config/models/pointwise-tci-logreg.json`).
+- La tabla resumida, sólo con agregados, está en `src/config/models/model-comparison.json` y se muestra en «Detalle técnico».
+
+**Pendientes para el equipo:**
+
+- conseguir un desenlace real (lesión) con casos suficientes;
+- contar con un grupo control propio, o con la base de 2019 como referencia;
+- estandarizar la adquisición entre centros, o ajustar por centro;
+- validar la U-Net contra contornos manuales en una muestra.

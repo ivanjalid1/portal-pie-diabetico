@@ -80,6 +80,28 @@ DATA_DRIVER=memory SEED=real npm start   # en PowerShell: $env:DATA_DRIVER='memo
 
 Con `SEED=real` se cargan todos los pacientes de la planilla con sus tomas. Las cuentas del personal se mantienen (`medico@demo.com`) y los pacientes `DEMO-…` no se cargan. Cada paciente tiene una cuenta de portal local `<código>@pacientes.local` (p. ej. `phc001@pacientes.local`, contraseña `Demo1234!`). Si falta `data-local/real/`, se usan los datos de demostración.
 
+### Segmentación U-Net, TCI y comparación de modelos (local, Python + PyTorch CPU)
+
+```bash
+py -3.13 -m venv data-local/venv-ml          # entorno ignorado por git
+data-local/venv-ml/Scripts/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+data-local/venv-ml/Scripts/python -m pip install numpy scipy scikit-learn pillow onnx onnxscript
+npm run ml:export                             # IS2 → data-local/ml/cache
+cd scripts/ml
+../../data-local/venv-ml/Scripts/python selfcheck.py      # autocomprobación con datos sintéticos
+../../data-local/venv-ml/Scripts/python build_labels.py   # etiquetas débiles mejoradas
+../../data-local/venv-ml/Scripts/python train_unet.py 40  # U-Net (CPU) → data-local/models/ (+ ONNX)
+../../data-local/venv-ml/Scripts/python segment_unet.py   # máscaras U-Net + métricas
+cd ../.. && npm run precompute:real && npm run ml:features
+cd scripts/ml && ../../data-local/venv-ml/Scripts/python train_models.py [--outcome hba1c7|lesion] [--export]
+```
+
+- **U-Net:** 4 niveles, entrenada con etiquetas débiles (segmentación clásica refinada) y división por paciente. En validación: Dice 0,98. Corre sólo offline; si no hay máscara U-Net, el portal usa la segmentación clásica.
+- **TCI:** índice de cambio térmico de Hernández-Contreras et al. (2017), punto a punto sobre la grilla registrada, contra los pacientes más simétricos de la cohorte (con leave-one-out).
+- **Modelos:** ningún modelo supera el azar de forma convincente, así que el portal mantiene el modelo preliminar «no validado».
+
+Detalle en [docs/arquitectura.md §8.3–8.5](docs/arquitectura.md). Los pesos, máscaras y matrices quedan en `data-local/`; nunca se versionan.
+
 ### Cuentas demo (contraseña `Demo1234!`)
 
 | Rol | Usuario |
@@ -105,6 +127,8 @@ El tema por defecto es **claro**; el oscuro se activa con el botón ☀/☾ y se
 | `npm run generate:images` | Regenera las termografías demo de `public/demo` a partir de los IS2 de la carpeta privada `tesis-2026info/` (no versionada). |
 | `npm run precompute:real` | Análisis punto a punto de todos los pacientes reales (`tesis-2026info/` → `data-local/real/`, local). |
 | `npm run train:model` | Entrena y valida (LOO y 5 pliegues ×20) el modelo preliminar; escribe `src/config/models/pointwise-logreg.json` (sólo agregados). |
+| `npm run ml:export` | Exporta las réplicas IS2 reales a `data-local/ml/cache` (.npy) para la U-Net (local). |
+| `npm run ml:features` | Exporta features y mapas registrados para comparar modelos (local). |
 | `npm run generate:pointwise` | Regenera las grillas punto a punto de los pares demo (`src/seed/demoPointwise.json`). |
 | `npm run seed:supabase` | Carga la semilla demo en Supabase (Auth + DB + Storage). Admite `-- --reset`. |
 

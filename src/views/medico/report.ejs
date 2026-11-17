@@ -18,7 +18,7 @@
     <button type="button" class="btn btn--primary" data-print><%- include('../partials/icon', { name: 'printer', size: 18 }) %>Imprimir o guardar como PDF</button>
     <a class="btn btn--ghost" href="/medico/estudios/<%= study.id %>">Volver al estudio</a>
   </div>
-  <% const a = analysis; const s = study; const p = patient; const M = domain.REFERENCE_MODEL; %>
+  <% const a = analysis; const s = study; const p = patient; %>
   <article class="report__page">
     <header class="report__head">
       <div class="brand"><img src="/img/logo.svg" alt="" width="36" height="36"><span class="brand__text"><strong><%= appName %></strong><small><%= domain.PROJECT.facultad %>, <%= domain.PROJECT.universidad %></small></span></div>
@@ -27,8 +27,6 @@
         <span>Generado el <%= fmt.dateTime(generado) %></span>
       </div>
     </header>
-
-    <p class="report__disclaimer"><%= domain.DISCLAIMER %></p>
 
     <section class="report__grid">
       <dl class="kv kv--compact">
@@ -48,62 +46,63 @@
       </dl>
     </section>
 
-    <% if (a) { const PW = a.puntual; const MOD = PW && PW.modelo; %>
+    <% if (a) { const PW = a.puntual; const MOD = PW && PW.modelo; const tA = a.puntualActual; const mA = tA && tA.metricas; const lectura = PW && tA ? pw.lecturaToma(tA, PW.umbralPixel) : null; const cambio = PW && PW.tieneToma2 ? pw.cambioArea(a) : null; %>
+    <section class="report__summary">
+      <h2>Resultado<% if (tA) { %> (toma <%= tA.toma %>)<% } %></h2>
+      <% if (mA) { %><p><span class="badge badge--<%= tA.conAsimetria ? 'danger' : 'ok' %>"><%= tA.conAsimetria ? 'Asimetría térmica' : 'Sin asimetría relevante' %></span></p><% } %>
+      <% if (lectura) { %>
+      <p class="report__lead"><%= lectura.frase %><% if (cambio) { %> <%= cambio.frase %><% } %></p>
+      <% } else if (!PW) { %>
+      <p class="report__lead">No se pudo hacer el análisis punto a punto porque las imágenes no son archivos radiométricos (.IS2).</p>
+      <% } %>
+    </section>
     <section class="report__result">
+      <% if (mA) { %>
       <div class="report__big">
-        <span class="label">Categoría<%= PW && PW.categoriaPor === 'hallazgo_termico' ? ' (hallazgo térmico punto a punto)' : '' %></span>
-        <span class="badge badge--<%= domain.RISK_CATEGORIES[a.categoria].tono %>"><%= domain.RISK_CATEGORIES[a.categoria].nombre %></span>
-        <% const tA = a.puntualActual; if (tA && tA.metricas) { %><span><span class="num"><%= fmt.num(tA.metricas.areaCalientePct, 1) %> %</span> del área con |ΔT| &gt; <%= fmt.num(PW.umbralPixel, 1) %> °C (toma <%= tA.toma %>)</span><% } %>
+        <span class="label">Planta con diferencia &gt; <%= fmt.num(PW.umbralPixel, 1) %> °C</span>
+        <span class="num report__pct"><%= fmt.num(mA.areaCalientePct, 0) %> %</span>
       </div>
       <div class="report__big">
-        <span class="label">Modelo preliminar<%= MOD ? ' (no validado)' : ' (simulado)' %></span>
-        <span class="num report__pct"><%= fmt.num(a.probabilidad, 1) %> %</span>
-        <% if (MOD) { %><span>Prob. de HbA1c &gt; 7 % · AUC <%= fmt.num(MOD.auc, 2) %>, n = <%= MOD.n %></span><% } %>
+        <span class="label">Diferencia máxima</span>
+        <span class="num report__pct"><%= fmt.num(mA.maxAbs, 1) %> °C</span>
+        <span>En <%= pw.ZONA_CON_ARTICULO[mA.hotspot.zona] %>, más caliente el pie <%= mA.hotspot.pieMasCaliente %></span>
       </div>
+      <% } %>
       <div class="report__big">
         <span class="label">Tomas</span>
         <span><%= PW && !PW.tieneToma2 ? 'Sólo toma 1 (sin toma 2)' : 'Toma 1 y toma 2' %></span>
-        <% if (tA && tA.zonasNoAnalizadas.length) { %><span>No se analizó: <%= pw.zonasTexto(tA).noAnalizado %></span><% } %>
+        <% if (cambio) { %><span>Cambio del área: <span class="num"><%= fmt.signed(cambio.delta, 0) %> pts</span></span><% } %>
+        <% PW && PW.tomas.forEach((t) => { if (t.zonasNoAnalizadas.length) { %><span>Toma <%= t.toma %>: <%= pw.noAnalizadoTexto(t) %></span><% } }) %>
       </div>
     </section>
+    <p class="small report__model">Modelo preliminar · no validado: <span class="num"><%= fmt.num(a.probabilidad, 0) %> %</span><% if (MOD) { %> (probabilidad de HbA1c &gt; 7 %, desenlace sustituto; AUC <%= fmt.num(MOD.auc, 2) %>, n = <%= MOD.n %>: todavía no discrimina)<% } else { %> (simulado)<% } %>.</p>
 
     <% if (PW) { const data = pw.payload(a); const srcId = `pw-rep-${s.id}`; %>
     <script type="application/json" id="<%= srcId %>" data-pw-data><%- pw.json(data) %></script>
     <section>
-      <h2>Análisis punto a punto</h2>
-      <table class="table table--num table--dense">
-        <thead><tr><th scope="col">Toma</th><th scope="col">Área |ΔT| &gt; umbral</th><th scope="col">|ΔT| medio</th><th scope="col">|ΔT| p95</th><th scope="col">|ΔT| máx.</th><th scope="col">Mayor diferencia</th><th scope="col">No analizado</th></tr></thead>
-        <tbody>
-          <% PW.tomas.forEach((t) => { const m = t.metricas; %>
-          <tr class="<%= t.conAsimetria ? 'row-hot' : '' %>"><th scope="row">Toma <%= t.toma %></th><td><%= m ? fmt.num(m.areaCalientePct, 1) + ' %' : '—' %></td><td><%= m ? fmt.num(m.mediaAbs, 2) : '—' %></td><td><%= m ? fmt.num(m.p95Abs, 2) : '—' %></td><td><%= m ? fmt.num(m.maxAbs, 2) : '—' %></td><td><%= pw.hotspotTexto(m) %></td><td><%= t.zonasNoAnalizadas.length ? pw.zonasTexto(t).noAnalizado : '—' %></td></tr>
-          <% }) %>
-        </tbody>
-      </table>
+      <h2>Mapas punto a punto</h2>
       <div class="report__pwmaps">
         <% PW.tomas.forEach((t) => { %>
-        <figure class="pw-map pw-map--dt"><canvas data-pw-map="<%= t.toma %>:dt" data-pw-src="<%= srcId %>"></canvas><figcaption>ΔT izq. − der. · toma <%= t.toma %></figcaption></figure>
+        <figure class="pw-map pw-map--dt"><canvas data-pw-map="<%= t.toma %>:dt" data-pw-src="<%= srcId %>"></canvas><figcaption>Diferencia izq. − der. · toma <%= t.toma %></figcaption></figure>
         <% }) %>
         <% if (PW.cambio) { %>
-        <figure class="pw-map"><canvas data-pw-map="cambio:izq" data-pw-src="<%= srcId %>"></canvas><figcaption>T2 − T1 · pie izq.</figcaption></figure>
-        <figure class="pw-map"><canvas data-pw-map="cambio:der" data-pw-src="<%= srcId %>"></canvas><figcaption>T2 − T1 · pie der.</figcaption></figure>
+        <figure class="pw-map"><canvas data-pw-map="cambio:izq" data-pw-src="<%= srcId %>"></canvas><figcaption>Cambio T2 − T1 · pie izq.</figcaption></figure>
+        <figure class="pw-map"><canvas data-pw-map="cambio:der" data-pw-src="<%= srcId %>"></canvas><figcaption>Cambio T2 − T1 · pie der.</figcaption></figure>
         <% } %>
       </div>
-      <p class="small">ΔT = izquierdo − derecho espejado (rojo: izquierdo más caliente; azul: derecho). Escala ±3 °C; contorno: |ΔT| &gt; <%= fmt.num(PW.umbralPixel, 1) %> °C; gris: zona sin par.<% if (PW.cambio) { %> Mapas T2 − T1 centrados en el cambio mediano de cada pie (izq. <%= fmt.signed(PW.cambio.izq && PW.cambio.izq.mediana, 1) %> °C, der. <%= fmt.signed(PW.cambio.der && PW.cambio.der.mediana, 1) %> °C).<% } %></p>
-    </section>
-    <% } %>
-
-    <section>
-      <h2>Referencia: regiones (Parte 1)</h2>
-      <% const regs = a.tieneToma2 && a.roisToma1.length ? [[1, a.roisToma1], [2, a.rois]] : [[PW ? PW.tomaActual : 2, a.rois]]; %>
+      <p class="small">Diferencia = izquierdo − derecho espejado: rojo, el izquierdo más caliente; azul, el derecho (escala ±3 °C). Contorno: más de <%= fmt.num(PW.umbralPixel, 1) %> °C de diferencia; gris: zona sin par.<% if (PW.cambio) { %> Mapas de cambio centrados en el cambio mediano de cada pie (izq. <%= fmt.signed(PW.cambio.izq && PW.cambio.izq.mediana, 1) %> °C, der. <%= fmt.signed(PW.cambio.der && PW.cambio.der.mediana, 1) %> °C): rojo, la zona se calentó más que el resto del pie.<% } %></p>
+      <div class="table-wrap">
       <table class="table table--num table--dense">
-        <thead><tr><th scope="col">Región</th><% regs.forEach(([k]) => { %><th scope="col">Der. T<%= k %></th><th scope="col">Izq. T<%= k %></th><th scope="col">ΔT T<%= k %></th><% }) %></tr></thead>
+        <thead><tr><th scope="col">Toma</th><th scope="col">Área &gt; umbral</th><th scope="col">|ΔT| medio</th><th scope="col">|ΔT| p95</th><th scope="col">|ΔT| máx.</th><th scope="col">Mayor diferencia</th></tr></thead>
         <tbody>
-          <% regs[0][1].forEach((r) => { %>
-          <tr class="<%= r.roi === 'general' ? 'row-total' : '' %>"><th scope="row"><%= domain.ROI_NAMES[r.roi] %></th><% regs.forEach(([, list]) => { const x = list.find((y) => y.roi === r.roi) || {}; %><td><%= fmt.num(x.avgDer, 2) %></td><td><%= fmt.num(x.avgIzq, 2) %></td><td><%= fmt.signed(x.deltaT, 2) %></td><% }) %></tr>
+          <% PW.tomas.forEach((t) => { const m = t.metricas; %>
+          <tr class="<%= t.conAsimetria ? 'row-hot' : '' %>"><th scope="row" class="nowrap">Toma <%= t.toma %></th><td><%= m ? fmt.num(m.areaCalientePct, 1) + ' %' : '—' %></td><td><%= m ? fmt.num(m.mediaAbs, 2) : '—' %></td><td><%= m ? fmt.num(m.p95Abs, 2) : '—' %></td><td><%= m ? fmt.num(m.maxAbs, 2) : '—' %></td><td><%= pw.hotspotTexto(m) %></td></tr>
           <% }) %>
         </tbody>
       </table>
+      </div>
     </section>
+    <% } %>
     <% } %>
 
     <section class="report__images">
@@ -117,7 +116,7 @@
     <% } %>
 
     <footer class="report__foot">
-      <p>Análisis <%= a ? a.predictorVersion : '—' %><%= a && a.puntual && a.puntual.modelo ? ` · modelo preliminar ${a.puntual.modelo.version} (desenlace sustituto HbA1c > 7 %, AUC ${fmt.num(a.puntual.modelo.auc, 2)}, n = ${a.puntual.modelo.n}; no validado)` : '' %>. Modelo de referencia (Parte 1): <%= M.nombre %>, <%= M.hiperparametros %>, <%= M.validacion %>, n = <%= M.n %>, AUC <%= fmt.num(M.auc, 3) %>, sensibilidad <%= fmt.num(M.sensibilidad, 1) %> %, especificidad <%= fmt.num(M.especificidad, 1) %> %.</p>
+      <p>Análisis <%= a ? a.predictorVersion : '—' %><%= a && a.puntual && a.puntual.modelo ? ` · modelo preliminar ${a.puntual.modelo.version}, no validado` : '' %>.</p>
       <p>Documento con datos de salud: tratamiento confidencial según Ley 25.326 y Ley 26.529.</p>
       <div class="report__sign"><span>Firma y sello</span></div>
     </footer>

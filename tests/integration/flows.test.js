@@ -230,7 +230,10 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
     expect(page.text).toContain('data-pw-map="cambio:izq"');
     expect(page.text).toContain('Modelo preliminar');
     expect(page.text).toMatch(/AUC/);
-    expect(page.text).toContain('Referencia: análisis por regiones (tesis parte 1)');
+    // Las regiones de la Parte 1 (tesis previa) ya no se muestran en el resultado.
+    expect(page.text).not.toContain('Referencia: análisis por regiones (tesis parte 1)');
+    expect(page.text).not.toContain('class="plantar-map');
+    expect(page.text).toContain('Detalle técnico');
     expect(page.text).not.toContain('Visibilidad para el paciente');
     expect(page.text).not.toContain('Evolución de la asimetría');
   });

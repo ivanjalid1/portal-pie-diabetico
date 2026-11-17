@@ -155,18 +155,44 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
   });
 
   describe('resultado y login', () => {
-    it('el resultado muestra el análisis punto a punto de ambas tomas y las regiones sólo como referencia', async () => {
+    it('el resultado resume en lenguaje simple, muestra mapas por toma y deja el detalle técnico plegado', async () => {
       const studies = await container.repos.studies.listByMedico(medicoUser.id);
       const res = await medico.get(`/medico/estudios/${studies[0].id}`);
-      expect(res.text).toContain('Resumen punto a punto');
+      expect(res.status).toBe(200);
+      // Resumen: una frase, números grandes y el modelo preliminar como dato secundario.
+      expect(res.text).toMatch(/class="sr-summary__lead">(El \d+ % de la planta|Los dos pies)/);
+      expect(res.text).toContain('Modelo preliminar · no validado');
+      expect(res.text).toContain('role="tooltip"');
+      // Mapas: pestañas Toma 1 / Toma 2 / Cambio.
+      expect(res.text).toContain('role="tablist"');
       expect(res.text).toContain('data-pw-map="1:dt"');
       expect(res.text).toContain('data-pw-map="2:dt"');
-      expect(res.text).toContain('Cambio toma 1 → toma 2');
-      expect(res.text).toMatch(/<details class="disclosure disclosure--card regions-ref">/);
+      expect(res.text).toContain('data-pw-map="cambio:izq"');
+      expect(res.text).toMatch(/<details class="disclosure disclosure--card sr-tech"/);
+      expect(res.text).toContain('data-pw-hist="1"');
+      // Acciones del médico.
+      expect(res.text).toContain(`action="/medico/estudios/${studies[0].id}/publicacion"`);
+      expect(res.text).toContain(`action="/medico/estudios/${studies[0].id}/notas"`);
+      expect(res.text).toContain(`href="/medico/estudios/${studies[0].id}/informe"`);
+      // Sin contenido de la Parte 1 (regiones, grupos P/C, 2,2 °C) ni el aviso largo.
+      expect(res.text).not.toContain('regions-ref');
+      expect(res.text).not.toContain('roi-pair__item');
+      expect(res.text).not.toContain('class="plantar-map');
+      expect(res.text).not.toMatch(/class="grupo/);
+      expect(res.text).not.toContain('Parte 1');
+      expect(res.text).not.toContain('Herramienta exploratoria');
       expect(res.text).not.toContain('evo-banner');
-      expect(res.text).not.toContain('Visibilidad para el paciente');
-      expect(res.text).not.toContain('data-tabs=');
-      expect((res.text.match(/class="roi-pair__item"/g) || []).length).toBe(2);
+    });
+
+    it('el informe imprimible usa el mismo resumen y no incluye las regiones de la Parte 1', async () => {
+      const studies = await container.repos.studies.listByMedico(medicoUser.id);
+      const res = await medico.get(`/medico/estudios/${studies[0].id}/informe`);
+      expect(res.status).toBe(200);
+      expect(res.text).toContain('class="report__lead"');
+      expect(res.text).toContain('Modelo preliminar · no validado');
+      expect(res.text).not.toContain('Referencia: regiones');
+      expect(res.text).not.toContain('Parte 1');
+      expect(res.text).not.toContain('Herramienta exploratoria');
     });
 
     it('el menú no duplica «Nuevo estudio» y lo agrupa en Estudios realizados', async () => {

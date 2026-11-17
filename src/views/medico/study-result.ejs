@@ -1,210 +1,256 @@
 <%
+  // Resultado de un estudio (vista del médico/a), centrado en el análisis punto a punto:
+  // encabezado → resumen en lenguaje simple → mapas → avisos → detalle técnico plegado → acciones.
+  // Las regiones de la Parte 1 (tesis previa) se siguen calculando, pero no se muestran acá.
   const a = analysis;
   const s = study;
   const p = patient;
   const P = paramsOf(a);
   const C = s.condiciones(P.protocolo);
-  const M = domain.REFERENCE_MODEL;
   const PW = a && a.puntual;
   const MOD = PW && PW.modelo;
   const t2 = PW ? PW.tieneToma2 : Boolean(s.image('toma2'));
-  const maxContrib = a && a.factores.length ? Math.max(0.01, ...a.factores.map((f) => Math.abs(f.contribucion))) : 1;
-  const regiones = a ? (a.tieneToma2 && a.roisToma1.length ? [[1, a.roisToma1], [2, a.rois]] : [[PW ? PW.tomaActual : 2, a.rois]]) : [];
-  const tomaLabel = (k) => (k === 1 ? 'Toma 1 · basal' : 'Toma 2 · control');
+  const tA = a && a.puntualActual;
+  const mA = tA && tA.metricas;
+  const lectura = PW && tA ? pw.lecturaToma(tA, PW.umbralPixel) : null;
+  const cambio = PW && t2 ? pw.cambioArea(a) : null;
+  const u = PW ? fmt.num(PW.umbralPixel, 1) : '';
   const fechaToma = (k) => (k === 1 ? s.fechaToma1 : s.fechaHora);
-  const grupoDe = (k) => (regiones.length > 1 && k === 1 ? a.grupoToma1 : a.grupo);
-%>
-<%- include('../partials/page-header', {
-  heading: `${p.codigo} · análisis punto a punto`,
-  lead: `${p.nombreCompleto}. Toma 1: ${fmt.date(s.fechaToma1)}` + (t2 ? ` · Toma 2: ${fmt.date(s.fechaHora)}${s.diasEntreTomas !== null ? ` (${s.diasEntreTomas} días)` : ''}` : ' · Sin toma 2') + (s.centro ? ` · ${s.centro}.` : '.'),
-  back: { href: `/medico/pacientes/${p.id}`, label: p.codigo },
-  actions: `<a class="btn btn--ghost" href="/medico/estudios/${s.id}/informe" target="_blank" rel="noopener">${include('../partials/icon', { name: 'printer', size: 18 })}Exportar informe</a>`
-}) %>
+  const tomaLabel = (k) => (k === 1 ? 'Toma 1 · basal' : 'Toma 2 · control');
+  const estimadas = ((s.notasMedico || '').match(/Fecha de la toma ([12](?: y [12])?) estimada/) || [])[1] || null;
+  const maxContrib = a && a.factores.length ? Math.max(0.01, ...a.factores.map((f) => Math.abs(f.contribucion))) : 1;
 
-<div class="notice notice--warn disclaimer" role="note">
-  <%- include('../partials/icon', { name: 'alert' }) %>
-  <% if (PW) { %>
-  <p><strong>Herramienta exploratoria, no diagnóstica.</strong> Temperaturas aproximadas (conversión lineal de las cuentas de la cámara, sin calibración radiométrica). El modelo de probabilidad es preliminar y no está validado clínicamente.</p>
-  <% } else { %>
-  <p><strong>Resultado simulado.</strong> No se pudo hacer el análisis punto a punto porque las imágenes no son archivos radiométricos (.IS2).</p>
-  <% } %>
-</div>
+  // Avisos: todo lo que condiciona la lectura, en un solo lugar.
+  const avisos = [];
+  if (PW) {
+    if (!t2) avisos.push({ tono: 'info', texto: '<strong>Sin toma 2.</strong> Se analizó sólo la termografía basal; no hay comparación entre tomas.' });
+    PW.tomas.forEach((t) => {
+      const na = pw.noAnalizadoTexto(t);
+      if (na) avisos.push({ tono: 'info', texto: `<strong>Toma ${t.toma}: ${na}.</strong> No se detectaron completos en ambos pies (fuera del cuadro o demasiado fríos); quedan fuera de las métricas y se ven en gris.` });
+      if (t.calidad !== null && t.calidad < 0.6) avisos.push({ tono: 'warn', texto: `<strong>Toma ${t.toma}: segmentación a revisar.</strong> Los contornos de ambos pies coinciden poco (calidad ${fmt.num(t.calidad, 2)}); mirá la termografía original.` });
+    });
+  }
+  if (estimadas) avisos.push({ tono: 'info', texto: `<strong>Fecha estimada${estimadas.includes('y') ? 's' : ''}:</strong> toma ${estimadas}. El reloj de la cámara no estaba configurado.` });
+  if (t2 && s.tempAmbiente !== null && !C.ok) avisos.push({ tono: 'warn', texto: `<strong>Toma 2 fuera del protocolo de ambiente</strong> (${fmt.num(C.temp.min, 1)}–${fmt.num(C.temp.max, 1)} °C, ${C.hum.min}–${C.hum.max} % HR). Interpretá el resultado con cautela.` });
+  const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  if (!s.valida) avisos.push({ tono: 'warn', texto: `<strong>Imágenes marcadas como no válidas.</strong>${s.motivoInvalidez ? ` Motivo: ${esc(s.motivoInvalidez)}` : ''}` });
+  const avisoWarn = avisos.some((x) => x.tono === 'warn');
+%>
+<header class="page-header sr-header">
+  <div class="page-header__text">
+    <a class="back-link" href="/medico/pacientes/<%= p.id %>"><%- include('../partials/icon', { name: 'arrowLeft', size: 16 }) %>Ficha de <%= p.codigo %></a>
+    <p class="sr-header__eyebrow">Estudio termográfico · análisis punto a punto</p>
+    <h1><%= p.codigo %></h1>
+    <p class="sr-header__meta">
+      <span>Toma 1 <strong class="num"><%= fmt.date(s.fechaToma1) %></strong></span>
+      <% if (t2) { %><span>Toma 2 <strong class="num"><%= fmt.date(s.fechaHora) %></strong><% if (s.diasEntreTomas !== null) { %> <span class="muted">(<%= s.diasEntreTomas %> días)</span><% } %></span><% } %>
+      <% if (s.centro) { %><span class="muted"><%= s.centro %></span><% } %>
+    </p>
+    <div class="sr-chips">
+      <% if (mA) { %>
+      <span class="badge badge--<%= tA.conAsimetria ? 'danger' : 'ok' %>"><span class="dot" aria-hidden="true"></span><%= tA.conAsimetria ? 'Asimetría térmica' : 'Sin asimetría relevante' %></span>
+      <% } else if (a && !PW) { %>
+      <span class="badge badge--warn">Resultado simulado</span>
+      <% } %>
+      <span class="badge badge--muted"><%= t2 ? 'Toma 1 y toma 2' : 'Sólo toma 1' %></span>
+      <span class="badge badge--outline"><%= s.publicado ? 'Visible para el paciente' : 'No visible para el paciente' %></span>
+    </div>
+  </div>
+  <div class="page-header__actions">
+    <% if (a) { %>
+    <form method="post" action="/medico/estudios/<%= s.id %>/publicacion"<%- s.publicado ? ' data-confirm="¿Ocultar el resultado al paciente?"' : '' %>>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <% if (!s.publicado) { %><input type="hidden" name="publicado" value="on"><% } %>
+      <button type="submit" class="btn btn--ghost"><%- include('../partials/icon', { name: s.publicado ? 'lock' : 'eye', size: 18 }) %><%= s.publicado ? 'Ocultar al paciente' : 'Mostrar al paciente' %></button>
+    </form>
+    <% } %>
+    <a class="btn btn--ghost" href="/medico/estudios/<%= s.id %>/informe" target="_blank" rel="noopener"><%- include('../partials/icon', { name: 'printer', size: 18 }) %>Exportar informe</a>
+  </div>
+</header>
 
 <% if (!a) { %>
 <div class="card"><div class="empty"><h2>El análisis no está disponible</h2><p>Volvé a cargar el estudio.</p></div></div>
 <% } else { %>
-<div class="result-hero">
-  <section class="card result-hero__gauge" aria-labelledby="prob-title">
-    <div class="card__head"><h2 id="prob-title" class="card__title">Modelo preliminar</h2><span class="badge badge--outline">No validado</span></div>
-    <% if (MOD) { %>
-    <div class="prelim">
-      <span class="prelim__value num"><%= fmt.num(a.probabilidad, 1) %><small>%</small></span>
-      <span class="prelim__bar" role="img" aria-label="Probabilidad del modelo preliminar: <%= fmt.num(a.probabilidad, 0) %> por ciento"><span style="width: <%= Math.max(2, a.probabilidad) %>%"></span></span>
-      <span class="prelim__ticks num"><span>0</span><span>50</span><span>100 %</span></span>
-    </div>
-    <p class="small center">Probabilidad estimada de <strong>HbA1c &gt; 7 %</strong> (desenlace sustituto, como en la Parte 1) a partir de la toma <%= MOD.tomaUsada %>.</p>
-    <div class="model-strip">
-      <span>AUC <%= MOD.metodo === 'Leave-One-Out' ? 'LOO' : 'CV' %> <strong class="num"><%= fmt.num(MOD.auc, 2) %></strong></span>
-      <% if (MOD.aucIC95) { %><span>IC 95 % <span class="num"><%= fmt.num(MOD.aucIC95[0], 2) %>–<%= fmt.num(MOD.aucIC95[1], 2) %></span></span><% } %>
-      <span>n <strong class="num"><%= MOD.n %></strong></span>
-    </div>
-    <% if (PW.categoriaPor === 'hallazgo_termico') { %>
-    <div class="prelim__cat"><span class="small">Categoría por hallazgo térmico</span> <%- include('../partials/risk-badge', { analysis: a }) %></div>
-    <p class="muted small center">El modelo todavía no discrimina (AUC &lt; 0,7): la categoría resume la asimetría punto a punto, no esta probabilidad.</p>
-    <% } %>
-    <% } else { %>
-    <%- include('../partials/gauge', { value: a.probabilidad, category: a.categoria, cortes: { moderado: P.corteModerado, alto: P.corteAlto } }) %>
-    <p class="muted small center">Probabilidad simulada (sin análisis punto a punto).</p>
-    <% } %>
-  </section>
 
-  <section class="card result-hero__thermal" aria-labelledby="sum-title">
-    <div class="card__head"><h2 id="sum-title" class="card__title">Resumen punto a punto</h2><% if (PW) { %><span class="muted small nowrap">|ΔT| &gt; <span class="num"><%= fmt.num(PW.umbralPixel, 1) %> °C</span></span><% } %></div>
-    <% if (PW) { %>
-    <div class="pw-summary">
-      <% [1, 2].forEach((k) => { const t = a.puntualToma(k); %>
-      <div class="pw-summary__item<%= t && t.toma === PW.tomaActual ? ' is-now' : '' %><%= t ? '' : ' is-empty' %>">
-        <span class="pw-summary__label"><span class="toma-dot toma-dot--<%= k %>"></span><%= tomaLabel(k) %></span>
-        <% if (t && t.metricas) { %>
-        <strong class="pw-summary__big num"><%= fmt.num(t.metricas.areaCalientePct, 1) %> %</strong>
-        <small>del área plantar con diferencia sobre el umbral</small>
-        <span class="badge badge--<%= t.conAsimetria ? 'danger' : 'ok' %>"><%= t.conAsimetria ? 'Con asimetría' : 'Sin asimetría' %></span>
-        <small class="muted">Máx. <span class="num"><%= fmt.num(t.metricas.maxAbs, 1) %> °C</span> en <%= pw.ZONA_NOMBRES[t.metricas.hotspot.zona] %></small>
-        <% if (t.zonasNoAnalizadas.length) { %><small class="text-warn">No analizado: <%= pw.zonasTexto(t).noAnalizado %></small><% } %>
-        <% } else if (t) { %>
-        <small class="muted">Sin puntos comparables.</small>
-        <% } else { %>
-        <strong class="pw-summary__big pw-summary__big--muted">Sin toma 2</strong>
-        <small class="muted">Se analizó sólo la termografía basal.</small>
-        <% } %>
-      </div>
-      <% }) %>
+<section class="card sr-summary" aria-labelledby="sum-title">
+  <h2 id="sum-title" class="sr-summary__eyebrow">Resultado<% if (tA) { %> · <%= tomaLabel(tA.toma).toLowerCase() %><% } %></h2>
+  <% if (lectura) { %>
+  <p class="sr-summary__lead"><%= lectura.frase %></p>
+  <% if (cambio) { %><p class="sr-summary__sub"><%= cambio.frase %></p><% } %>
+  <dl class="sr-stats">
+    <div class="sr-stat<%= tA.conAsimetria ? ' is-hot' : '' %>">
+      <dt>Planta con diferencia &gt; <%= u %> °C</dt>
+      <dd class="num"><%= fmt.num(mA.areaCalientePct, 0) %><small> %</small></dd>
     </div>
-    <% if (PW.cambio && PW.cambio.izq && PW.cambio.der) { %>
-    <p class="small pw-summary__change"><%- include('../partials/icon', { name: 'trendUp', size: 16 }) %><span>Toma 1 → 2: cambio mediano izq. <span class="num"><%= fmt.signed(PW.cambio.izq.mediana, 1) %> °C</span>, der. <span class="num"><%= fmt.signed(PW.cambio.der.mediana, 1) %> °C</span>; cambio local en <span class="num"><%= fmt.num(PW.cambio.izq.areaCambioLocalPct, 0) %> %</span> y <span class="num"><%= fmt.num(PW.cambio.der.areaCambioLocalPct, 0) %> %</span> del pie.</span></p>
+    <div class="sr-stat">
+      <dt>Diferencia máxima</dt>
+      <dd class="num"><%= fmt.num(mA.maxAbs, 1) %><small> °C</small></dd>
+      <dd class="sr-stat__note">En <%= pw.ZONA_CON_ARTICULO[mA.hotspot.zona] %>, más caliente el pie <%= mA.hotspot.pieMasCaliente %></dd>
+    </div>
+    <% if (cambio) { %>
+    <div class="sr-stat">
+      <dt>Cambio desde la toma 1</dt>
+      <dd class="num"><%= fmt.signed(cambio.delta, 0) %><small> pts</small></dd>
+      <dd class="sr-stat__note">del área con diferencia</dd>
+    </div>
     <% } %>
-    <% } else { %>
-    <p class="muted">No disponible para este estudio.</p>
-    <% } %>
-  </section>
+  </dl>
+  <% } else if (PW) { %>
+  <p class="sr-summary__lead">No hubo puntos comparables en ambos pies: revisá la termografía original.</p>
+  <% } else { %>
+  <p class="sr-summary__lead">No se pudo hacer el análisis punto a punto porque las imágenes no son archivos radiométricos (.IS2).</p>
+  <% } %>
+  <div class="sr-summary__foot">
+    <span class="sr-model">
+      Modelo preliminar · no validado: <strong class="num"><%= fmt.num(a.probabilidad, 0) %> %</strong>
+      <span class="sr-tip">
+        <button type="button" class="help-dot" aria-describedby="tip-model" aria-label="Qué es el modelo preliminar">i</button>
+        <span role="tooltip" id="tip-model" class="sr-tip__body">
+          <% if (MOD) { %>
+          Probabilidad de HbA1c &gt; 7 % (desenlace sustituto) con una regresión logística sobre la toma <%= MOD.tomaUsada %>. AUC <%= MOD.metodo === 'Leave-One-Out' ? 'LOO' : 'CV' %> <%= fmt.num(MOD.auc, 2) %>, n = <%= MOD.n %>: todavía no discrimina. No es un riesgo validado; no la uses para decidir.
+          <% } else { %>
+          Probabilidad simulada: sin archivos radiométricos no hay análisis punto a punto. No es un riesgo validado.
+          <% } %>
+        </span>
+      </span>
+    </span>
+  </div>
+</section>
+
+<% if (avisos.length) { %>
+<div class="notice <%= avisoWarn ? 'notice--warn' : '' %> sr-notes" role="note" aria-label="Avisos del estudio">
+  <%- include('../partials/icon', { name: avisoWarn ? 'alert' : 'info', size: 18 }) %>
+  <ul>
+    <% avisos.forEach((x) => { %><li><%- x.texto %></li><% }) %>
+  </ul>
 </div>
+<% } %>
 
 <% if (PW) { %><%- include('../partials/pointwise-study', { analysis: a, study: s }) %><% } %>
 
-<div class="grid grid--2">
-  <section class="card" aria-labelledby="fact-title">
-    <h2 id="fact-title" class="card__title">Variables del modelo preliminar</h2>
-    <% if (a.factores.length) { %>
-    <ul class="factors">
-      <% a.factores.forEach((f) => { %>
-      <li>
-        <span class="factors__name"><%= f.nombre %></span>
-        <span class="factors__value"><%= f.valor %></span>
-        <span class="factors__bar<%= f.contribucion < 0 ? ' factors__bar--neg' : '' %>" aria-hidden="true"><span style="width: <%= Math.round((Math.abs(f.contribucion) / maxContrib) * 100) %>%"></span></span>
-        <span class="factors__num num"><%= fmt.signed(f.contribucion, 2) %></span>
-      </li>
-      <% }) %>
-    </ul>
-    <p class="muted small">Contribución al log-odds (coeficiente × valor estandarizado). Sirve para entender el modelo, no para interpretación clínica.</p>
-    <% } else { %><p class="muted">Sin variables.</p><% } %>
-  </section>
-
-  <section class="card model-card" aria-labelledby="model-title">
-    <h2 id="model-title" class="card__title">Ficha del modelo</h2>
-    <dl class="kv kv--compact">
-      <div><dt>Análisis</dt><dd><code><%= a.predictorVersion %></code> <%= predictorInfo.nombre %></dd></div>
-      <% if (MOD) { %>
-      <div><dt>Modelo preliminar</dt><dd>Regresión logística L2 sobre <%= predictorInfo.modelo ? predictorInfo.modelo.features.join(', ').toLowerCase() : 'features punto a punto' %></dd></div>
-      <div><dt>Validación</dt><dd><%= MOD.metodo %>: AUC <span class="num"><%= fmt.num(MOD.auc, 3) %></span><% if (MOD.aucKFold !== null) { %>; 5 pliegues ×20: <span class="num"><%= fmt.num(MOD.aucKFold, 3) %></span><% } %> (n = <%= MOD.n %>)</dd></div>
-      <div><dt>Desenlace</dt><dd><%= MOD.desenlace %></dd></div>
-      <% } %>
-      <div><dt>Referencia (Parte 1)</dt><dd><%= M.nombre %> por regiones (<%= M.hiperparametros %>), <%= M.validacion %>, n = <%= M.n %>, AUC <span class="num"><%= fmt.num(M.auc, 3) %></span></dd></div>
-    </dl>
-    <p class="muted small">Un AUC cercano o menor a 0,5 indica que, con estos datos, la asimetría punto a punto no predice el desenlace sustituto. Se muestra por transparencia, no para decidir.</p>
-  </section>
-</div>
-
-<details class="disclosure disclosure--card regions-ref">
-  <summary>Referencia: análisis por regiones (tesis parte 1)</summary>
-  <p class="muted small">Seis regiones por pie más la general, calculadas sobre la misma grilla registrada. ΔT por región = derecho − izquierdo (convención de la Parte 1). Umbral por región <span class="num"><%= fmt.num(a.umbral, 1) %> °C</span>.</p>
-  <div class="maps-compare">
-    <% regiones.forEach(([k, list], i) => { %>
-    <figure class="maps-compare__item">
-      <figcaption><span class="toma-dot toma-dot--<%= k %>"></span><strong><%= tomaLabel(k) %></strong> <span class="muted"><%= fmt.date(fechaToma(k)) %></span><% if (grupoDe(k)) { %> <%- include('../partials/grupo', { value: grupoDe(k), small: true }) %><% } %></figcaption>
-      <%- include('../partials/plantar-map', { rois: list, umbral: a.umbral, mapId: `res${i}` }) %>
-    </figure>
-    <% }) %>
-  </div>
-  <div class="roi-pair">
-    <% regiones.forEach(([toma, list]) => { %>
-    <div class="roi-pair__item">
-      <h3 class="roi-pair__title"><span class="toma-dot toma-dot--<%= toma %>"></span><%= tomaLabel(toma) %></h3>
+<details class="disclosure disclosure--card sr-tech" id="detalle">
+  <summary>Detalle técnico</summary>
+  <div class="sr-tech__body">
+    <% if (PW) { %>
+    <section class="sr-tech__block" aria-labelledby="tech-metrics">
+      <h3 id="tech-metrics" class="card__subtitle">Métricas punto a punto</h3>
       <div class="table-wrap">
-      <table class="table table--num">
-        <caption class="sr-only">Temperaturas medias por región, toma <%= toma %></caption>
-        <thead><tr><th scope="col">Región</th><th scope="col">Media der.</th><th scope="col">Media izq.</th><th scope="col">ΔT</th><th scope="col">Máx. der./izq.</th></tr></thead>
-        <tbody>
-          <% list.forEach((r) => { const hot = r.roi !== 'general' && Math.abs(r.deltaT) >= a.umbral; %>
-          <tr class="<%= r.roi === 'general' ? 'row-total' : '' %><%= hot ? ' row-hot' : '' %>">
-            <th scope="row"><%= domain.ROI_NAMES[r.roi] %></th>
-            <td><%= fmt.num(r.avgDer, 2) %></td>
-            <td><%= fmt.num(r.avgIzq, 2) %></td>
-            <td><span class="delta<%= hot ? ' delta--hot' : '' %>"><%= fmt.signed(r.deltaT, 2) %></span></td>
-            <td class="muted"><%= fmt.num(r.maxDer, 1) %> / <%= fmt.num(r.maxIzq, 1) %></td>
-          </tr>
-          <% }) %>
-        </tbody>
-      </table>
+        <table class="table table--num table--dense">
+          <caption class="sr-only">Métricas de la diferencia izquierdo − derecho por toma</caption>
+          <thead><tr><th scope="col">Toma</th><th scope="col">Área &gt; umbral</th><th scope="col">|ΔT| medio</th><th scope="col">|ΔT| p95</th><th scope="col">|ΔT| máx.</th><th scope="col">Media con signo</th><th scope="col">Puntos</th><th scope="col">Calidad de registro</th></tr></thead>
+          <tbody>
+            <% PW.tomas.forEach((t) => { const m = t.metricas; %>
+            <tr>
+              <th scope="row"><span class="toma-dot toma-dot--<%= t.toma %>"></span>Toma <%= t.toma %></th>
+              <td><%= m ? fmt.num(m.areaCalientePct, 1) + ' %' : '—' %></td>
+              <td><%= m ? fmt.num(m.mediaAbs, 2) : '—' %></td>
+              <td><%= m ? fmt.num(m.p95Abs, 2) : '—' %></td>
+              <td><%= m ? fmt.num(m.maxAbs, 2) : '—' %></td>
+              <td><%= m ? fmt.signed(m.mediaConSigno, 2) : '—' %></td>
+              <td><%= m ? m.celdas : '—' %></td>
+              <td><%= t.calidad !== null ? fmt.num(t.calidad, 2) : '—' %></td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
       </div>
-    </div>
-    <% }) %>
+      <p class="muted small">Valores en °C. ΔT = izquierdo − derecho espejado. <% PW.tomas.forEach((t) => { if (t.metricas) { %>Toma <%= t.toma %>: mayor diferencia en <%= pw.hotspotTexto(t.metricas) %> (<span class="num"><%= fmt.signed(t.metricas.hotspot.deltaT, 1) %> °C</span>). <% } }) %></p>
+    </section>
+
+    <section class="sr-tech__block" aria-labelledby="tech-hist">
+      <h3 id="tech-hist" class="card__subtitle">Distribución de |ΔT| por punto</h3>
+      <div class="sr-hists">
+        <% PW.tomas.forEach((t) => { if (t.metricas) { %>
+        <figure class="sr-hist">
+          <canvas class="pw-hist" data-pw-hist="<%= t.toma %>" data-pw-src="pw-<%= s.id %>" data-height="130" role="img" aria-label="Histograma de la diferencia absoluta por punto, toma <%= t.toma %>: <%= fmt.num(t.metricas.areaCalientePct, 1) %> % sobre el umbral"></canvas>
+          <figcaption><span class="toma-dot toma-dot--<%= t.toma %>"></span>Toma <%= t.toma %>. Las barras rojas superan el umbral.</figcaption>
+        </figure>
+        <% } }) %>
+      </div>
+    </section>
+
+    <% if (PW.cambio) { %>
+    <section class="sr-tech__block" aria-labelledby="tech-change">
+      <h3 id="tech-change" class="card__subtitle">Cambio toma 1 → toma 2 por pie</h3>
+      <div class="table-wrap">
+        <table class="table table--num table--dense">
+          <thead><tr><th scope="col">Pie</th><th scope="col">Cambio mediano</th><th scope="col">|Cambio| p95</th><th scope="col">Cambio local</th></tr></thead>
+          <tbody>
+            <% [['izq', 'Izquierdo'], ['der', 'Derecho']].forEach(([k, label]) => { const c = PW.cambio[k]; %>
+            <tr><th scope="row"><%= label %></th><td><%= c ? fmt.signed(c.mediana, 2) + ' °C' : '—' %></td><td><%= c ? fmt.num(c.p95Abs, 2) + ' °C' : '—' %></td><td><%= c ? fmt.num(c.areaCambioLocalPct, 1) + ' %' : '—' %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted small">El cambio mediano refleja sobre todo el ambiente y el día; «cambio local» cuenta los puntos que se apartan de él más de <span class="num"><%= fmt.num(PW.umbralCambio, 1) %> °C</span>.</p>
+    </section>
+    <% } %>
+
+    <section class="sr-tech__block" aria-labelledby="tech-params">
+      <h3 id="tech-params" class="card__subtitle">Método y parámetros</h3>
+      <dl class="kv kv--compact">
+        <div><dt>Registro</dt><dd>Ambos pies segmentados, el derecho espejado y alineados por centroide, eje principal y escala en una grilla de <span class="num"><%= PW.grilla.w %> × <%= PW.grilla.h %></span>.</dd></div>
+        <div><dt>Umbral</dt><dd>Umbral por punto <strong class="num"><%= fmt.num(PW.umbralPixel, 1) %> °C</strong></dd></div>
+        <div><dt>Área mínima</dt><dd><span class="num"><%= fmt.num(PW.areaMinima, 0) %> %</span> de la planta para marcar asimetría</dd></div>
+        <div><dt>Cambio local</dt><dd>&gt; <span class="num"><%= fmt.num(PW.umbralCambio, 1) %> °C</span> respecto del cambio mediano del pie</dd></div>
+        <div><dt>Análisis</dt><dd><code><%= a.predictorVersion %></code> <%= predictorInfo.nombre %></dd></div>
+      </dl>
+    </section>
+    <% } %>
+
+    <section class="sr-tech__block" aria-labelledby="tech-model">
+      <h3 id="tech-model" class="card__subtitle">Modelo preliminar (no validado)</h3>
+      <% if (MOD) { %>
+      <dl class="kv kv--compact">
+        <div><dt>Modelo</dt><dd>Regresión logística L2 sobre <%= predictorInfo.modelo ? predictorInfo.modelo.features.join(', ').toLowerCase() : 'métricas punto a punto' %></dd></div>
+        <div><dt>Validación</dt><dd><%= MOD.metodo %>: AUC <span class="num"><%= fmt.num(MOD.auc, 3) %></span><% if (MOD.aucIC95) { %> (IC 95 % <span class="num"><%= fmt.num(MOD.aucIC95[0], 2) %>–<%= fmt.num(MOD.aucIC95[1], 2) %></span>)<% } %><% if (MOD.aucKFold !== null && MOD.aucKFold !== undefined) { %>; 5 pliegues ×20: <span class="num"><%= fmt.num(MOD.aucKFold, 3) %></span><% } %>; n = <%= MOD.n %></dd></div>
+        <div><dt>Desenlace</dt><dd><%= String(MOD.desenlace).replace(/,?\s*igual que la Parte 1/i, '') %></dd></div>
+        <div><dt>Probabilidad</dt><dd><span class="num"><%= fmt.num(a.probabilidad, 1) %> %</span> con la toma <%= MOD.tomaUsada %></dd></div>
+      </dl>
+      <% } else { %>
+      <p class="muted small">Probabilidad simulada: <span class="num"><%= fmt.num(a.probabilidad, 1) %> %</span>.</p>
+      <% } %>
+      <% if (a.factores.length) { %>
+      <ul class="factors">
+        <% a.factores.forEach((f) => { %>
+        <li>
+          <span class="factors__name"><%= f.nombre %></span>
+          <span class="factors__value"><%= f.valor %></span>
+          <span class="factors__bar<%= f.contribucion < 0 ? ' factors__bar--neg' : '' %>" aria-hidden="true"><span style="width: <%= Math.round((Math.abs(f.contribucion) / maxContrib) * 100) %>%"></span></span>
+          <span class="factors__num num"><%= fmt.signed(f.contribucion, 2) %></span>
+        </li>
+        <% }) %>
+      </ul>
+      <% } %>
+      <p class="muted small">Contribución al log-odds de cada variable. Un AUC cercano o menor a 0,5 indica que, con estos datos, la asimetría punto a punto no predice el desenlace sustituto: se muestra por transparencia, no para decidir.</p>
+    </section>
+
+    <section class="sr-tech__block" aria-labelledby="tech-acq">
+      <h3 id="tech-acq" class="card__subtitle">Termografías originales y adquisición</h3>
+      <div class="image-pair">
+        <% imageSlots.forEach((sl) => { if (sl.toma === 2 && !s.image('toma2')) { %>
+        <figure class="image-tile"><div class="image-tile__file image-tile__file--empty"><%- include('../partials/icon', { name: 'calendar', size: 24 }) %><span>Sin toma 2</span></div><figcaption><%= slotTitulo(sl) %></figcaption></figure>
+        <% } else { %>
+        <%- include('../partials/thermo-tile', { study: s, sl, sub: fmt.date(fechaToma(sl.toma)) + (sl.toma === 1 && s.toma1OrigenStudyId ? ' · reutilizada' : '') }) %>
+        <% } }) %>
+      </div>
+      <% const amb = (t, h) => (t === null && h === null ? 'Sin registro' : `${fmt.num(t, 1)} °C, HR ${fmt.num(h, 0)} %`); %>
+      <dl class="kv kv--compact kv--2col">
+        <div><dt>Ambiente toma 1</dt><dd class="num"><%= amb(s.tempAmbienteToma1, s.humedadRelativaToma1) %></dd></div>
+        <div><dt>Ambiente toma 2</dt><dd class="num"><%= t2 ? amb(s.tempAmbiente, s.humedadRelativa) : 'Sin toma 2' %></dd></div>
+        <div><dt>Distancia</dt><dd class="num"><%= s.distanciaCm %> cm</dd></div>
+        <div><dt>Emisividad</dt><dd class="num"><%= fmt.num(s.emisividad, 2) %></dd></div>
+        <div><dt>Rango</dt><dd class="num"><%= s.rangoMin %>–<%= s.rangoMax %> °C</dd></div>
+        <div><dt>Estabilización</dt><dd class="num"><%= s.tiempoEstabilizacionMin %> min</dd></div>
+        <div><dt>Paleta</dt><dd><%= s.paleta %></dd></div>
+        <div><dt>Fondo</dt><dd><%= s.fondo %></dd></div>
+      </dl>
+    </section>
   </div>
 </details>
 <% } %>
 
-<div class="grid grid--2">
-  <section class="card" aria-labelledby="img-title">
-    <h2 id="img-title" class="card__title">Termografías</h2>
-    <div class="image-pair">
-      <% imageSlots.forEach((sl) => { if (sl.toma === 2 && !s.image('toma2')) { %>
-      <figure class="image-tile"><div class="image-tile__file image-tile__file--empty"><%- include('../partials/icon', { name: 'calendar', size: 24 }) %><span>Sin toma 2</span><small>No hay termografía de control para este estudio.</small></div><figcaption><%= slotTitulo(sl) %></figcaption></figure>
-      <% } else { %>
-      <%- include('../partials/thermo-tile', { study: s, sl, sub: (sl.toma === 1 ? fmt.date(s.fechaToma1) : fmt.date(s.fechaHora)) + (sl.toma === 1 && s.toma1OrigenStudyId ? ' · reutilizada' : '') }) %>
-      <% } }) %>
-    </div>
-  </section>
-
-  <section class="card" aria-labelledby="acq-title">
-    <h2 id="acq-title" class="card__title">Condiciones de adquisición</h2>
-    <% const env = (t, h, okT, okH) => (t === null && h === null) ? '<p class="muted small">Sin registro.</p>' : `<div class="env-summary"><span class="env-chip ${okT ? 'is-ok' : 'is-warn'}">${include('../partials/icon', { name: 'thermo', size: 16 })}<strong class="num">${fmt.num(t, 1)} °C</strong></span><span class="env-chip env-chip--key ${okH ? 'is-ok' : 'is-warn'}">${include('../partials/icon', { name: 'droplet', size: 16 })}HR <strong class="num">${fmt.num(h, 0)} %</strong></span></div>`; %>
-    <div class="cond-grid">
-      <div>
-        <h3 class="card__subtitle">Toma 1 · basal</h3>
-        <%- env(s.tempAmbienteToma1, s.humedadRelativaToma1, C.toma1Ok, C.toma1Ok) %>
-      </div>
-      <div>
-        <h3 class="card__subtitle"><%= t2 ? 'Toma 2 · control' : 'Toma 2' %></h3>
-        <% if (t2) { %><%- env(s.tempAmbiente, s.humedadRelativa, C.tempOk, C.humOk) %><% } else { %><p class="muted small">Sin toma 2.</p><% } %>
-      </div>
-    </div>
-    <div class="env-summary">
-      <span class="env-chip <%= s.valida ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: s.valida ? 'check' : 'alert', size: 16 }) %><%= s.valida ? 'Imágenes válidas' : 'Imágenes no válidas' %></span>
-      <% if (t2) { %><span class="env-chip <%= s.intervaloOk ? 'is-ok' : 'is-warn' %>"><%- include('../partials/icon', { name: 'calendar', size: 16 }) %><%= s.diasEntreTomas !== null ? `${s.diasEntreTomas} días entre tomas` : 'Intervalo sin dato' %></span><% } %>
-    </div>
-    <% if (t2 && s.tempAmbiente !== null && !C.ok) { %><p class="text-warn small">Condiciones de la toma 2 fuera del rango del protocolo (<%= fmt.num(C.temp.min, 1) %>–<%= fmt.num(C.temp.max, 1) %> °C, <%= C.hum.min %>–<%= C.hum.max %> %). Interpretá el resultado con cautela.</p><% } %>
-    <% if (!s.valida && s.motivoInvalidez) { %><p class="text-warn small">Motivo: <%= s.motivoInvalidez %></p><% } %>
-    <dl class="kv kv--compact kv--2col">
-      <div><dt>Distancia</dt><dd class="num"><%= s.distanciaCm %> cm</dd></div>
-      <div><dt>Emisividad</dt><dd class="num"><%= fmt.num(s.emisividad, 2) %></dd></div>
-      <div><dt>Rango</dt><dd class="num"><%= s.rangoMin %>–<%= s.rangoMax %> °C</dd></div>
-      <div><dt>Paleta</dt><dd><%= s.paleta %></dd></div>
-      <div><dt>Estabilización</dt><dd class="num"><%= s.tiempoEstabilizacionMin %> min</dd></div>
-      <div><dt>Fondo</dt><dd><%= s.fondo %></dd></div>
-    </dl>
-  </section>
-</div>
-
-<div class="grid grid--2">
+<div class="grid grid--2 sr-actions">
   <section class="card" id="notas" aria-labelledby="notes-title">
     <h2 id="notes-title" class="card__title">Notas del médico</h2>
     <form method="post" action="/medico/estudios/<%= s.id %>/notas" class="form">

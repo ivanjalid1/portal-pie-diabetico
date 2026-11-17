@@ -9,6 +9,7 @@
   top: 0;
   z-index: 5;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
   padding: 12px;
@@ -26,6 +27,7 @@
   border-radius: 4px;
   font-size: 13px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   color-scheme: light;
   --text: #132029;
@@ -83,6 +85,22 @@
 .report__grid--map {
   grid-template-columns: 0.9fr 1.1fr;
   align-items: center;
+}
+
+.report__summary h2 {
+  margin-bottom: 4px;
+}
+
+.report__lead {
+  font-size: 15px;
+  font-weight: 560;
+  line-height: 1.4;
+  margin: 6px 0 10px;
+}
+
+.report__model {
+  margin: 8px 0 0;
+  color: #5c6c78;
 }
 
 .report__result {
@@ -154,6 +172,27 @@
 
 .report .pm-outline {
   stroke: #132029;
+}
+
+/* Vista en pantalla angosta (el informe también se abre desde el celular). */
+@media screen and (max-width: 640px) {
+  .report__page {
+    margin: 0;
+    padding: 20px 16px;
+    box-shadow: none;
+  }
+  .report__head {
+    flex-wrap: wrap;
+  }
+  .report__grid,
+  .report__result,
+  .report__images {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .report__grid > *,
+  .report__result > * {
+    min-width: 0;
+  }
 }
 
 @media print {

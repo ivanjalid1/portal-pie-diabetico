@@ -1,121 +1,99 @@
 <%
-  // Análisis punto a punto de un estudio (vista del médico/a).
-  // Parámetros: analysis (AnalysisResult con `puntual`), study.
+  // Mapas del análisis punto a punto (vista del médico/a): una pestaña por toma
+  // y, si hay toma 2, una de cambio entre tomas. Parámetros: analysis, study.
   const A = analysis;
   const PW = A.puntual;
   const data = pw.payload(A);
   const srcId = `pw-${study.id}`;
   const fecha = (t) => (t.toma === 1 ? study.fechaToma1 : study.fechaHora);
   const rango = data.rango;
+  const u = fmt.num(PW.umbralPixel, 1);
+  const tabs = PW.tomas.map((t) => ({ id: `t${t.toma}`, label: `Toma ${t.toma}`, sub: fmt.date(fecha(t)) }));
+  if (PW.cambio) tabs.push({ id: 'cambio', label: 'Cambio', sub: 'T2 − T1' });
+  const activa = `t${PW.tomaActual}`;
+  const conTabs = tabs.length > 1;
 %>
 <script type="application/json" id="<%= srcId %>" data-pw-data><%- pw.json(data) %></script>
 
-<section class="card pw" aria-labelledby="pw-title">
-  <div class="card__head">
-    <div>
-      <h2 id="pw-title" class="card__title">Análisis punto a punto</h2>
-      <p class="muted small pw__lead">Ambos pies segmentados, el derecho espejado y registrados en un mismo marco (centroide, eje principal y escala). Cada punto se compara con el mismo punto del otro pie.</p>
+<section class="card sr-visual" aria-labelledby="pw-title">
+  <div class="sr-visual__head">
+    <h2 id="pw-title" class="card__title">Mapas punto a punto</h2>
+    <% if (conTabs) { %>
+    <div class="sr-tabs" role="tablist" aria-label="Qué mostrar" data-sr-tabs>
+      <% tabs.forEach((tb) => { const on = tb.id === activa; %>
+      <button type="button" role="tab" class="sr-tabs__item" id="tab-<%= tb.id %>" aria-controls="panel-<%= tb.id %>" aria-selected="<%= on %>" tabindex="<%= on ? 0 : -1 %>"><%= tb.label %> <span class="num"><%= tb.sub %></span></button>
+      <% }) %>
     </div>
-    <span class="muted small nowrap">Umbral por punto <strong class="num"><%= fmt.num(PW.umbralPixel, 1) %> °C</strong> · área mínima <strong class="num"><%= fmt.num(PW.areaMinima, 0) %> %</strong></span>
+    <% } else { %>
+    <span class="muted small"><span class="toma-dot toma-dot--<%= PW.tomas[0].toma %>"></span>Toma <%= PW.tomas[0].toma %> · <span class="num"><%= fmt.date(fecha(PW.tomas[0])) %></span></span>
+    <% } %>
   </div>
 
-  <% PW.tomas.forEach((t) => { const m = t.metricas; const z = pw.zonasTexto(t); %>
-  <div class="pw-toma">
-    <div class="pw-toma__head">
-      <h3 class="pw-toma__title"><span class="toma-dot toma-dot--<%= t.toma %>"></span><%= t.toma === 1 ? 'Toma 1 · basal' : 'Toma 2 · control' %> <span class="muted"><%= fmt.date(fecha(t)) %></span></h3>
-      <% if (m) { %>
-      <span class="badge badge--<%= t.conAsimetria ? 'danger' : 'ok' %>"><span class="dot" aria-hidden="true"></span><%= t.conAsimetria ? 'Con asimetría punto a punto' : 'Sin asimetría punto a punto' %></span>
-      <% } %>
-      <% if (t.calidad !== null && t.calidad < 0.6) { %><span class="badge badge--warn" title="Solapamiento bajo entre las máscaras de ambos pies">Segmentación a revisar</span><% } %>
-    </div>
-
-    <% if (z) { %>
-    <p class="notice notice--info pw-zones" role="note"><%- include('icon', { name: 'info', size: 18 }) %><span><strong>En este estudio no se analizó: <%= z.noAnalizado %>.</strong> Se analizó: <%= z.analizado %>. <span class="muted">La zona no se detectó completa en uno de los pies (fuera del cuadro o demasiado fría para segmentarla); se excluye de las métricas y se muestra en gris.</span></span></p>
-    <% } %>
-
-    <div class="pw-toma__body">
-      <div class="pw-maps">
-        <figure class="pw-map">
-          <canvas data-pw-map="<%= t.toma %>:izq" data-pw-src="<%= srcId %>" role="img" aria-label="Temperatura del pie izquierdo, toma <%= t.toma %>"></canvas>
-          <figcaption>Pie izquierdo</figcaption>
-        </figure>
-        <figure class="pw-map">
-          <canvas data-pw-map="<%= t.toma %>:der" data-pw-src="<%= srcId %>" role="img" aria-label="Temperatura del pie derecho, toma <%= t.toma %>"></canvas>
-          <figcaption>Pie derecho</figcaption>
-        </figure>
+  <% PW.tomas.forEach((t) => { const m = t.metricas; const id = `t${t.toma}`; %>
+  <div class="sr-panel" id="panel-<%= id %>"<% if (conTabs) { %> role="tabpanel" aria-labelledby="tab-<%= id %>"<% } %><%= conTabs && id !== activa ? ' hidden' : '' %>>
+    <div class="sr-maps">
+      <div class="sr-maps__group">
+        <div class="sr-maps__pair">
+          <figure class="pw-map">
+            <canvas data-pw-map="<%= t.toma %>:izq" data-pw-src="<%= srcId %>" role="img" aria-label="Temperatura del pie izquierdo, toma <%= t.toma %>"></canvas>
+            <figcaption>Pie izquierdo</figcaption>
+          </figure>
+          <figure class="pw-map">
+            <canvas data-pw-map="<%= t.toma %>:der" data-pw-src="<%= srcId %>" role="img" aria-label="Temperatura del pie derecho espejado, toma <%= t.toma %>"></canvas>
+            <figcaption>Pie derecho <span class="muted">(espejado)</span></figcaption>
+          </figure>
+        </div>
+        <div class="sr-legend">
+          <span class="pw-legend__bar" style="background: <%= thermal.PALETTE_CSS.alto_contraste %>"></span>
+          <span class="pw-legend__ticks num"><span><%= fmt.num(rango.lo, 1) %> °C</span><span><%= fmt.num(rango.hi, 1) %> °C</span></span>
+        </div>
+        <p class="sr-caption">Temperatura de cada planta en la misma escala. El derecho se muestra espejado para compararlo punto a punto con el izquierdo.</p>
+      </div>
+      <div class="sr-maps__group sr-maps__group--dt">
         <figure class="pw-map pw-map--dt">
-          <canvas data-pw-map="<%= t.toma %>:dt" data-pw-src="<%= srcId %>" role="img" aria-label="Mapa de diferencias izquierdo menos derecho, toma <%= t.toma %>"></canvas>
-          <figcaption>ΔT izq. − der.</figcaption>
+          <canvas data-pw-map="<%= t.toma %>:dt" data-pw-src="<%= srcId %>" role="img" aria-label="Diferencia izquierdo menos derecho por punto, toma <%= t.toma %><%= m ? `: ${fmt.num(m.areaCalientePct, 1)} % de la planta supera ${u} °C` : '' %>"></canvas>
+          <figcaption>Diferencia izq. − der.</figcaption>
         </figure>
-        <div class="pw-legends">
-          <div class="pw-legend">
-            <span class="pw-legend__bar pw-legend__bar--temp" style="background: <%= thermal.PALETTE_CSS.alto_contraste %>"></span>
-            <span class="pw-legend__ticks num"><span><%= fmt.num(rango.lo, 1) %></span><span><%= fmt.num(rango.hi, 1) %> °C</span></span>
-            <span class="pw-legend__label">Temperatura (escala común)</span>
-          </div>
-          <div class="pw-legend">
-            <span class="pw-legend__bar pw-legend__bar--div"></span>
-            <span class="pw-legend__ticks num"><span>−3</span><span>0</span><span>+3 °C</span></span>
-            <span class="pw-legend__label">Azul: derecho más caliente · rojo: izquierdo · <span class="pw-swatch pw-swatch--line"></span> |ΔT| &gt; umbral · <span class="pw-swatch pw-swatch--gray"></span> sin par</span>
-          </div>
+        <div class="sr-legend">
+          <span class="pw-legend__bar pw-legend__bar--div"></span>
+          <span class="pw-legend__ticks num"><span>−3 °C</span><span>0</span><span>+3 °C</span></span>
+          <span class="sr-legend__ends"><span>der. más caliente</span><span>izq. más caliente</span></span>
         </div>
-      </div>
-
-      <div class="pw-stats">
-        <% if (m) { %>
-        <div class="pw-kpis">
-          <div class="pw-kpi pw-kpi--main<%= t.conAsimetria ? ' is-hot' : '' %>"><span class="num"><%= fmt.num(m.areaCalientePct, 1) %> %</span><small>del área con |ΔT| &gt; <%= fmt.num(PW.umbralPixel, 1) %> °C</small></div>
-          <div class="pw-kpi"><span class="num"><%= fmt.num(m.mediaAbs, 2) %></span><small>|ΔT| medio (°C)</small></div>
-          <div class="pw-kpi"><span class="num"><%= fmt.num(m.p95Abs, 2) %></span><small>|ΔT| p95 (°C)</small></div>
-          <div class="pw-kpi"><span class="num"><%= fmt.num(m.maxAbs, 2) %></span><small>|ΔT| máx. (°C)</small></div>
-        </div>
-        <p class="pw-hotspot"><%- include('icon', { name: 'thermo', size: 16 }) %><span>Punto de mayor diferencia (<span class="num"><%= fmt.signed(m.hotspot.deltaT, 1) %> °C</span>): <%= pw.hotspotTexto(m) %>.</span></p>
-        <h4 class="pw-sub">Distribución de |ΔT| por punto</h4>
-        <canvas class="pw-hist" data-pw-hist="<%= t.toma %>" data-pw-src="<%= srcId %>" data-height="130" role="img" aria-label="Histograma de la diferencia absoluta por punto, toma <%= t.toma %>: <%= fmt.num(m.areaCalientePct, 1) %> % sobre el umbral"></canvas>
-        <p class="muted small">Media con signo <span class="num"><%= fmt.signed(m.mediaConSigno, 2) %> °C</span> · <span class="num"><%= m.celdas %></span> puntos comparados<% if (t.calidad !== null) { %> · calidad de registro <span class="num"><%= fmt.num(t.calidad, 2) %></span><% } %>.</p>
-        <% } else { %>
-        <p class="muted">No hubo puntos comparables en ambos pies.</p>
-        <% } %>
+        <p class="sr-caption">Rojo: el pie izquierdo está más caliente en ese punto; azul: el derecho. <span class="pw-swatch pw-swatch--line"></span> más de <%= u %> °C de diferencia · <span class="pw-swatch pw-swatch--gray"></span> sin par · ◯ mayor diferencia.</p>
       </div>
     </div>
+    <% if (m) { %>
+    <p class="sr-panel__reading"><span class="toma-dot toma-dot--<%= t.toma %>"></span><span><strong>Toma <%= t.toma %>:</strong> <span class="num"><%= fmt.num(m.areaCalientePct, 0) %> %</span> de la planta con más de <%= u %> °C de diferencia. Mayor diferencia (<span class="num"><%= fmt.signed(m.hotspot.deltaT, 1) %> °C</span>) en <%= pw.hotspotTexto(m) %>.</span></p>
+    <% } else { %>
+    <p class="sr-panel__reading muted">No hubo puntos comparables en ambos pies.</p>
+    <% } %>
   </div>
   <% }) %>
-</section>
 
-<section class="card pw-change" aria-labelledby="pwc-title">
-  <div class="card__head">
-    <div>
-      <h2 id="pwc-title" class="card__title">Cambio toma 1 → toma 2</h2>
-      <p class="muted small pw__lead">Cada pie de la toma 2 registrado sobre el mismo pie de la toma 1: mapa T2 − T1 punto a punto. El color se centra en el cambio mediano de cada pie para resaltar los cambios locales.</p>
-    </div>
-    <% if (PW.cambio) { %><span class="muted small nowrap">Cambio local relevante &gt; <strong class="num"><%= fmt.num(PW.umbralCambio, 1) %> °C</strong></span><% } %>
-  </div>
-  <% if (!PW.tieneToma2) { %>
-  <div class="empty empty--inline pw-empty">
-    <%- include('icon', { name: 'calendar', size: 24 }) %>
-    <p><strong>Sin toma 2.</strong> Este estudio tiene sólo la termografía basal: el análisis punto a punto y el modelo usan la toma 1.</p>
-  </div>
-  <% } else { %>
-  <div class="pw-change__grid">
-    <% [['izq', 'Pie izquierdo'], ['der', 'Pie derecho']].forEach(([k, label]) => { const c = PW.cambio[k]; %>
-    <div class="pw-change__item">
-      <figure class="pw-map">
-        <canvas data-pw-map="cambio:<%= k %>" data-pw-src="<%= srcId %>" role="img" aria-label="Cambio de temperatura toma 2 menos toma 1, <%= label.toLowerCase() %>"></canvas>
-        <figcaption><%= label %></figcaption>
-      </figure>
-      <% if (c) { %>
-      <dl class="kv kv--compact pw-change__kv">
-        <div><dt>Cambio mediano</dt><dd class="num"><%= fmt.signed(c.mediana, 2) %> °C</dd></div>
-        <div><dt>|Cambio| p95</dt><dd class="num"><%= fmt.num(c.p95Abs, 2) %> °C</dd></div>
-        <div><dt>Cambio local</dt><dd><span class="num"><%= fmt.num(c.areaCambioLocalPct, 1) %> %</span> <small class="muted">del pie</small></dd></div>
-      </dl>
-      <% } %>
-    </div>
-    <% }) %>
-    <div class="pw-legend pw-legend--side">
-      <span class="pw-legend__bar pw-legend__bar--div"></span>
-      <span class="pw-legend__ticks num"><span>mediana − 3</span><span>mediana</span><span>mediana + 3 °C</span></span>
-      <span class="pw-legend__label">Rojo: subió más que el resto del pie · azul: subió menos (o bajó). El cambio mediano refleja sobre todo el ambiente y el día; «cambio local» cuenta los puntos que se apartan de él más de <%= fmt.num(PW.umbralCambio, 1) %> °C.</span>
+  <% if (PW.cambio) { %>
+  <div class="sr-panel" id="panel-cambio" role="tabpanel" aria-labelledby="tab-cambio" hidden>
+    <div class="sr-maps sr-maps--change">
+      <div class="sr-maps__group">
+        <div class="sr-maps__pair">
+          <% [['izq', 'Pie izquierdo'], ['der', 'Pie derecho']].forEach(([k, label]) => { const c = PW.cambio[k]; %>
+          <figure class="pw-map">
+            <canvas data-pw-map="cambio:<%= k %>" data-pw-src="<%= srcId %>" role="img" aria-label="Cambio de temperatura toma 2 menos toma 1, <%= label.toLowerCase() %>"></canvas>
+            <figcaption><%= label %><% if (c) { %> <span class="muted num"><%= fmt.signed(c.mediana, 1) %> °C</span><% } %></figcaption>
+          </figure>
+          <% }) %>
+        </div>
+      </div>
+      <div class="sr-maps__group sr-maps__group--dt">
+        <div class="sr-legend">
+          <span class="pw-legend__bar pw-legend__bar--div"></span>
+          <span class="pw-legend__ticks num"><span>−3 °C</span><span>mediana</span><span>+3 °C</span></span>
+          <span class="sr-legend__ends"><span>subió menos</span><span>subió más</span></span>
+        </div>
+        <p class="sr-caption">Cómo cambió cada pie de la toma 1 a la toma 2, comparado con su propio cambio mediano (el número junto a cada pie, que refleja sobre todo el ambiente y el día). Rojo: esa zona se calentó más que el resto del pie; azul: menos o se enfrió.</p>
+        <% const ci = PW.cambio.izq; const cd = PW.cambio.der; if (ci && cd) { %>
+        <p class="sr-panel__reading"><span>Cambio local (más de <%= fmt.num(PW.umbralCambio, 1) %> °C respecto de la mediana): <strong class="num"><%= fmt.num(ci.areaCambioLocalPct, 0) %> %</strong> del pie izquierdo y <strong class="num"><%= fmt.num(cd.areaCambioLocalPct, 0) %> %</strong> del derecho.</span></p>
+        <% } %>
+      </div>
     </div>
   </div>
   <% } %>

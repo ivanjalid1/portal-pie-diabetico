@@ -99,7 +99,7 @@ describe('Configuración de los parámetros del análisis', () => {
       const after = await container.repos.analyses.findByStudyId(a0.studyId);
       expect(after.parametros.umbral).toBe(1);
       const page = await medico.get(`/medico/estudios/${a0.studyId}`);
-      expect(page.text).toMatch(/Umbral por región <span class="num">1,0 °C/);
+      expect(page.text).not.toMatch(/Umbral por región/);
       expect(page.text).toMatch(/Umbral por punto <strong class="num">1,0 °C/);
     });
 
@@ -125,7 +125,8 @@ describe('Configuración de los parámetros del análisis', () => {
       const [entry] = await container.repos.audit.list({ action: EVENTS.ANALYSES_RECALCULATED });
       expect(entry.detail).toMatch(/\d+ estudios recalculados/);
       const page = await medico.get(`/medico/estudios/${all[0].studyId}`);
-      expect(page.text).toMatch(/Umbral por región <span class="num">2,2 °C/);
+      expect(page.text).toMatch(/Umbral por punto <strong class="num">1,0 °C/);
+      expect(page.text).not.toContain('2,2 °C');
       const csv = await medico.get('/medico/pacientes/exportar.csv');
       expect(csv.text).toContain('CORTE SIMETRIA');
     });

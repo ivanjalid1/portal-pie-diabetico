@@ -152,3 +152,37 @@ describe('Marca «sin consentimiento» de la planilla', () => {
     }
   });
 });
+
+describe('Lectura en lenguaje simple del resultado', () => {
+  const pwv = require('../../src/utils/pointwiseView');
+  const N = P.GRID.w * P.GRID.h;
+  const grids = (hot) => {
+    const izq = new Float32Array(N).fill(30);
+    const der = new Float32Array(N).fill(30);
+    // Metatarso (filas 20–41): el pie izquierdo 2 °C más caliente en `hot` filas.
+    for (let r = 22; r < 22 + hot; r += 1) for (let c = 0; c < P.GRID.w; c += 1) izq[r * P.GRID.w + c] = 32;
+    return { izq: P.encodeGrid(izq), der: P.encodeGrid(der) };
+  };
+
+  it('nombra el pie más caliente y la zona donde se concentra la diferencia', () => {
+    const pwA = analyzePointwise({ toma1: grids(4), toma2: grids(15) }, { umbralPixel: 1, areaMinima: 10 });
+    const t2 = pwA.tomas[1];
+    const l = pwv.lecturaToma(t2, 1);
+    expect(l.pie).toBe('izquierdo');
+    expect(l.zona).toBe('metatarso');
+    expect(l.frase).toBe(
+      'El 15 % de la planta del pie izquierdo está más de 1,0 °C más caliente que el derecho, sobre todo en el metatarso.',
+    );
+    const AnalysisResult = require('../../src/models/AnalysisResult');
+    const a = new AnalysisResult({ studyId: 's', probabilidad: 10, categoria: 'bajo', puntual: pwA });
+    expect(pwv.cambioArea(a)).toMatchObject({ delta: 11, sentido: 'aumentó' });
+  });
+
+  it('describe pies parecidos y las zonas no analizadas con artículo', () => {
+    const pwA = analyzePointwise({ toma1: grids(0) }, { umbralPixel: 1 });
+    expect(pwv.lecturaToma(pwA.tomas[0], 1).frase).toMatch(/^Los dos pies tienen temperaturas parecidas/);
+    expect(pwv.noAnalizadoTexto({ zonasNoAnalizadas: ['dedos'] })).toBe('no se analizaron los dedos');
+    expect(pwv.noAnalizadoTexto({ zonasNoAnalizadas: ['talon'] })).toBe('no se analizó el talón');
+    expect(pwv.noAnalizadoTexto({ zonasNoAnalizadas: [] })).toBeNull();
+  });
+});

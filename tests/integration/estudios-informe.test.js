@@ -121,7 +121,10 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
 
       const inf = await paciente.get(`/paciente/estudios/${publicado.id}/informe`);
       expect(inf.status).toBe(200);
-      expect(inf.text).toMatch(/orientativo/);
+      expect(inf.text).toContain('Mi informe de termografía');
+      // Sin frases de descargo en las vistas del paciente.
+      expect(inf.text).not.toMatch(/orientativo|No es un diagnóstico/);
+      expect(det.text).not.toMatch(/orientativo|No es un diagnóstico/);
 
       await container.repos.studies.update(publicado.id, { publicado: false });
       const oculto = await paciente.get(`/paciente/estudios/${publicado.id}/informe`);

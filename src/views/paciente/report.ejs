@@ -23,7 +23,6 @@
       <div class="brand"><img src="/img/logo.svg" alt="" width="36" height="36"><span class="brand__text"><strong><%= appName %></strong><small>Termografía plantar</small></span></div>
       <div class="report__meta"><strong>Mi informe de termografía</strong><span><%= p.nombreCompleto %> · <%= fmt.dateLong(s.fechaHora) %></span></div>
     </header>
-    <p class="report__disclaimer">Resultado orientativo, parte de un proyecto de investigación (FCEFyN – UNC). No es un diagnóstico: tu médico interpreta el estudio junto con tu revisión clínica.</p>
     <% const t = a.puntualActual; const m = t && t.metricas; const z = t ? pw.zonasTexto(t) : null; %>
     <section class="report__result">
       <div class="report__big">

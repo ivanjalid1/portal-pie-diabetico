@@ -12,6 +12,11 @@
   if (PW.cambio) tabs.push({ id: 'cambio', label: 'Cambio', sub: 'T2 − T1' });
   const activa = `t${PW.tomaActual}`;
   const conTabs = tabs.length > 1;
+  const DIV = 'linear-gradient(90deg, #2563a6 0%, #9dbbe0 30%, #f7f7f7 50%, #eba59f 70%, #d0342c 100%)';
+  const divTicks = [-3, -2, -1, 0, 1, 2, 3].map((v) => [(v + 3) / 6, v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '0']);
+  const thrMarks = PW.umbralPixel < 3 ? [(3 - PW.umbralPixel) / 6, (3 + PW.umbralPixel) / 6] : [];
+  const mid = (rango.lo + rango.hi) / 2;
+  const tempTicks = [[0, fmt.num(rango.lo, 1)], [0.5, fmt.num(mid, 1)], [1, `${fmt.num(rango.hi, 1)} °C`]];
 %>
 <script type="application/json" id="<%= srcId %>" data-pw-data><%- pw.json(data) %></script>
 
@@ -39,27 +44,25 @@
             <figcaption>Pie izquierdo</figcaption>
           </figure>
           <figure class="pw-map">
-            <canvas data-pw-map="<%= t.toma %>:der" data-pw-src="<%= srcId %>" role="img" aria-label="Temperatura del pie derecho espejado, toma <%= t.toma %>"></canvas>
-            <figcaption>Pie derecho <span class="muted">(espejado)</span></figcaption>
+            <canvas data-pw-map="<%= t.toma %>:der" data-pw-src="<%= srcId %>" role="img" aria-label="Temperatura del pie derecho, toma <%= t.toma %>"></canvas>
+            <figcaption>Pie derecho</figcaption>
           </figure>
         </div>
-        <div class="sr-legend">
-          <span class="pw-legend__bar" style="background: <%= thermal.PALETTE_CSS.alto_contraste %>"></span>
-          <span class="pw-legend__ticks num"><span><%= fmt.num(rango.lo, 1) %> °C</span><span><%= fmt.num(rango.hi, 1) %> °C</span></span>
-        </div>
-        <p class="sr-caption">Temperatura de cada planta en la misma escala. El derecho se muestra espejado para compararlo punto a punto con el izquierdo.</p>
+        <%- include('scale', { gradient: thermal.PALETTE_CSS.alto_contraste, ticks: tempTicks, label: `Escala de temperatura de ${fmt.num(rango.lo, 1)} a ${fmt.num(rango.hi, 1)} °C` }) %>
+        <p class="sr-caption">Temperatura de cada planta, con la misma escala para los dos pies.</p>
       </div>
       <div class="sr-maps__group sr-maps__group--dt">
         <figure class="pw-map pw-map--dt">
           <canvas data-pw-map="<%= t.toma %>:dt" data-pw-src="<%= srcId %>" role="img" aria-label="Diferencia izquierdo menos derecho por punto, toma <%= t.toma %><%= m ? `: ${fmt.num(m.areaCalientePct, 1)} % de la planta supera ${u} °C` : '' %>"></canvas>
           <figcaption>Diferencia izq. − der.</figcaption>
         </figure>
-        <div class="sr-legend">
-          <span class="pw-legend__bar pw-legend__bar--div"></span>
-          <span class="pw-legend__ticks num"><span>−3 °C</span><span>0</span><span>+3 °C</span></span>
-          <span class="sr-legend__ends"><span>der. más caliente</span><span>izq. más caliente</span></span>
-        </div>
-        <p class="sr-caption">Rojo: el pie izquierdo está más caliente en ese punto; azul: el derecho. <span class="pw-swatch pw-swatch--line"></span> más de <%= u %> °C de diferencia · <span class="pw-swatch pw-swatch--gray"></span> sin par · ◯ mayor diferencia.</p>
+        <%- include('scale', { gradient: DIV, ticks: divTicks, marks: thrMarks, ends: ['der. más caliente', 'izq. más caliente'], label: 'Escala de diferencia de −3 a +3 °C' }) %>
+        <p class="sr-caption">Rojo: el pie izquierdo está más caliente en ese punto; azul: el derecho (°C).</p>
+        <ul class="sr-keys">
+          <li><span class="sr-key sr-key--line" aria-hidden="true"></span>Más de <%= u %> °C</li>
+          <li><span class="sr-key sr-key--hatch" aria-hidden="true"></span>Sin par</li>
+          <li><span class="sr-key sr-key--spot" aria-hidden="true"></span>Mayor diferencia</li>
+        </ul>
       </div>
     </div>
     <% if (m) { %>
@@ -78,18 +81,17 @@
           <% [['izq', 'Pie izquierdo'], ['der', 'Pie derecho']].forEach(([k, label]) => { const c = PW.cambio[k]; %>
           <figure class="pw-map">
             <canvas data-pw-map="cambio:<%= k %>" data-pw-src="<%= srcId %>" role="img" aria-label="Cambio de temperatura toma 2 menos toma 1, <%= label.toLowerCase() %>"></canvas>
-            <figcaption><%= label %><% if (c) { %> <span class="muted num"><%= fmt.signed(c.mediana, 1) %> °C</span><% } %></figcaption>
+            <figcaption><%= label %><% if (c) { %><span class="sr-fig-sub">mediana <span class="num"><%= fmt.signed(c.mediana, 1) %> °C</span></span><% } %></figcaption>
           </figure>
           <% }) %>
         </div>
       </div>
-      <div class="sr-maps__group sr-maps__group--dt">
-        <div class="sr-legend">
-          <span class="pw-legend__bar pw-legend__bar--div"></span>
-          <span class="pw-legend__ticks num"><span>−3 °C</span><span>mediana</span><span>+3 °C</span></span>
-          <span class="sr-legend__ends"><span>subió menos</span><span>subió más</span></span>
-        </div>
-        <p class="sr-caption">Cómo cambió cada pie de la toma 1 a la toma 2, comparado con su propio cambio mediano (el número junto a cada pie, que refleja sobre todo el ambiente y el día). Rojo: esa zona se calentó más que el resto del pie; azul: menos o se enfrió.</p>
+      <div class="sr-maps__group sr-maps__group--side">
+        <%- include('scale', { gradient: DIV, ticks: [[0, '−3'], [0.5, 'mediana'], [1, '+3 °C']], ends: ['subió menos', 'subió más'], label: 'Escala de cambio respecto de la mediana del pie, de −3 a +3 °C' }) %>
+        <p class="sr-caption">Cómo cambió cada pie de la toma 1 a la toma 2, comparado con su propio cambio mediano (que refleja sobre todo el ambiente y el día). Rojo: esa zona se calentó más que el resto del pie; azul: menos o se enfrió.</p>
+        <ul class="sr-keys">
+          <li><span class="sr-key sr-key--hatch" aria-hidden="true"></span>Sin dato en una de las tomas</li>
+        </ul>
         <% const ci = PW.cambio.izq; const cd = PW.cambio.der; if (ci && cd) { %>
         <p class="sr-panel__reading"><span>Cambio local (más de <%= fmt.num(PW.umbralCambio, 1) %> °C respecto de la mediana): <strong class="num"><%= fmt.num(ci.areaCambioLocalPct, 0) %> %</strong> del pie izquierdo y <strong class="num"><%= fmt.num(cd.areaCambioLocalPct, 0) %> %</strong> del derecho.</span></p>
         <% } %>

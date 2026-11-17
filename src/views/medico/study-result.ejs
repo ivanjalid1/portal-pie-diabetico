@@ -190,6 +190,7 @@
       <h3 id="tech-params" class="card__subtitle">Método y parámetros</h3>
       <dl class="kv kv--compact">
         <div><dt>Registro</dt><dd>Ambos pies segmentados, el derecho espejado y alineados por centroide, eje principal y escala en una grilla de <span class="num"><%= PW.grilla.w %> × <%= PW.grilla.h %></span>.</dd></div>
+        <div><dt>Mapas</dt><dd>Se dibujan con interpolación bilineal entre puntos medidos (sin extrapolar) y el contorno del umbral sobre |ΔT| levemente suavizado; las métricas usan la grilla original.</dd></div>
         <div><dt>Umbral</dt><dd>Umbral por punto <strong class="num"><%= fmt.num(PW.umbralPixel, 1) %> °C</strong></dd></div>
         <div><dt>Área mínima</dt><dd><span class="num"><%= fmt.num(PW.areaMinima, 0) %> %</span> de la planta para marcar asimetría</dd></div>
         <div><dt>Cambio local</dt><dd>&gt; <span class="num"><%= fmt.num(PW.umbralCambio, 1) %> °C</span> respecto del cambio mediano del pie</dd></div>

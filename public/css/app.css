@@ -7917,7 +7917,7 @@ body.has-savebar {
 }
 
 .report__pwmaps .pw-map {
-  width: 120px;
+  width: 150px;
 }
 
 /* Resumen punto a punto para el paciente */
@@ -8213,25 +8213,120 @@ body.has-savebar {
   gap: 12px;
 }
 
+.sr-visual .pw-map {
+  padding: 12px 8px 10px;
+  gap: 4px;
+}
+
 .sr-visual .pw-map canvas {
-  max-width: 150px;
+  max-width: 220px;
 }
 
 .sr-visual .pw-map figcaption {
   text-align: center;
 }
 
-.sr-legend {
-  display: grid;
-  gap: 3px;
+.sr-fig-sub {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 450;
+  color: var(--muted);
 }
 
-.sr-legend__ends {
+.sr-scale {
+  display: grid;
+  gap: 4px;
+  padding: 2px 0 0;
+}
+
+.sr-scale__bar {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgb(15 30 44 / 0.1);
+}
+
+.sr-scale__mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--text);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.85);
+}
+
+.sr-scale__ticks {
+  position: relative;
+  height: 1.1em;
+  font-size: 0.72rem;
+  color: var(--text-2);
+}
+
+.sr-scale__tick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.sr-scale__tick.is-first {
+  transform: none;
+}
+
+.sr-scale__tick.is-last {
+  transform: translateX(-100%);
+}
+
+.sr-scale__ends {
   display: flex;
   justify-content: space-between;
   gap: 8px;
   font-size: 0.72rem;
   color: var(--muted);
+}
+
+.sr-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.78rem;
+  color: var(--text-2);
+}
+
+.sr-keys li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sr-key {
+  display: inline-block;
+  width: 14px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.sr-key--line {
+  background: var(--danger-soft);
+  box-shadow:
+    inset 0 0 0 1.25px var(--text),
+    inset 0 0 0 2.5px rgb(255 255 255 / 0.7);
+}
+
+.sr-key--hatch {
+  background: repeating-linear-gradient(-45deg, rgb(96 114 133 / 0.45) 0 1px, #eef2f7 1px 4.5px);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.sr-key--spot {
+  width: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--text) 0 2px, #fff 2.5px 4.5px, var(--text) 5px 6px, transparent 6.5px);
 }
 
 .sr-caption {
@@ -8313,10 +8408,25 @@ body.has-savebar {
   .sr-maps {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* El mapa de diferencias conserva el tamaño de los otros dos; la leyenda va al lado. */
   .sr-maps__group--dt {
-    max-width: 360px;
-    width: 100%;
-    justify-self: center;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 8px;
+    align-items: start;
+  }
+  .sr-maps__group--dt > .pw-map {
+    grid-row: span 4;
+  }
+  .sr-maps__group--dt .sr-scale__tick:nth-child(2),
+  .sr-maps__group--dt .sr-scale__tick:nth-child(6) {
+    display: none;
+  }
+  .sr-maps__group--dt .sr-scale__ends {
+    flex-direction: column;
+    gap: 0;
+  }
+  .sr-maps__group--dt .sr-scale__ends span:last-child {
+    text-align: right;
   }
 }
 

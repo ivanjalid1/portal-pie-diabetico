@@ -1,0 +1,18 @@
+<%
+  // Barra de color con marcas numéricas (°C). Parámetros:
+  //   gradient: fondo CSS de la barra · ticks: [[posición 0..1, texto]]
+  //   marks (opcional): posiciones de marcas finas sobre la barra (umbral)
+  //   ends (opcional): [texto izquierdo, texto derecho] · label: descripción accesible
+  const mk = typeof marks === 'undefined' ? [] : marks;
+  const en = typeof ends === 'undefined' ? null : ends;
+  const pct = (x) => `${Math.round(x * 10000) / 100}%`;
+%>
+<div class="sr-scale" role="img" aria-label="<%= label %>">
+  <div class="sr-scale__bar" style="background: <%= gradient %>">
+    <% mk.forEach((m) => { %><span class="sr-scale__mark" style="left: <%= pct(m) %>"></span><% }) %>
+  </div>
+  <div class="sr-scale__ticks num" aria-hidden="true">
+    <% ticks.forEach(([pos, txt], i) => { %><span class="sr-scale__tick<%= i === 0 ? ' is-first' : i === ticks.length - 1 ? ' is-last' : '' %>" style="left: <%= pct(pos) %>"><%= txt %></span><% }) %>
+  </div>
+  <% if (en) { %><div class="sr-scale__ends" aria-hidden="true"><span><%= en[0] %></span><span><%= en[1] %></span></div><% } %>
+</div>

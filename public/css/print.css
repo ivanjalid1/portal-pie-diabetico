@@ -69,13 +69,6 @@
   font-size: 15px;
 }
 
-.report__disclaimer {
-  padding: 8px 10px;
-  border-left: 3px solid #9a5c06;
-  background: #fbf0dc;
-  font-size: 12px;
-}
-
 .report__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -85,6 +78,11 @@
 .report__grid--map {
   grid-template-columns: 0.9fr 1.1fr;
   align-items: center;
+}
+
+.report__scale {
+  max-width: 340px;
+  margin: 4px 0 6px;
 }
 
 .report__summary h2 {

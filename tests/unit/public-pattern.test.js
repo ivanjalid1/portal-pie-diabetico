@@ -3,9 +3,11 @@
 const { GRID, encodeGrid } = require('../../src/imaging/pointwise');
 const { canonicalFromCrop, parseCsvMatrix, needsFlip } = require('../../src/imaging/footCrop');
 const { patternFeatures, INVARIANT_KEYS } = require('../../src/imaging/thermalPattern');
-const { cellAngiosoma, geometricAngiosoma, ANGIOSOMA_METODO } = require('../../src/imaging/tci');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { cellAngiosoma, geometricAngiosoma, loadAtlas, ATLAS_PATH, ANGIOSOMA_METODO } = require('../../src/imaging/tci');
 const { predictPattern, loadPatternModel, patternModelInfo } = require('../../src/services/predictors/diabeticPattern');
-const atlas = require('../../src/config/models/angiosome-atlas.json');
 
 /** Pie sintético recortado (elipse), con la mitad medial a la izquierda si `medialIzq`. */
 function syntheticCrop({ w = 60, h = 160, medialIzq = true, base = 28 } = {}) {
@@ -66,23 +68,37 @@ describe('Base pública: registro de pies recortados a la grilla canónica', () 
   });
 });
 
-describe('Atlas de angiosomas (base pública 2019)', () => {
-  test('el TCI usa el atlas y cubre toda la grilla', () => {
-    expect(ANGIOSOMA_METODO).toMatch(/atlas/);
-    const keys = ['', 'MPA', 'LPA', 'MCA', 'LCA'];
-    let iguales = 0;
-    let conEtiqueta = 0;
+describe('Atlas de angiosomas (base pública 2019, sólo local)', () => {
+  test('sin atlas local se usa la aproximación geométrica y cubre toda la grilla', () => {
+    expect(loadAtlas('')).toBeNull();
+    expect(loadAtlas(path.join(os.tmpdir(), 'no-existe-atlas.json'))).toBeNull();
     for (let r = 0; r < GRID.h; r += 1) {
-      for (let c = 0; c < GRID.w; c += 1) {
-        expect(cellAngiosoma(r, c)).not.toBeNull();
-        const k = Number(atlas.filas[r][c]);
-        if (!k) continue;
-        conEtiqueta += 1;
-        if (cellAngiosoma(r, c).key === keys[k]) iguales += 1;
-      }
+      for (let c = 0; c < GRID.w; c += 1) expect(cellAngiosoma(r, c)).not.toBeNull();
     }
-    expect(iguales).toBe(conEtiqueta);
     expect(geometricAngiosoma(10, 30).key).toBe('MPA');
+    if (!fs.existsSync(ATLAS_PATH)) expect(ANGIOSOMA_METODO).toBe('aproximación geométrica');
+  });
+
+  test('un atlas válido se carga y completa los bordes sin etiqueta', () => {
+    // Atlas sintético: MPA en la mitad medial, LPA en la lateral, borde vacío.
+    const filas = [];
+    for (let r = 0; r < GRID.h; r += 1) {
+      let row = '';
+      for (let c = 0; c < GRID.w; c += 1) row += c === 0 ? '0' : c >= GRID.w / 2 ? '1' : '2';
+      filas.push(row);
+    }
+    const file = path.join(os.tmpdir(), `atlas-test-${process.pid}.json`);
+    fs.writeFileSync(file, JSON.stringify({ filas, pies: 2, acuerdoMedio: 0.9 }));
+    try {
+      const a = loadAtlas(file);
+      expect(a.pies).toBe(2);
+      expect(a.table[5 * GRID.w + 30].key).toBe('MPA');
+      expect(a.table[5 * GRID.w + 0].key).toBe('LPA'); // borde: vecino más cercano
+      fs.writeFileSync(file, JSON.stringify({ filas: filas.slice(1) }));
+      expect(loadAtlas(file)).toBeNull(); // tamaño inválido
+    } finally {
+      fs.unlinkSync(file);
+    }
   });
 });
 

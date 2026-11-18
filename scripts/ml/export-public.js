@@ -21,7 +21,7 @@
  *   atlas.json   etiqueta de angiosoma mayoritaria por celda de la grilla
  *                (1 MPA, 2 LPA, 3 MCA, 4 LCA, 0 sin dato) y su acuerdo
  *
- * Con --atlas además escribe src/config/models/angiosome-atlas.json (sólo la
+ * Con --atlas además escribe data-local/models/angiosome-atlas.json (sólo la
  * etiqueta mayoritaria por celda: un agregado, sin temperaturas ni sujetos),
  * que usa src/imaging/tci.js para ubicar los angiosomas en la grilla.
  *
@@ -38,7 +38,7 @@ const BASE = path.join(ROOT, 'data-local', 'public', 'hernandez2019');
 const ARGS = process.argv.slice(2);
 const DIR_ARG = ARGS.find((a) => !a.startsWith('--'));
 const SRC = DIR_ARG ? path.resolve(DIR_ARG) : path.join(BASE, 'ThermoDataBase');
-const ATLAS_DEST = path.join(ROOT, 'src', 'config', 'models', 'angiosome-atlas.json');
+const ATLAS_DEST = path.join(ROOT, 'data-local', 'models', 'angiosome-atlas.json');
 const OUT = path.join(BASE, 'derived');
 const GRUPOS = [
   ['Control Group', 'CG'],
@@ -165,6 +165,7 @@ function main() {
       acuerdoMedio: Math.round((acuerdo / celdas) * 1000) / 1000,
       filas,
     };
+    fs.mkdirSync(path.dirname(ATLAS_DEST), { recursive: true });
     fs.writeFileSync(
       ATLAS_DEST,
       `${JSON.stringify(doc, null, 2)}

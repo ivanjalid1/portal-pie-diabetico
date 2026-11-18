@@ -25,10 +25,11 @@
  * Adaptaciones de este portal (documentadas en docs/arquitectura.md §8.4):
  *  - Angiosomas por ATLAS: cada celda de la grilla canónica toma la etiqueta
  *    mayoritaria de los angiosomas de la base pública de 2019, registrados a
- *    la misma grilla (src/config/models/angiosome-atlas.json, generado por
- *    scripts/ml/export-public.js). En las celdas del borde sin etiqueta se usa
- *    la etiqueta más cercana de la misma fila. Si falta el atlas, se usa la
- *    aproximación geométrica: MPA = mitad medial de 0–70 % del largo, LPA =
+ *    la misma grilla (data-local/models/angiosome-atlas.json, generado por
+ *    scripts/ml/export-public.js --atlas; derivado de la base pública, por eso
+ *    sólo vive en local y no se versiona). En las celdas del borde sin
+ *    etiqueta se usa la etiqueta más cercana de la misma fila. Si falta el
+ *    atlas (CI, Vercel, otra máquina), se usa la aproximación geométrica: MPA = mitad medial de 0–70 % del largo, LPA =
  *    mitad lateral, MCA / LCA = mitades medial / lateral del talón.
  *  - Versión PUNTO A PUNTO: desvío por celda D = T(pie) − T(referencia) y
  *    TCI puntual = media de |D| en las celdas con dato. El mapa D es el «mapa
@@ -41,6 +42,8 @@
  *    de nivel. Por eso se informa también el TCI «de patrón», que descuenta la
  *    mediana de cada pie y no depende del nivel.
  */
+const fs = require('node:fs');
+const path = require('node:path');
 const { GRID } = require('./pointwise');
 
 /** Angiosomas aproximados: [clave, desde, hasta (fracción del largo), lado]. */
@@ -90,11 +93,18 @@ const geometricAngiosoma = (r, c) => {
 
 const ATLAS_KEYS = [null, 'MPA', 'LPA', 'MCA', 'LCA'];
 
+/** Ubicación del atlas local (ANGIOSOME_ATLAS la reemplaza; vacía = sin atlas). */
+const ATLAS_PATH =
+  process.env.ANGIOSOME_ATLAS !== undefined
+    ? process.env.ANGIOSOME_ATLAS
+    : path.join(__dirname, '..', '..', 'data-local', 'models', 'angiosome-atlas.json');
+
 /** Tabla celda → angiosoma desde el atlas (o null si no está o es inválido). */
-function loadAtlas() {
+function loadAtlas(file = ATLAS_PATH) {
   let doc;
   try {
-    doc = require('../config/models/angiosome-atlas.json');
+    if (!file) return null;
+    doc = JSON.parse(fs.readFileSync(file, 'utf8'));
   } catch {
     return null;
   }
@@ -264,5 +274,7 @@ module.exports = {
   claseTci,
   cellAngiosoma,
   geometricAngiosoma,
+  loadAtlas,
+  ATLAS_PATH,
   ANGIOSOMA_METODO,
 };

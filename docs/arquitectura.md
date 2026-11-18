@@ -394,9 +394,9 @@ TCI = ( Σ_a | CG_a − DM_a | ) / 4, con a ∈ {MPA, LPA, MCA, LCA}
 
 Implementación (`src/imaging/tci.js`), sobre la grilla canónica registrada:
 
-- **Angiosomas por atlas** (`src/config/models/angiosome-atlas.json`). La base pública 2019 trae los angiosomas de cada pie. Se registraron sus 334 pies a la misma grilla canónica y cada celda toma la etiqueta mayoritaria (acuerdo medio entre pies: 0,968).
+- **Angiosomas por atlas** (`data-local/models/angiosome-atlas.json`, sólo local: deriva de la base pública y no se versiona; se regenera con `node scripts/ml/export-public.js --atlas`, y `ANGIOSOME_ATLAS` cambia la ruta). La base pública 2019 trae los angiosomas de cada pie. Se registraron sus 334 pies a la misma grilla canónica y cada celda toma la etiqueta mayoritaria (acuerdo medio entre pies: 0,968).
   - En la base, LPA cubre dedos, antepié y borde lateral; MPA, el arco medial (≈ 33–60 % del largo); el talón (MCA / LCA) empieza en ≈ 60 %.
-  - La aproximación geométrica anterior (mitades medial / lateral de 0–70 % y del talón) coincidía con el atlas sólo en el 63 % de las celdas. Queda como respaldo si falta el atlas; en las celdas del borde se usa la etiqueta más cercana de la misma fila.
+  - La aproximación geométrica anterior (mitades medial / lateral de 0–70 % y del talón) coincidía con el atlas sólo en el 63 % de las celdas. Queda como respaldo si falta el atlas (CI, Vercel, otra máquina); en las celdas del borde se usa la etiqueta más cercana de la misma fila.
 - **Versión punto a punto:** desvío por celda D = T(pie) − T(referencia). Es el mapa de la pestaña «TCI». También se calculan:
   - el TCI puntual: media de |D|;
   - el TCI de patrón: media de |D − mediana(D)|, sin el nivel general del pie.

@@ -39,6 +39,7 @@ const {
   REFERENCE_FILE,
   CRITERIO_COHORTE,
   selectReferenceMembers,
+  publicControlMembers,
   loadReferenceStore,
   referenceFor,
 } = require('../src/services/predictors/tciReference');
@@ -339,14 +340,18 @@ function main() {
     const t = tomas.map((x) => `t${x.toma}:${x.ok ? x.calidad : 'falla'}`).join(' ');
     process.stdout.write(`[${n}/${codigos.length}] ${codigo} ${t}\n`);
   }
-  // Patrón de referencia del TCI: pacientes más simétricos de la cohorte (toma 1).
-  const miembros = selectReferenceMembers(pacientes, CRITERIO_COHORTE);
+  // Patrón de referencia del TCI: grupo control de la base pública 2019 si está
+  // en local (TCI_REFERENCIA=cohorte fuerza la alternativa); si no, los
+  // pacientes más simétricos de la cohorte (toma 1).
+  const publicos = process.env.TCI_REFERENCIA === 'cohorte' ? [] : publicControlMembers();
+  const fuente = publicos.length ? 'hernandez2019' : 'cohorte';
+  const miembros = publicos.length ? publicos : selectReferenceMembers(pacientes, CRITERIO_COHORTE);
   fs.writeFileSync(
     path.join(OUT, REFERENCE_FILE),
     JSON.stringify({
-      _aviso: 'Grillas de pacientes reales. Local: no versionar.',
-      fuente: 'cohorte',
-      criterio: CRITERIO_COHORTE,
+      _aviso: 'Grillas de referencia (pacientes reales o base pública). Local: no versionar.',
+      fuente,
+      criterio: fuente === 'cohorte' ? CRITERIO_COHORTE : 'Grupo control de la base pública (todos los sujetos)',
       miembros,
     }),
   );
@@ -359,7 +364,7 @@ function main() {
       t.tci = serializeTci(computeTci(decodeGrid(t.izq), decodeGrid(t.der), ref));
     }
   }
-  console.log(`Referencia TCI: ${miembros.length} pacientes (criterio de simetría; LOO al puntuar a un miembro)`);
+  console.log(`Referencia TCI (${fuente}): ${miembros.length} miembros`);
   const dataset = {
     _aviso: 'DATOS REALES DE PACIENTES. Local: no versionar, no publicar, no desplegar.',
     generado: new Date().toISOString(),

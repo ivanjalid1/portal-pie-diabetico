@@ -22,17 +22,24 @@
  * describe la mayoría y lo que da sentido a las clases (TCI ≥ 0). El TCI del
  * estudio es el promedio de ambos pies; también se informa el de cada pie.
  *
- * Adaptaciones de este portal (documentadas en docs/arquitectura.md §8.3):
- *  - Angiosomas APROXIMADOS en la grilla canónica (no hay segmentación
- *    anatómica): MPA = mitad medial de dedos–arco (0–70 % del largo), LPA =
- *    mitad lateral de dedos–arco, MCA / LCA = mitades medial / lateral del
- *    talón (70–100 %).
+ * Adaptaciones de este portal (documentadas en docs/arquitectura.md §8.4):
+ *  - Angiosomas por ATLAS: cada celda de la grilla canónica toma la etiqueta
+ *    mayoritaria de los angiosomas de la base pública de 2019, registrados a
+ *    la misma grilla (src/config/models/angiosome-atlas.json, generado por
+ *    scripts/ml/export-public.js). En las celdas del borde sin etiqueta se usa
+ *    la etiqueta más cercana de la misma fila. Si falta el atlas, se usa la
+ *    aproximación geométrica: MPA = mitad medial de 0–70 % del largo, LPA =
+ *    mitad lateral, MCA / LCA = mitades medial / lateral del talón.
  *  - Versión PUNTO A PUNTO: desvío por celda D = T(pie) − T(referencia) y
  *    TCI puntual = media de |D| en las celdas con dato. El mapa D es el «mapa
  *    de desvío» que se muestra.
- *  - Referencia: por ahora, los pacientes más simétricos de la cohorte (ver
- *    `REFERENCE_SOURCES`). Al calcular el TCI de un paciente que integra la
- *    referencia, se lo excluye (leave-one-out) para no compararlo consigo.
+ *  - Referencia: el grupo control de la base pública (ver `REFERENCE_SOURCES`).
+ *    Con la referencia de la cohorte, al calcular el TCI de un paciente que la
+ *    integra se lo excluye (leave-one-out) para no compararlo consigo.
+ *  - La cámara y la escala de temperatura de la base pública no son las del
+ *    portal (cuentas → °C aproximado): el TCI absoluto arrastra esa diferencia
+ *    de nivel. Por eso se informa también el TCI «de patrón», que descuenta la
+ *    mediana de cada pie y no depende del nivel.
  */
 const { GRID } = require('./pointwise');
 
@@ -54,15 +61,17 @@ const CLASES = Object.freeze([
 ]);
 
 /**
- * Fuentes del patrón de referencia. `cohorte` está implementada; la base
- * pública de Hernández-Contreras et al. (2019, «Plantar Thermogram Database
- * for the Study of Diabetic Foot Complications», IEEE Access 7, 161296) queda
- * como punto de extensión: hay que registrar sus termogramas del grupo control
- * a esta misma grilla canónica y pasarlos a `buildReference` como miembros.
+ * Fuentes del patrón de referencia. Por defecto, el grupo control (45
+ * sujetos sin diabetes) de la base pública de Hernández-Contreras et al.
+ * (2019, «Plantar Thermogram Database for the Study of Diabetic Foot
+ * Complications», IEEE Access 7, 161296; CC BY 4.0), registrado a esta misma
+ * grilla canónica (scripts/ml/export-public.js). Si la base no está en local,
+ * los pacientes más simétricos de la cohorte.
  */
 const REFERENCE_SOURCES = Object.freeze({
   cohorte: 'Pacientes más simétricos de la cohorte (|ΔT general| < 1 °C en la planilla y área caliente baja)',
-  hernandez2019: 'Grupo control de la base pública Hernández-Contreras et al. 2019 (no incorporada todavía)',
+  hernandez2019:
+    'Grupo control (45 sujetos sin diabetes) de la base pública Hernández-Contreras et al. 2019, registrado a la grilla canónica',
 });
 
 /** Fracción mínima de miembros con dato para usar una celda de la referencia. */
@@ -72,11 +81,46 @@ const CELDAS_MINIMAS = 20;
 
 const valid = Number.isFinite;
 
-const cellAngiosoma = (r, c) => {
+/** Aproximación geométrica (sin atlas). */
+const geometricAngiosoma = (r, c) => {
   const f = r / (GRID.h - 1);
   const medial = c >= GRID.w / 2;
   return ANGIOSOMAS.find((a) => f >= a.desde && f < a.hasta && (a.lado === 'medial') === medial) || null;
 };
+
+const ATLAS_KEYS = [null, 'MPA', 'LPA', 'MCA', 'LCA'];
+
+/** Tabla celda → angiosoma desde el atlas (o null si no está o es inválido). */
+function loadAtlas() {
+  let doc;
+  try {
+    doc = require('../config/models/angiosome-atlas.json');
+  } catch {
+    return null;
+  }
+  const filas = doc?.filas;
+  if (!Array.isArray(filas) || filas.length !== GRID.h || filas.some((f) => f.length !== GRID.w)) return null;
+  const byKey = Object.fromEntries(ANGIOSOMAS.map((a) => [a.key, a]));
+  const table = new Array(GRID.w * GRID.h).fill(null);
+  for (let r = 0; r < GRID.h; r += 1) {
+    const row = filas[r];
+    for (let c = 0; c < GRID.w; c += 1) {
+      let k = Number(row[c]);
+      // Borde sin etiqueta: la más cercana de la misma fila.
+      for (let d = 1; !k && d < GRID.w; d += 1) k = Number(row[c - d] || 0) || Number(row[c + d] || 0);
+      table[r * GRID.w + c] = k ? byKey[ATLAS_KEYS[k]] : geometricAngiosoma(r, c);
+    }
+  }
+  return { table, acuerdoMedio: doc.acuerdoMedio ?? null, pies: doc.pies ?? null };
+}
+
+const ATLAS = loadAtlas();
+/** Cómo se ubican los angiosomas en la grilla (se informa en el detalle técnico). */
+const ANGIOSOMA_METODO = ATLAS
+  ? `atlas de la base pública 2019 (${ATLAS.pies} pies registrados, acuerdo medio ${String(ATLAS.acuerdoMedio).replace('.', ',')})`
+  : 'aproximación geométrica';
+
+const cellAngiosoma = (r, c) => (ATLAS ? ATLAS.table[r * GRID.w + c] : geometricAngiosoma(r, c));
 
 /**
  * Patrón de referencia por celda: promedio de ambos pies (el derecho ya está
@@ -219,4 +263,6 @@ module.exports = {
   deviationGrid,
   claseTci,
   cellAngiosoma,
+  geometricAngiosoma,
+  ANGIOSOMA_METODO,
 };

@@ -537,6 +537,9 @@ module.exports = {
   celsiusImage,
   labelsToMasks,
   plausibleMasks,
+  sampleCanonical,
+  lengthFrames,
+  flipX,
 };
 
 /**

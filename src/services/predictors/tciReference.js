@@ -3,8 +3,12 @@
 /**
  * Patrón de referencia para el TCI (src/imaging/tci.js).
  *
- * Fuente actual: los pacientes MÁS SIMÉTRICOS de la cohorte, a falta de un
- * grupo control propio. Criterio (toma 1):
+ * Fuente por defecto: el GRUPO CONTROL de la base pública Hernández-Contreras
+ * et al. 2019 (45 sujetos sin diabetes; data-local/public/hernandez2019/,
+ * registrada con scripts/ml/export-public.js). Ver `publicControlMembers`.
+ *
+ * Alternativa (si la base pública no está en local): los pacientes MÁS
+ * SIMÉTRICOS de la cohorte. Criterio (toma 1):
  *  - no marcado «no válido» en la planilla y segmentación sin aviso (calidad ≥ 0,6);
  *  - |ΔT general| < 1 °C según la planilla de la Parte 1 (hoja «DifT°»);
  *  - área con |ΔT| > 1 °C menor al 10 % en el análisis punto a punto.
@@ -16,9 +20,6 @@
  * (data-local/real/tci-reference.json). Sin esa carpeta (demo, CI, Vercel)
  * se arma una referencia de DEMOSTRACIÓN con la toma 1 de los pares demo
  * anonimizados (src/seed/demoPointwise.json).
- *
- * Punto de extensión: `fuente: 'hernandez2019'` (base pública de
- * Hernández-Contreras et al. 2019) — ver REFERENCE_SOURCES en tci.js.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -64,6 +65,35 @@ function selectReferenceMembers(pacientes, criterio = CRITERIO_COHORTE) {
     out.push({ id: p.codigo, izq: t1.izq, der: t1.der });
   }
   return out;
+}
+
+/** Grillas derivadas de la base pública (scripts/ml/export-public.js). */
+const PUBLIC_GRIDS = path.join(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  'data-local',
+  'public',
+  'hernandez2019',
+  'derived',
+  'grids.json',
+);
+
+/**
+ * Miembros de la referencia tomados del grupo control de la base pública
+ * (grillas en base64). Devuelve [] si la base no está en local.
+ */
+function publicControlMembers(file = PUBLIC_GRIDS) {
+  if (!file || !fs.existsSync(file)) return [];
+  try {
+    const { sujetos } = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return (sujetos || [])
+      .filter((s) => s.grupo === 'CG' && s.izq && s.der)
+      .map((s) => ({ id: `pub-${s.id}`, izq: s.izq, der: s.der }));
+  } catch {
+    return [];
+  }
 }
 
 const decodeMembers = (members) => members.map((m) => ({ id: m.id, izq: decodeGrid(m.izq), der: decodeGrid(m.der) }));
@@ -121,6 +151,8 @@ module.exports = {
   REFERENCE_FILE,
   CRITERIO_COHORTE,
   selectReferenceMembers,
+  publicControlMembers,
+  PUBLIC_GRIDS,
   loadReferenceStore,
   referenceFor,
   demoStore,

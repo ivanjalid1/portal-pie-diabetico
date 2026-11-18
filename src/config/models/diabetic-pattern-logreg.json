@@ -1,0 +1,172 @@
+{
+  "_descripcion": "Modelo de PATRÓN TÉRMICO (regresión logística L2) entrenado con la base pública Hernández-Contreras et al. 2019 (IEEE DataPort, DOI 10.21227/tm4t-9n15, CC BY 4.0): diabetes vs control. NO predice úlcera. Generado por scripts/ml/train_public.py; sólo parámetros y métricas agregadas.",
+  "version": "patron-dm-v1",
+  "generado": "2026-11-17",
+  "etiqueta": "Patrón térmico compatible con pie diabético (diabetes vs control en la base pública)",
+  "noPredice": "No predice úlcera ni riesgo de úlcera.",
+  "C": 1.0,
+  "intercepto": 2.029,
+  "features": [
+    {
+      "key": "relMPA",
+      "nombre": "Arteria plantar medial − mediana del pie",
+      "unidad": "°C",
+      "media": 0.6409,
+      "desvio": 0.6879,
+      "imputacion": 0.6409,
+      "coef": -1.1832
+    },
+    {
+      "key": "relLPA",
+      "nombre": "Arteria plantar lateral − mediana del pie",
+      "unidad": "°C",
+      "media": -0.0067,
+      "desvio": 0.483,
+      "imputacion": -0.0067,
+      "coef": -0.6736
+    },
+    {
+      "key": "relMCA",
+      "nombre": "Arteria calcánea medial − mediana del pie",
+      "unidad": "°C",
+      "media": -0.0844,
+      "desvio": 0.8091,
+      "imputacion": -0.0844,
+      "coef": -0.7073
+    },
+    {
+      "key": "relLCA",
+      "nombre": "Arteria calcánea lateral − mediana del pie",
+      "unidad": "°C",
+      "media": -0.3673,
+      "desvio": 0.7262,
+      "imputacion": -0.3673,
+      "coef": -0.2201
+    },
+    {
+      "key": "dedosRel",
+      "nombre": "Dedos − mediana del pie",
+      "unidad": "°C",
+      "media": -0.4031,
+      "desvio": 1.2504,
+      "imputacion": -0.4031,
+      "coef": 0.9293
+    },
+    {
+      "key": "talonRel",
+      "nombre": "Talón − mediana del pie",
+      "unidad": "°C",
+      "media": -0.4772,
+      "desvio": 0.773,
+      "imputacion": -0.4772,
+      "coef": 0.7084
+    },
+    {
+      "key": "iqr",
+      "nombre": "Rango intercuartil dentro del pie",
+      "unidad": "°C",
+      "media": 1.5802,
+      "desvio": 0.5966,
+      "imputacion": 1.5802,
+      "coef": 0.8655
+    },
+    {
+      "key": "rango90",
+      "nombre": "Rango 5–95 % dentro del pie",
+      "unidad": "°C",
+      "media": 3.8472,
+      "desvio": 1.4016,
+      "imputacion": 3.8472,
+      "coef": -0.7417
+    },
+    {
+      "key": "difNivel",
+      "nombre": "Diferencia de nivel entre pies",
+      "unidad": "°C",
+      "media": 0.6346,
+      "desvio": 0.7097,
+      "imputacion": 0.6346,
+      "coef": 0.4004
+    },
+    {
+      "key": "asimPatron",
+      "nombre": "Asimetría de patrón (sin nivel)",
+      "unidad": "°C",
+      "media": 0.5198,
+      "desvio": 0.23,
+      "imputacion": 0.5198,
+      "coef": 0.4965
+    },
+    {
+      "key": "areaCalientePct",
+      "nombre": "Área con |ΔT| > 1 °C",
+      "unidad": "%",
+      "media": 26.3246,
+      "desvio": 25.6405,
+      "imputacion": 26.3246,
+      "coef": 1.2128
+    },
+    {
+      "key": "mediaAbs",
+      "nombre": "|ΔT| medio entre pies",
+      "unidad": "°C",
+      "media": 0.7987,
+      "desvio": 0.6288,
+      "imputacion": 0.7987,
+      "coef": 0.4844
+    },
+    {
+      "key": "p95Abs",
+      "nombre": "|ΔT| percentil 95",
+      "unidad": "°C",
+      "media": 1.7684,
+      "desvio": 1.0179,
+      "imputacion": 1.7684,
+      "coef": -0.6559
+    }
+  ],
+  "validacion": {
+    "metodo": "5 pliegues estratificados por sujeto × 20 repeticiones, C anidado",
+    "n": 167,
+    "positivos": 122,
+    "auc": 0.911,
+    "aucIC95": [0.862, 0.948],
+    "pPermutacion": 0.005,
+    "aucEdadSola": 0.969,
+    "subgrupoEdad": {
+      "criterio": "30–60 años, predicción fuera de pliegue de patron_lr",
+      "n": 93,
+      "positivos": 80,
+      "auc": 0.865,
+      "aucIC95": [0.757, 0.95],
+      "aucEdadSola": 0.878
+    }
+  },
+  "externa": {
+    "nota": "Cohorte del portal (todos con diabetes; sin controles: no hay AUC). Distribución del puntaje del modelo final.",
+    "n": 73,
+    "percentiles_10_25_50_75_90": [0.466, 0.608, 0.831, 0.91, 0.978],
+    "fraccionMayor50": 0.836,
+    "basePublicaDM": [0.574, 0.868, 0.954, 0.988, 0.997],
+    "basePublicaCG": [0.045, 0.122, 0.29, 0.538, 0.714],
+    "porCentro": {
+      "Clínica Reina Fabiola": {
+        "n": 14,
+        "mediana": 0.486
+      },
+      "Hospital Córdoba": {
+        "n": 54,
+        "mediana": 0.857
+      },
+      "Hospital Ferreyra": {
+        "n": 5,
+        "mediana": 0.835
+      }
+    }
+  },
+  "limitaciones": [
+    "Los controles de la base son más jóvenes que los sujetos con diabetes: parte de la discriminación puede deberse a la edad.",
+    "Otra cámara, otro protocolo y otra población (México); en el portal la conversión a °C es aproximada. Por eso sólo se usan features relativas al propio pie y contralaterales.",
+    "Un termograma por pie y por sujeto; sin seguimiento: no hay información de úlceras."
+  ]
+}

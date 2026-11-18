@@ -85,5 +85,234 @@
     "p95Abs": 0.507
   },
   "eleccion": null,
-  "conclusion": "Ningún modelo muestra una señal convincente: ningún IC 95 % queda por encima de 0,5 y el modelo actual queda por debajo del azar (sin señal, con el sesgo negativo de la validación cruzada en muestras chicas). El TCI absoluto va en sentido contrario a la hipótesis y se confunde con el centro de atención. El portal mantiene el modelo preliminar, rotulado «no validado»."
+  "conclusion": "Con el desenlace sustituto (HbA1c > 7 %) ningún modelo muestra una señal convincente; el TCI absoluto se confunde con el centro de atención. Por eso el portal ya no muestra esa probabilidad: muestra el patrón térmico compatible con pie diabético, entrenado con etiqueta real en la base pública (no predice úlcera).",
+  "ajustado": {
+    "desenlace": "HbA1c > 7 % (sustituto)",
+    "metodo": "Features invariantes a la adquisición; 5 pliegues estratificados por desenlace × centro × 20 repeticiones, C anidado. «Dentro de centro»: AUC calculada dentro de cada centro con ≥ 3 casos por clase y ponderada por n (no mezcla centros).",
+    "n": 53,
+    "positivos": 35,
+    "modelos": [
+      {
+        "modelo": "control_centro",
+        "nombre": "Control: sólo el centro de atención",
+        "auc": 0.636,
+        "aucIC95": [0.502, 0.764],
+        "aucDentroDeCentro": 0.5,
+        "pPermutacionDentroDeCentro": null
+      },
+      {
+        "modelo": "contralateral",
+        "nombre": "Contralateral: área, |ΔT| medio y p95, diferencia de nivel, asimetría de patrón",
+        "auc": 0.385,
+        "aucIC95": [0.278, 0.492],
+        "aucDentroDeCentro": 0.293,
+        "pPermutacionDentroDeCentro": null
+      },
+      {
+        "modelo": "contralateral_mas_centro",
+        "nombre": "Contralateral + centro",
+        "auc": 0.533,
+        "aucIC95": [0.389, 0.676],
+        "aucDentroDeCentro": 0.248,
+        "pPermutacionDentroDeCentro": null
+      },
+      {
+        "modelo": "normalizado",
+        "nombre": "Normalizado por sujeto (T − mediana del pie, por angiosoma y zona)",
+        "auc": 0.634,
+        "aucIC95": [0.486, 0.771],
+        "aucDentroDeCentro": 0.636,
+        "pPermutacionDentroDeCentro": null
+      },
+      {
+        "modelo": "normalizado_mas_centro",
+        "nombre": "Normalizado + centro",
+        "auc": 0.662,
+        "aucIC95": [0.513, 0.796],
+        "aucDentroDeCentro": 0.602,
+        "pPermutacionDentroDeCentro": null
+      },
+      {
+        "modelo": "normalizado_z",
+        "nombre": "Normalizado z (÷ rango intercuartil)",
+        "auc": 0.582,
+        "aucIC95": [0.419, 0.731],
+        "aucDentroDeCentro": 0.588,
+        "pPermutacionDentroDeCentro": null
+      },
+      {
+        "modelo": "normalizado_z_mas_centro",
+        "nombre": "Normalizado z + centro",
+        "auc": 0.637,
+        "aucIC95": [0.48, 0.79],
+        "aucDentroDeCentro": 0.587,
+        "pPermutacionDentroDeCentro": null
+      },
+      {
+        "modelo": "invariante",
+        "nombre": "Todas las invariantes",
+        "auc": 0.668,
+        "aucIC95": [0.53, 0.799],
+        "aucDentroDeCentro": 0.717,
+        "pPermutacionDentroDeCentro": 0.069
+      },
+      {
+        "modelo": "invariante_mas_centro",
+        "nombre": "Todas las invariantes + centro",
+        "auc": 0.69,
+        "aucIC95": [0.543, 0.819],
+        "aucDentroDeCentro": 0.71,
+        "pPermutacionDentroDeCentro": null
+      },
+      {
+        "modelo": "tci_patron_directo",
+        "nombre": "TCI de patrón (referencia: controles públicos), directo",
+        "auc": 0.563,
+        "aucIC95": [0.394, 0.734],
+        "aucDentroDeCentro": 0.43,
+        "pPermutacionDentroDeCentro": null
+      },
+      {
+        "modelo": "tci_absoluto_directo",
+        "nombre": "TCI absoluto (referencia: controles públicos), directo",
+        "auc": 0.472,
+        "aucIC95": [0.284, 0.672],
+        "aucDentroDeCentro": 0.608,
+        "pPermutacionDentroDeCentro": null
+      },
+      {
+        "modelo": "patron_diabetico_directo",
+        "nombre": "Puntaje del modelo de patrón diabético, directo",
+        "auc": 0.64,
+        "aucIC95": [0.473, 0.795],
+        "aucDentroDeCentro": 0.504,
+        "pPermutacionDentroDeCentro": null
+      }
+    ],
+    "conclusion": "Con features invariantes, la mejor variante (todas las invariantes) llega a AUC 0,67 (IC 0,53–0,80) y 0,72 dentro de cada centro, pero la permutación del desenlace dentro de cada centro no la distingue del azar (p ≈ 0,07) y se probaron 11 variantes: es exploratorio, no un modelo validado. El TCI (absoluto o de patrón) contra los controles públicos no tiene señal, y el puntaje de patrón diabético sólo discrimina entre centros (0,50 dentro de centro)."
+  },
+  "basePublica": {
+    "etiqueta": "Diabetes vs control (Hernández-Contreras et al. 2019, CC BY 4.0)",
+    "metodo": "Un sujeto por fila; 5 pliegues estratificados × 20 repeticiones, C anidado (CNN: 5 × 4). IC 95 % por bootstrap de sujetos.",
+    "modelos": [
+      {
+        "modelo": "patron_lr",
+        "nombre": "Logística sobre features invariantes (la del portal)",
+        "auc": 0.911,
+        "aucIC95": [0.862, 0.948],
+        "n": 167,
+        "positivos": 122,
+        "pPermutacion": 0.005
+      },
+      {
+        "modelo": "nivel",
+        "nombre": "Temperatura absoluta del pie (no trasladable)",
+        "auc": 0.817,
+        "aucIC95": [0.752, 0.878],
+        "n": 167,
+        "positivos": 122,
+        "pPermutacion": null
+      },
+      {
+        "modelo": "patron_mas_nivel_lr",
+        "nombre": "Invariantes + temperatura absoluta (no trasladable)",
+        "auc": 0.915,
+        "aucIC95": [0.866, 0.952],
+        "n": 167,
+        "positivos": 122,
+        "pPermutacion": null
+      },
+      {
+        "modelo": "tci_base",
+        "nombre": "TCI publicado en la base",
+        "auc": 0.846,
+        "aucIC95": [0.786, 0.902],
+        "n": 167,
+        "positivos": 122,
+        "pPermutacion": null
+      },
+      {
+        "modelo": "tci_clase",
+        "nombre": "Clase de TCI publicada (1–5)",
+        "auc": 0.829,
+        "aucIC95": [0.771, 0.881],
+        "n": 167,
+        "positivos": 122,
+        "pPermutacion": null
+      },
+      {
+        "modelo": "control_edad",
+        "nombre": "Control: edad sola",
+        "auc": 0.969,
+        "aucIC95": [0.941, 0.99],
+        "n": 167,
+        "positivos": 122,
+        "pPermutacion": null
+      },
+      {
+        "modelo": "patron_mas_edad_lr",
+        "nombre": "Invariantes + edad",
+        "auc": 0.985,
+        "aucIC95": [0.97, 0.996],
+        "n": 167,
+        "positivos": 122,
+        "pPermutacion": null
+      },
+      {
+        "modelo": "cnn_rel",
+        "nombre": "CNN chica sobre mapas relativos",
+        "auc": 0.892,
+        "aucIC95": [0.838, 0.935],
+        "n": 167,
+        "positivos": 122,
+        "pPermutacion": null
+      }
+    ],
+    "subgrupoEdad": {
+      "criterio": "30–60 años, predicción fuera de pliegue de patron_lr",
+      "n": 93,
+      "positivos": 80,
+      "auc": 0.865,
+      "aucIC95": [0.757, 0.95],
+      "aucEdadSola": 0.878
+    },
+    "tciClases": {
+      "CG": {
+        "1": 32,
+        "2": 9,
+        "3": 4,
+        "4": 0,
+        "5": 0
+      },
+      "DM": {
+        "1": 26,
+        "2": 18,
+        "3": 15,
+        "4": 22,
+        "5": 41
+      }
+    },
+    "externa": {
+      "nota": "Cohorte del portal (todos con diabetes; sin controles: no hay AUC). Distribución del puntaje del modelo final.",
+      "n": 73,
+      "percentiles_10_25_50_75_90": [0.466, 0.608, 0.831, 0.91, 0.978],
+      "fraccionMayor50": 0.836,
+      "basePublicaDM": [0.574, 0.868, 0.954, 0.988, 0.997],
+      "basePublicaCG": [0.045, 0.122, 0.29, 0.538, 0.714],
+      "porCentro": {
+        "Clínica Reina Fabiola": {
+          "n": 14,
+          "mediana": 0.486
+        },
+        "Hospital Córdoba": {
+          "n": 54,
+          "mediana": 0.857
+        },
+        "Hospital Ferreyra": {
+          "n": 5,
+          "mediana": 0.835
+        }
+      }
+    }
+  }
 }

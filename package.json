@@ -16,7 +16,10 @@
     "train:model": "node scripts/train-pointwise-model.js",
     "generate:pointwise": "node scripts/generate-demo-pointwise.js",
     "ml:export": "node scripts/ml/export-seg-data.js",
-    "ml:features": "node scripts/ml/export-features.js"
+    "ml:features": "node scripts/ml/export-features.js",
+    "ml:public": "node scripts/ml/export-public.js --atlas",
+    "ml:pattern": "node scripts/ml/export-pattern-features.js",
+    "ml:summary": "node scripts/ml/summarize-comparison.js"
   },
   "license": "MIT",
   "dependencies": {

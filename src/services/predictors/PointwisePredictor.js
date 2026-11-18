@@ -5,6 +5,8 @@ const MockUlcerPredictor = require('./MockUlcerPredictor');
 const { analyzePointwise } = require('./pointwiseAnalysis');
 const { loadModel, featureVector, applyModel, COMPARISON_PATH } = require('./pointwiseModel');
 const { loadReferenceStore, referenceFor } = require('./tciReference');
+const { loadPatternModel, predictPattern, patternModelInfo } = require('./diabeticPattern');
+const { ANGIOSOMA_METODO, REFERENCE_SOURCES } = require('../../imaging/tci');
 const { categoryFor, DELTA_T_UMBRAL, thermalGroup } = require('../../config/domain');
 const { DEFAULT_PARAMS } = require('../../config/settings');
 
@@ -55,8 +57,10 @@ class PointwisePredictor extends UlcerPredictor {
     fallback = new MockUlcerPredictor(),
     realDataDir = null,
     tciStore = null,
+    patternModel = loadPatternModel(),
   } = {}) {
     super();
+    this.patternModel = patternModel;
     this.model = model;
     this.umbral = umbral;
     this.fallback = fallback;
@@ -75,10 +79,15 @@ class PointwisePredictor extends UlcerPredictor {
     return {
       id: 'puntual',
       version: 'puntual-v1',
-      nombre: 'Análisis punto a punto + modelo preliminar',
+      nombre: 'Análisis punto a punto + patrón térmico (base pública)',
       descripcion:
-        'Segmenta ambos pies, espeja el derecho, los registra (centroide, eje principal y escala) y compara punto a punto; la probabilidad proviene de una regresión logística preliminar.',
+        'Segmenta ambos pies, espeja el derecho, los registra (centroide, eje principal y escala) y compara punto a punto. Informa además si el patrón térmico es compatible con pie diabético (modelo entrenado con la base pública 2019, diabetes vs control; no predice úlcera). La categoría sale del hallazgo térmico.',
       comparacion: loadModel(COMPARISON_PATH),
+      patronDm: patternModelInfo(this.patternModel),
+      tci: {
+        angiosomas: ANGIOSOMA_METODO,
+        referencia: REFERENCE_SOURCES[this.tciStore?.fuente] || this.tciStore?.descripcion || null,
+      },
       modelo: this.model
         ? {
             version: this.model.version,
@@ -148,6 +157,16 @@ class PointwisePredictor extends UlcerPredictor {
           tomaUsada: actual.toma,
         }
       : null;
+
+    // Patrón térmico compatible con pie diabético (modelo con etiqueta real de la
+    // base pública). Se informa aparte: NO es riesgo de úlcera y no cambia la categoría.
+    puntual.patronDm = predictPattern(this.patternModel, actual);
+    for (const t of puntual.tomas) {
+      t.patronDm =
+        t === actual
+          ? (puntual.patronDm?.probabilidad ?? null)
+          : (predictPattern(this.patternModel, t)?.probabilidad ?? null);
+    }
 
     const modeloValido = Boolean(this.model) && (v?.auc ?? 0) >= AUC_MINIMA_MODELO && probabilidad !== null;
     puntual.categoriaPor = modeloValido ? 'modelo' : 'hallazgo_termico';

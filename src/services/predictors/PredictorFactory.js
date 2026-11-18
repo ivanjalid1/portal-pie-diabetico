@@ -5,11 +5,14 @@ const PointwisePredictor = require('./PointwisePredictor');
 const TciPointwisePredictor = require('./TciPointwisePredictor');
 const LiteratureRiskPredictor = require('./LiteratureRiskPredictor');
 const TrainedOutcomePredictor = require('./TrainedOutcomePredictor');
+const RiskFactorLiteraturePredictor = require('./RiskFactorLiteraturePredictor');
+const riskFactorCnn = require('./riskFactorCnn');
 const { LogisticRegressionPredictor, CnnPredictor } = require('./FuturePredictors');
 
 const REGISTRY = {
   'riesgo-bibliografia': (opts) => new LiteratureRiskPredictor(opts),
   'riesgo-entrenado': (opts) => new TrainedOutcomePredictor(opts),
+  'riesgo-neuropatia': (opts) => new RiskFactorLiteraturePredictor(opts),
   puntual: (opts) => new PointwisePredictor(opts),
   'puntual-tci': (opts) => new TciPointwisePredictor(opts),
   mock: () => new MockUlcerPredictor(),
@@ -24,12 +27,17 @@ const REGISTRY = {
  * lesión, AUC ≥ 0,7 con IC inferior > 0,5), se usa `riesgo-entrenado`.
  * RIESGO_MODELO = bibliografia lo impide; = entrenado lo fuerza (si el modelo
  * no está validado, igual cae en el riesgo bibliográfico estudio a estudio).
+ * Si no hay modelo de lesión validado pero sí la CNN de neuropatía validada
+ * (riskFactorCnn.js, §8.10), se usa `riesgo-neuropatia`: el mismo riesgo
+ * bibliográfico con el prior IWGDF estimado por la CNN cuando falta el dato.
  */
-function resolvePredictorName(name = 'riesgo-bibliografia', { modo = 'auto', outcomeModel } = {}) {
+function resolvePredictorName(name = 'riesgo-bibliografia', { modo = 'auto', outcomeModel, riskFactorModel } = {}) {
   if (name !== 'riesgo-bibliografia' || modo === 'bibliografia') return name;
   if (modo === 'entrenado') return 'riesgo-entrenado';
   const model = outcomeModel === undefined ? TrainedOutcomePredictor.loadOutcomeModel() : outcomeModel;
-  return TrainedOutcomePredictor.isValidated(model) ? 'riesgo-entrenado' : name;
+  if (TrainedOutcomePredictor.isValidated(model)) return 'riesgo-entrenado';
+  const rf = riskFactorModel === undefined ? riskFactorCnn.loadRiskFactorModel() : riskFactorModel;
+  return riskFactorCnn.isValidated(rf) ? 'riesgo-neuropatia' : name;
 }
 
 /** Fábrica de estrategias de predicción seleccionadas por `PREDICTOR`. */

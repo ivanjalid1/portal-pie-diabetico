@@ -16,7 +16,11 @@
  *                                       izquierdo y del derecho, máscara (ambos con dato)
  *   data-local/ml/pattern-cohorte.json  fila por paciente con toma 1 analizable:
  *                                       código (sólo para agrupar), centro, desenlaces,
- *                                       «no válido», TCI contra la referencia y features
+ *                                       «no válido», TCI contra la referencia, features
+ *                                       de la toma 1 y de la toma 2 (si existe),
+ *                                       factores de riesgo de úlcera de la planilla
+ *                                       (neuropatía, isquemia, úlcera previa…) y
+ *                                       covariables (edad, años de diabetes, tipo)
  *   data-local/ml/pattern-cohorte.npy   ídem mapas de la cohorte
  * No se exportan nombres ni datos identificatorios.
  */
@@ -27,6 +31,7 @@ const { decodeGrid, GRID } = require('../../src/imaging/pointwise');
 const { patternFeatures } = require('../../src/imaging/thermalPattern');
 const { sinConsentimiento } = require('../../src/seed/realData');
 const { PUBLIC_GRIDS } = require('../../src/services/predictors/tciReference');
+const { smoothedDelta, contiguousHot } = require('../../src/imaging/hotspot');
 
 const ROOT = path.join(__dirname, '..', '..');
 const DATASET = path.join(ROOT, 'data-local', 'real', 'dataset.json');
@@ -104,8 +109,29 @@ function exportCohorte() {
     const der = decodeGrid(t1.der);
     const features = patternFeatures(izq, der);
     if (!features) continue;
+    features.hotMax = contiguousHot(smoothedDelta(izq, der))?.asimetria ?? null;
+    const t2 = p.tomas.find((t) => t.toma === 2 && t.ok);
+    let features2 = null;
+    if (t2) {
+      const i2 = decodeGrid(t2.izq);
+      const d2 = decodeGrid(t2.der);
+      features2 = patternFeatures(i2, d2);
+      if (features2) features2.hotMax = contiguousHot(smoothedDelta(i2, d2))?.asimetria ?? null;
+    }
     const c = p.clinica || {};
     const bin = (v) => (v === null || v === undefined ? null : v ? 1 : 0);
+    const num = (v) => (Number.isFinite(v) ? v : null);
+    const falta = (v) => v === null || v === undefined;
+    const ulceraPrevia =
+      falta(c.ulceraPreviaDer) && falta(c.ulceraPreviaIzq) ? null : c.ulceraPreviaDer || c.ulceraPreviaIzq ? 1 : 0;
+    // IWGDF ≥ 1: LOPS (neuropatía) o EAP (isquemia) o úlcera previa. Sin dato de neuropatía queda sin dato.
+    const iwgdf1 = falta(c.neuropatia)
+      ? c.isquemia || ulceraPrevia
+        ? 1
+        : null
+      : c.neuropatia || c.isquemia || ulceraPrevia
+        ? 1
+        : 0;
     filas.push({
       fila: filas.length,
       grupo: p.codigo,
@@ -116,11 +142,24 @@ function exportCohorte() {
       desenlaces: {
         hba1c7: c.hba1c === null || c.hba1c === undefined ? null : c.hba1c > 7 ? 1 : 0,
         lesion: bin(c.generoLesion),
+        // Factores de riesgo de úlcera establecidos (IWGDF 2023) registrados en la planilla.
+        neuropatia: bin(c.neuropatia),
+        isquemia: bin(c.isquemia),
+        ulceraPrevia,
+        iwgdf1,
+        insulina: bin(c.insulinorequiriente),
+        dm10: Number.isFinite(c.aniosEvolucionDm) ? (c.aniosEvolucionDm >= 10 ? 1 : 0) : null,
+      },
+      covariables: {
+        edad: num(c.edad),
+        aniosDm: num(c.aniosEvolucionDm),
+        tipo1: falta(c.tipoDm) ? null : /^I$/i.test(String(c.tipoDm).trim()) ? 1 : 0,
       },
       tci: t1.tci?.valor ?? null,
       tciPatron: t1.tci?.patron ?? null,
       tciFuente: t1.tci?.referencia?.fuente ?? null,
       features,
+      features2,
     });
     maps.push(relMaps(izq, der));
   }

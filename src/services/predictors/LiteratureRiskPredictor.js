@@ -80,9 +80,15 @@ class LiteratureRiskPredictor extends PointwisePredictor {
     };
   }
 
+  /** Parámetros del riesgo; las subclases pueden agregar datos estimados (p. ej. probNeuropatia). */
+  // eslint-disable-next-line no-unused-vars
+  riskParams(out, input) {
+    return out.parametros || {};
+  }
+
   async predict(input) {
     const out = await super.predict(input);
-    const p = out.parametros || {};
+    const p = this.riskParams(out, input);
     const res = LiteratureRiskPredictor.applyRisk(out, input.patient, p);
     return { ...res, predictorVersion: this.info.version };
   }

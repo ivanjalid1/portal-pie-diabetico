@@ -144,7 +144,10 @@ class SettingsService {
         if (a.puntual.categoriaPor === 'hallazgo_termico') categoria = categoriaTermica(actual, params);
         if (a.puntual.categoriaPor === 'riesgo_bibliografia') {
           const patient = await this.#patientOf(a.studyId);
-          categoria = LiteratureRiskPredictor.applyRisk({ puntual: pw }, patient, params).categoria ?? categoria;
+          // La probabilidad de neuropatía de la CNN (§8.10) no depende de los parámetros: se reutiliza.
+          const pn = a.puntual.factorRiesgo?.probabilidad;
+          const rp = Number.isFinite(pn) ? { ...params, probNeuropatia: pn / 100 } : params;
+          categoria = LiteratureRiskPredictor.applyRisk({ puntual: pw }, patient, rp).categoria ?? categoria;
         }
       }
       riesgo[categoria] += 1;

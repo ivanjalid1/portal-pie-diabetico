@@ -185,7 +185,8 @@ function categoriaRiesgo(probabilidad, cortes) {
  *   asimetria: zona caliente contigua de la ÚLTIMA toma (estado actual);
  *   confirmada: la persistente entre toma 1 y toma 2 (null con una sola toma).
  * @param {object} patient
- * @param {object} params  horizonteSemanas, priorIwgdf0..3, grupoIwgdfDefecto, modoRiesgo
+ * @param {object} params  horizonteSemanas, priorIwgdf0..3, grupoIwgdfDefecto, modoRiesgo,
+ *   probNeuropatia (0–1, opcional: sólo se usa si falta el dato de neuropatía)
  *
  * Valor central: LR de la banda de la última toma. Rango: IC del LR; si la
  * banda no está confirmada por la otra toma (o hay una sola), el límite
@@ -196,7 +197,14 @@ function literatureRisk(hallazgo, patient, params = {}) {
   const semanas = params.horizonteSemanas ?? 8;
   const modo = MODOS[params.modoRiesgo] ? params.modoRiesgo : 'graduado';
   const g = iwgdfGroup(patient, Number(params.grupoIwgdfDefecto ?? 1));
-  const pr = priorsAt(params)[g.grupo];
+  const priors = priorsAt(params);
+  let pr = priors[g.grupo];
+  // Sin dato de neuropatía: si hay una probabilidad de neuropatía estimada por un
+  // modelo entrenado con la cohorte (riskFactorCnn.js), el prior es la mezcla
+  // p × prior(IWGDF 1) + (1 − p) × prior(IWGDF 0) en lugar del grupo por defecto.
+  const pn = params.probNeuropatia;
+  const estimado = g.porDefecto && Boolean(patient) && Number.isFinite(pn);
+  if (estimado) pr = pn * priors[1] + (1 - pn) * priors[0];
   const bs = bandas(modo);
   const asimetria = hallazgo.asimetria ?? 0;
   const b = bandaDe(asimetria, bs);
@@ -212,9 +220,10 @@ function literatureRisk(hallazgo, patient, params = {}) {
     probabilidad,
     rango,
     horizonteSemanas: semanas,
-    grupoIwgdf: g.grupo,
-    grupoMotivo: g.motivo,
-    grupoPorDefecto: g.porDefecto,
+    grupoIwgdf: estimado ? (pn >= 0.5 ? 1 : 0) : g.grupo,
+    grupoMotivo: estimado ? 'neuropatía estimada por el termograma' : g.motivo,
+    grupoPorDefecto: estimado ? false : g.porDefecto,
+    grupoEstimado: estimado ? { probNeuropatia: Math.round(pn * 1000) / 10 } : null,
     prior: pct(pr),
     asimetria,
     asimetriaConfirmada: conf,

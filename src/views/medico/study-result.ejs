@@ -91,7 +91,7 @@
     <p class="sr-risk__meta">
       <% if (R.rango) { %><span class="num">(<%= pw.riesgoRango(R.rango) %>)</span><% } %>
       <span class="badge badge--<%= cat.tono %>"><span class="dot" aria-hidden="true"></span><%= cat.nombre %></span>
-      <% if (R.grupoIwgdf !== null && R.grupoIwgdf !== undefined) { %><span class="badge badge--outline">IWGDF <%= R.grupoIwgdf %><%= R.bib && R.bib.grupoPorDefecto ? ' (supuesto)' : '' %></span><% } %>
+      <% if (R.grupoIwgdf !== null && R.grupoIwgdf !== undefined) { %><span class="badge badge--outline">IWGDF <%= R.grupoIwgdf %><%= R.bib && R.bib.grupoPorDefecto ? ' (supuesto)' : R.bib && R.bib.grupoEstimado ? ' (estimado)' : '' %></span><% } %>
     </p>
   </div>
   <% } %>
@@ -214,7 +214,10 @@
       <h3 id="tech-risk" class="card__subtitle">Riesgo de úlcera: cálculo</h3>
       <dl class="kv kv--compact">
         <div><dt>Fórmula</dt><dd>odds(riesgo) = odds(prior IWGDF) × LR de la banda de asimetría (un solo LR; teorema de Bayes)</dd></div>
-        <div><dt>Prior</dt><dd>IWGDF <%= RB.grupoIwgdf %> (<%= RB.grupoMotivo %>): <span class="num"><%= pw.riesgoPct(RB.prior) %></span> en <%= pw.horizonteTexto(RB.horizonteSemanas) %>, desde la úlcera a 3 años de Peters y Lavery 2001 con riesgo constante</dd></div>
+        <div><dt>Prior</dt><dd>IWGDF <%= RB.grupoIwgdf %> (<%= RB.grupoMotivo %>): <span class="num"><%= pw.riesgoPct(RB.prior) %></span> en <%= pw.horizonteTexto(RB.horizonteSemanas) %>, desde la úlcera a 3 años de Peters y Lavery 2001 con riesgo constante<%= RB.grupoEstimado ? `; sin dato de neuropatía en la ficha, se mezclan los priors IWGDF 1 y 0 con la probabilidad de neuropatía del modelo (${fmt.num(RB.grupoEstimado.probNeuropatia, 1)} %)` : '' %></dd></div>
+        <% const FR = PW && PW.factorRiesgo; if (FR) { %>
+        <div><dt>Neuropatía (modelo)</dt><dd><span class="num"><%= fmt.num(FR.probabilidad, 1) %> %</span> con la toma <%= FR.toma %>. <%= FR.entrenamiento %>: n = <%= FR.n %> (<%= FR.positivos %> con neuropatía), AUC <span class="num"><%= fmt.num(FR.auc, 2) %></span> (IC 95 % <span class="num"><%= fmt.num(FR.aucIC95[0], 2) %>–<%= fmt.num(FR.aucIC95[1], 2) %></span>), dentro del Hospital Córdoba <span class="num"><%= fmt.num(FR.aucDentroDeCentro, 2) %></span>, p de permutación <span class="num"><%= fmt.num(FR.pPermutacion, 3) %></span>. <%= RB.grupoEstimado ? 'Define el prior.' : 'La ficha registra el dato: manda el dato clínico.' %></dd></div>
+        <% } %>
         <div><dt>Asimetría</dt><dd>Zona caliente contigua de la toma <%= tA ? tA.toma : '' %>: <span class="num"><%= fmt.num(RB.asimetria, 2) %> °C</span><% if (RB.zona) { %> en <%= pw.ZONA_CON_ARTICULO[RB.zona] %>, más caliente el pie <%= RB.pieMasCaliente %> (<span class="num"><%= fmt.num(RB.areaZonaPct, 1) %> %</span> de la planta)<% } %>. <%= RB.confirmable ? (RB.persistente ? 'Persistente en ambas tomas.' : `No confirmada por la otra toma (persistente: ${fmt.num(RB.asimetriaConfirmada, 2)} °C).`) : 'Una sola toma: sin confirmación.' %></dd></div>
         <div><dt>Banda y LR</dt><dd><%= RB.banda.nombre %>: LR <span class="num"><%= fmt.num(RB.lr, 2) %></span> (<span class="num"><%= fmt.num(RB.lrRango[0], 2) %>–<%= fmt.num(RB.lrRango[1], 2) %></span>) · <%= predictorInfo.riesgo && predictorInfo.riesgo.modos ? predictorInfo.riesgo.modos[RB.modo] : RB.modo %></dd></div>
         <div><dt>Resultado</dt><dd><span class="num"><%= pw.riesgoPct(RB.probabilidad) %></span> (<span class="num"><%= pw.riesgoRango(RB.rango) %></span>)<%= R.fuente === 'modelo' ? ' · reemplazado por el modelo entrenado' : '' %>. Categoría: bajo &lt; <span class="num"><%= pw.riesgoPct(RB.cortes.moderado) %></span> (basal IWGDF 1) ≤ moderado &lt; <span class="num"><%= pw.riesgoPct(RB.cortes.alto) %></span> (basal IWGDF 3) ≤ alto</dd></div>

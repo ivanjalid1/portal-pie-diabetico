@@ -113,6 +113,8 @@ const TAIL_COLUMNS = [
   ],
   ['HORIZONTE (SEMANAS)', ({ analysis }) => analysis?.puntual?.riesgo?.horizonteSemanas ?? ''],
   ['GRUPO IWGDF', ({ analysis }) => analysis?.puntual?.riesgo?.grupoIwgdf ?? ''],
+  // Neuropatía estimada por la CNN entrenada con la cohorte (§8.10); define el prior sólo sin dato clínico.
+  ['NEUROPATIA MODELO (%)', ({ analysis }) => num(analysis?.puntual?.factorRiesgo?.probabilidad, 1)],
   ['CATEGORIA RIESGO', ({ analysis }) => analysis?.categoria || ''],
   [
     'MODELO RIESGO',

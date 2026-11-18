@@ -22,6 +22,8 @@ const AppointmentService = require('./services/AppointmentService');
 const StudyService = require('./services/StudyService');
 const DashboardService = require('./services/DashboardService');
 const SettingsService = require('./services/SettingsService');
+const OutcomeLog = require('./services/OutcomeLog');
+const { MaskService } = require('./services/MaskService');
 const { seedDemoData, DEMO_PASSWORD } = require('./seed');
 const { loadRealDataset, seedRealData } = require('./seed/realData');
 
@@ -83,6 +85,29 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
     config,
   });
 
+  // Herramienta local de corrección de máscaras (nunca en producción ni en Vercel).
+  const maskService = new MaskService({
+    dir:
+      overrides.maskDir !== undefined
+        ? overrides.maskDir
+        : config.localTools && !config.isTest
+          ? config.localDataDir
+          : null,
+  });
+
+  // Desenlaces reales registrados en el portal: con el driver memory y datos
+  // reales se guardan también en data-local/outcomes/ (persisten al reiniciar y
+  // alimentan scripts/ml/train-outcome.py). En pruebas sólo si se pide.
+  const outcomeFile =
+    overrides.outcomeFile !== undefined
+      ? overrides.outcomeFile
+      : data.driver === 'memory' && config.seed === 'real' && !config.isTest
+        ? require('node:path').join(config.localDataDir, 'outcomes', 'outcomes.json')
+        : null;
+  const outcomeLog = outcomeFile
+    ? new OutcomeLog({ file: outcomeFile, patients: repos.patients, events }).subscribe()
+    : null;
+
   const container = {
     config,
     events,
@@ -100,7 +125,9 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
       studyService,
       dashboardService,
       settingsService,
+      maskService,
     },
+    outcomeLog,
     ready: Promise.resolve(),
   };
 
@@ -128,6 +155,7 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
         )
       : seedDemoData({ repos, authProvider, predictor }, { passwordHash });
   }
+  if (outcomeLog) container.ready = container.ready.then(() => outcomeLog.applyAll());
   return container;
 }
 

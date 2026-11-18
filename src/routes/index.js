@@ -16,6 +16,7 @@ const { createMedicoController } = require('../controllers/medicoController');
 const { createPacienteController } = require('../controllers/pacienteController');
 const { createMediaController } = require('../controllers/mediaController');
 const { createSettingsController } = require('../controllers/settingsController');
+const { createMaskController } = require('../controllers/maskController');
 
 /**
  * Definición de rutas. Cada ruta protegida arma su cadena de responsabilidad:
@@ -32,6 +33,7 @@ function buildRoutes(container) {
   const paciente = createPacienteController(services);
   const media = createMediaController(services);
   const settings = createSettingsController(services);
+  const masks = createMaskController(services);
 
   const loginLimiter = rateLimit({
     windowMs: config.security.loginRateLimitWindowMs,
@@ -161,6 +163,16 @@ function buildRoutes(container) {
   c.post('/vista-previa', settings.preview);
   c.post('/recalcular', settings.recalculate);
   router.use('/configuracion', c);
+
+  /* ---------- Corrección de máscaras (sólo local; médico/a y administrador/a) ---------- */
+  const k = express.Router();
+  k.use(requireAuth, requireRole(ROLES.MEDICO, ROLES.ADMIN), masks.available);
+  k.get('/', masks.list);
+  k.get('/:key', masks.editor);
+  k.get('/:key/imagen.png', masks.image);
+  k.get('/:key/mascaras.json', masks.masks);
+  k.post('/:key', masks.save);
+  router.use('/mascaras', k);
 
   /* ---------- Paciente ---------- */
   const p = express.Router();

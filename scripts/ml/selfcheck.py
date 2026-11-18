@@ -1,14 +1,42 @@
 """Autocomprobación rápida de los scripts de ML con datos SINTÉTICOS (sin datos reales).
 
-Uso: python scripts/ml/selfcheck.py
+Uso: python -I scripts/ml/selfcheck.py
 """
-import numpy as np
-import torch
+import importlib.util
+import json
+import sys
+import tempfile
+from pathlib import Path
 
-import common as C
-from segment_unet import flags, postprocess
-from train_models import TinyCnn, aug_maps, boot_ci, cv_lr
-from train_unet import UNet, augment
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import numpy as np  # noqa: E402
+import torch  # noqa: E402
+
+import common as C  # noqa: E402
+from segment_unet import flags, postprocess  # noqa: E402
+from train_models import TinyCnn, aug_maps, boot_ci, cv_lr  # noqa: E402
+from train_public import Prep, RelCnn  # noqa: E402
+from train_unet import UNet, augment  # noqa: E402
+
+
+def check_train_outcome():
+    """train-outcome.py se niega a entrenar con pocos casos y prioriza el portal sobre la planilla."""
+    spec = importlib.util.spec_from_file_location("train_outcome", Path(__file__).resolve().parent / "train-outcome.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        rows = [{"grupo": f"P{i}", "noValido": False, "features": {k: float(i) for k in mod.FEATURES}} for i in range(30)]
+        (d / "f.json").write_text(json.dumps(rows), encoding="utf8")
+        (d / "ds.json").write_text(json.dumps({"pacientes": [{"codigo": "P1", "clinica": {"generoLesion": True}}]}), encoding="utf8")
+        regs = [{"codigo": f"P{i}", "generoLesion": i < 3} for i in range(25)]
+        (d / "o.json").write_text(json.dumps({"registros": regs}), encoding="utf8")
+        out = mod.load_outcomes(d / "o.json", d / "ds.json")
+        assert out["P1"] == (1, "portal")
+        args = ["--features", str(d / "f.json"), "--dataset", str(d / "ds.json"), "--outcomes", str(d / "o.json")]
+        assert mod.main(args) == 2, "debía negarse con 3 lesiones"
+        assert mod.main(args + ["--min-positivos", "3", "--dry-run"]) == 0
 
 
 def ellipse(cx, cy, a, b, h=C.H, w=C.W):
@@ -51,6 +79,12 @@ def main():
     aucs, _ = cv_lr(rng.normal(0, 1, (40, 2)), yb, reps=3)
     assert 0.2 < aucs.mean() < 0.8, aucs
     assert TinyCnn()(aug_maps(torch.zeros(3, 4, 100, 40))).shape == (3,)
+    assert RelCnn()(torch.zeros(2, 3, 100, 40)).shape == (2,)
+    # Imputación por la media del entrenamiento.
+    Xn = np.array([[1.0, np.nan], [3.0, 2.0], [np.nan, 4.0]])
+    pr = Prep().fit(Xn)
+    assert np.allclose(pr.fill(Xn), [[1, 3], [3, 2], [2, 4]])
+    check_train_outcome()
     print("selfcheck OK")
 
 

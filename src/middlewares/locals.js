@@ -13,6 +13,7 @@ const NAV = {
     { href: '/admin', label: 'Resumen', icon: 'gauge', exact: true },
     { href: '/admin/usuarios', label: 'Usuarios', icon: 'users' },
     { href: '/admin/auditoria', label: 'Auditoría', icon: 'list' },
+    { href: '/mascaras', label: 'Máscaras', icon: 'brush', local: true },
     { href: '/configuracion', label: 'Configuración', icon: 'sliders' },
   ],
   medico: [
@@ -20,6 +21,7 @@ const NAV = {
     { href: '/medico/pacientes', label: 'Pacientes', icon: 'users' },
     { href: '/medico/estudios', label: 'Estudios realizados', icon: 'list' },
     { href: '/medico/controles', label: 'Controles', icon: 'calendar' },
+    { href: '/mascaras', label: 'Máscaras', icon: 'brush', local: true },
     { href: '/configuracion', label: 'Configuración', icon: 'sliders' },
   ],
   paciente: [
@@ -96,7 +98,8 @@ function locals(config) {
     const fullPath = req.path;
     res.locals.isActive = (item) =>
       item.exact ? fullPath === item.href : fullPath === item.href || fullPath.startsWith(`${item.href}/`);
-    res.locals.navFor = (role) => NAV[role] || [];
+    // Los ítems «local» (herramientas sólo locales) aparecen si están disponibles.
+    res.locals.navFor = (role) => (NAV[role] || []).filter((it) => !it.local || req.app.locals.maskTool);
     res.locals.dataDriver = config.dataDriver;
     res.locals.seedMode = config.seed === 'real' && req.app.locals.seedMode === 'real' ? 'real' : 'demo';
     next();

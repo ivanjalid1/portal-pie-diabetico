@@ -48,6 +48,13 @@ function errorHandler(err, req, res, _next) {
   const status = error instanceof AppError ? error.status : 500;
   if (status >= 500) console.error('[error]', err);
 
+  // Peticiones fetch con cuerpo JSON (p. ej. la corrección de máscaras): respuesta JSON.
+  if (req.is('application/json')) {
+    return res
+      .status(status)
+      .json({ error: status >= 500 ? 'Ocurrió un error inesperado. Probá de nuevo.' : error.message });
+  }
+
   const titles = { 401: 'Sesión vencida', 403: 'Acceso denegado', 404: 'Página no encontrada' };
   return res.status(status).render('errors/error', {
     title: titles[status] || 'Algo salió mal',

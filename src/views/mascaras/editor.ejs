@@ -1,0 +1,69 @@
+<%- include('../partials/page-header', {
+  heading: `Máscara · ${m.codigo}`,
+  lead: `Toma ${m.toma}, réplica ${m.replica}. Pintá cada pie con su color y borrá lo que no es pie (tela, pierna, objetos).`,
+  back: { href: `/mascaras?filtro=${filtro}`, label: 'Volver al listado' },
+}) %>
+
+<div class="mask-editor" data-mask-editor data-key="<%= m.key %>" data-csrf="<%= csrfToken %>" data-next="<%= nextKey ? `/mascaras/${nextKey}?filtro=${filtro}` : '' %>">
+  <div class="mask-stage card card--flush">
+    <div class="mask-stage__canvas" data-stage>
+      <img src="/mascaras/<%= m.key %>/imagen.png?paleta=grises" alt="Termograma de la réplica" data-src-base="/mascaras/<%= m.key %>/imagen.png" width="<%= m.width %>" height="<%= m.height %>" data-thermo draggable="false">
+      <canvas width="<%= m.width %>" height="<%= m.height %>" data-overlay aria-label="Máscara editable: arrastrá para pintar o borrar"></canvas>
+      <span class="mask-cursor" data-cursor aria-hidden="true"></span>
+    </div>
+    <p class="mask-stage__hint small muted"><kbd>1</kbd> pie a la izquierda · <kbd>2</kbd> pie a la derecha · <kbd>E</kbd> borrar · <kbd>[</kbd> <kbd>]</kbd> tamaño · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer · <kbd>H</kbd> ocultar máscara</p>
+  </div>
+
+  <aside class="mask-panel card" aria-label="Herramientas">
+    <fieldset class="mask-tools">
+      <legend class="mask-panel__label">Herramienta</legend>
+      <label class="mask-tool mask-tool--l"><input type="radio" name="tool" value="1" checked><span><i aria-hidden="true"></i>Pie a la izquierda</span></label>
+      <label class="mask-tool mask-tool--r"><input type="radio" name="tool" value="2"><span><i aria-hidden="true"></i>Pie a la derecha</span></label>
+      <label class="mask-tool mask-tool--e"><input type="radio" name="tool" value="0"><span><%- include('../partials/icon', { name: 'eraser', size: 16 }) %>Borrar</span></label>
+    </fieldset>
+
+    <div class="mask-panel__group">
+      <p class="mask-panel__label">Imagen</p>
+      <div class="tabs tabs--pill mask-sources" role="group" aria-label="Paleta de la imagen">
+        <button type="button" class="tabs__item is-active" data-paleta="grises" aria-pressed="true">Grises</button>
+        <button type="button" class="tabs__item" data-paleta="alto_contraste" aria-pressed="false">High Contrast</button>
+      </div>
+    </div>
+
+    <div class="field mask-range">
+      <label for="mask-size" class="mask-panel__label">Tamaño del pincel <output class="num" for="mask-size" data-size-out>6</output> px</label>
+      <input id="mask-size" type="range" min="1" max="30" value="6" data-size>
+    </div>
+    <div class="field mask-range">
+      <label for="mask-alpha" class="mask-panel__label">Opacidad de la máscara <output class="num" for="mask-alpha" data-alpha-out>35</output> %</label>
+      <input id="mask-alpha" type="range" min="0" max="80" value="35" data-alpha>
+    </div>
+
+    <div class="mask-panel__row">
+      <button type="button" class="btn btn--ghost btn--sm" data-undo disabled><%- include('../partials/icon', { name: 'undo', size: 16 }) %>Deshacer</button>
+      <button type="button" class="btn btn--ghost btn--sm" data-toggle><%- include('../partials/icon', { name: 'eye', size: 16 }) %>Ocultar</button>
+    </div>
+
+    <div class="mask-panel__group">
+      <p class="mask-panel__label">Empezar desde</p>
+      <div class="tabs tabs--pill mask-sources" role="group" aria-label="Máscara de partida">
+        <% if (m.corregida) { %><button type="button" class="tabs__item<%= m.base === 'corregida' ? ' is-active' : '' %>" data-source="corregida">Corregida</button><% } %>
+        <% if (m.unet) { %><button type="button" class="tabs__item<%= m.base === 'unet' ? ' is-active' : '' %>" data-source="unet">U-Net</button><% } %>
+        <% if (m.clasica) { %><button type="button" class="tabs__item<%= m.base === 'clasica' ? ' is-active' : '' %>" data-source="clasica">Clásica</button><% } %>
+      </div>
+    </div>
+
+    <dl class="mask-stats small">
+      <div><dt><i class="sw sw--l" aria-hidden="true"></i>Pie a la izquierda</dt><dd class="num" data-count="1">—</dd></div>
+      <div><dt><i class="sw sw--r" aria-hidden="true"></i>Pie a la derecha</dt><dd class="num" data-count="2">—</dd></div>
+    </dl>
+
+    <div class="mask-panel__actions">
+      <button type="button" class="btn btn--primary btn--block" data-save><%- include('../partials/icon', { name: 'check', size: 18 }) %>Guardar máscara</button>
+      <% if (nextKey) { %><button type="button" class="btn btn--ghost btn--block" data-save-next>Guardar y seguir con la próxima<%- include('../partials/icon', { name: 'chevronRight', size: 16 }) %></button><% } %>
+      <p class="small muted mask-status" data-status role="status" aria-live="polite"><%= m.guardada ? `Guardada el ${fmt.date(m.guardada)}.` : 'Sin guardar todavía.' %></p>
+    </div>
+    <p class="small muted">«Pie a la izquierda» es el pie que aparece a la izquierda de la imagen (el izquierdo del paciente, por la convención del equipo).</p>
+  </aside>
+</div>
+<script src="/js/mask-editor.js" defer></script>

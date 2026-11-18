@@ -1,0 +1,65 @@
+<%
+  const qs = (over = {}) => {
+    const p = new URLSearchParams();
+    Object.entries({ filtro, page, ...over }).forEach(([k, v]) => { if (v !== undefined && v !== '' && v !== null) p.set(k, v); });
+    return `?${p.toString()}`;
+  };
+  const pct = total ? Math.round((corregidas / total) * 100) : 0;
+  const tabs = [
+    ['pendientes', 'Pendientes', total - corregidas],
+    ['corregidas', 'Corregidas', corregidas],
+    ['todas', 'Todas', total],
+  ];
+%>
+<%- include('../partials/page-header', {
+  heading: 'Corrección de máscaras',
+  lead: 'Revisá y corregí el contorno de los pies que marcó la segmentación. Las máscaras corregidas sirven para evaluar la U-Net contra contornos independientes y para reentrenarla.',
+}) %>
+
+<div class="notice notice--info">
+  <%- include('../partials/icon', { name: 'info' }) %>
+  <p><strong>Herramienta local.</strong> Las máscaras se guardan sólo en esta computadora (<code>data-local/ml/corrected-masks/</code>), no se suben a ningún servidor. Se muestran primero las réplicas con menor calidad de segmentación.</p>
+</div>
+
+<section class="mask-progress card" aria-label="Avance">
+  <div>
+    <p class="mask-progress__label">Corregidas</p>
+    <p class="mask-progress__value"><span class="num"><%= corregidas %></span> <span class="muted">de <span class="num"><%= total %></span></span></p>
+  </div>
+  <div class="mask-progress__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= pct %>" aria-label="Avance de la corrección"><span style="width: <%= pct %>%"></span></div>
+  <p class="small muted">Con unas <span class="num">30–50</span> réplicas corregidas (de distintos pacientes) ya se puede estimar el Dice de la U-Net: <code>python -I scripts/ml/dice_corrected.py</code>.</p>
+</section>
+
+<nav class="tabs tabs--pill mask-tabs" aria-label="Filtro">
+  <% tabs.forEach(([k, label, n]) => { %>
+  <a class="tabs__item<%= filtro === k ? ' is-active' : '' %>" href="/mascaras<%= qs({ filtro: k, page: 1 }) %>"<%- filtro === k ? ' aria-current="page"' : '' %>><%= label %> <span class="num"><%= n %></span></a>
+  <% }) %>
+</nav>
+
+<% if (!items.length) { %>
+<div class="card"><div class="empty"><%- include('../partials/icon', { name: 'check', size: 28 }) %><h2>No hay réplicas en esta lista</h2><p><%= filtro === 'corregidas' ? 'Todavía no corregiste ninguna máscara.' : 'No quedan réplicas pendientes.' %></p></div></div>
+<% } else { %>
+<ul class="mask-grid" role="list">
+  <% items.forEach((e) => { const low = e.calidad !== null && e.calidad < 0.6; %>
+  <li>
+    <a class="mask-card" href="/mascaras/<%= e.key %>?filtro=<%= filtro %>">
+      <span class="mask-card__thumb"><img src="/mascaras/<%= e.key %>/imagen.png" alt="" width="320" height="240" loading="lazy" decoding="async"></span>
+      <span class="mask-card__body">
+        <span class="mask-card__title"><span class="code"><%= e.codigo %></span> <span class="muted small">toma <%= e.toma %> · réplica <%= e.replica %></span></span>
+        <span class="mask-card__meta">
+          <% if (e.corregida) { %><span class="badge badge--ok"><span class="dot" aria-hidden="true"></span>Corregida</span><% } else if (low) { %><span class="badge badge--warn"><span class="dot" aria-hidden="true"></span>A revisar</span><% } else { %><span class="badge badge--muted">Pendiente</span><% } %>
+          <span class="small muted">calidad <span class="num"><%= e.calidad === null ? '—' : fmt.num(e.calidad, 2) %></span><%= e.unet ? ' · U-Net' : '' %><%= e.noValido ? ' · no válido' : '' %></span>
+        </span>
+      </span>
+    </a>
+  </li>
+  <% }) %>
+</ul>
+<% if (pages > 1) { %>
+<nav class="pager" aria-label="Paginación">
+  <% if (page > 1) { %><a class="btn btn--ghost btn--sm" href="/mascaras<%= qs({ page: page - 1 }) %>"><%- include('../partials/icon', { name: 'chevronLeft', size: 16 }) %>Anterior</a><% } else { %><span></span><% } %>
+  <span class="small muted">Página <span class="num"><%= page %></span> de <span class="num"><%= pages %></span></span>
+  <% if (page < pages) { %><a class="btn btn--ghost btn--sm" href="/mascaras<%= qs({ page: page + 1 }) %>">Siguiente<%- include('../partials/icon', { name: 'chevronRight', size: 16 }) %></a><% } else { %><span></span><% } %>
+</nav>
+<% } %>
+<% } %>

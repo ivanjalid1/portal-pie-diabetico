@@ -45,6 +45,11 @@ function build(env = process.env) {
     // SEED=real carga los pacientes reales precalculados en data-local/ (sólo local).
     seed: (env.SEED || 'demo').toLowerCase(),
     realDataDir: env.REAL_DATA_DIR || require('node:path').join(__dirname, '..', '..', 'data-local', 'real'),
+    // Carpeta local de trabajo (ignorada por git y Vercel): desenlaces registrados,
+    // máscaras corregidas, datos de ML.
+    localDataDir: env.LOCAL_DATA_DIR || require('node:path').join(__dirname, '..', '..', 'data-local'),
+    // Herramientas sólo locales (corrección de máscaras): nunca en producción ni en Vercel.
+    localTools: !isProd && !env.VERCEL && bool(env.LOCAL_TOOLS, true),
     session: Object.freeze({
       name: 'tp_session',
       secret: isProd && !env.SESSION_SECRET ? require('node:crypto').randomBytes(32).toString('hex') : sessionSecret,

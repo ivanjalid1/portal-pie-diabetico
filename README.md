@@ -97,10 +97,29 @@ cd scripts/ml && ../../data-local/venv-ml/Scripts/python train_models.py [--outc
 ```
 
 - **U-Net:** 4 niveles, entrenada con etiquetas débiles (segmentación clásica refinada) y división por paciente. En validación: Dice 0,98. Corre sólo offline; si no hay máscara U-Net, el portal usa la segmentación clásica.
-- **TCI:** índice de cambio térmico de Hernández-Contreras et al. (2017), punto a punto sobre la grilla registrada, contra los pacientes más simétricos de la cohorte (con leave-one-out).
-- **Modelos:** ningún modelo supera el azar de forma convincente, así que el portal mantiene el modelo preliminar «no validado».
+- **TCI:** índice de cambio térmico de Hernández-Contreras et al. (2017), punto a punto sobre la grilla registrada. Usa angiosomas por atlas y, como referencia, el grupo control de la base pública 2019; si la base no está, los pacientes más simétricos de la cohorte (con leave-one-out).
+- **Modelos con HbA1c > 7 %** (sustituto): ningún modelo supera el azar de forma convincente, ni siquiera con features invariantes y ajuste por centro. Por eso el portal ya no muestra esa probabilidad.
 
-Detalle en [docs/arquitectura.md §8.3–8.5](docs/arquitectura.md). Los pesos, máscaras y matrices quedan en `data-local/`; nunca se versionan.
+### Base pública 2019 y patrón térmico (local)
+
+La base *Plantar Thermogram Database for the Study of Diabetic Foot Complications* (Hernández-Contreras et al., IEEE DataPort, DOI 10.21227/tm4t-9n15, licencia CC BY 4.0) va en una carpeta nueva bajo `data-local/public/hernandez2019/`, que nunca se versiona. Hay que descomprimir sólo los CSV y la planilla; no se ejecuta nada de la descarga.
+
+```bash
+npm run ml:public                              # base → grillas canónicas + atlas de angiosomas
+npm run precompute:real && npm run ml:pattern  # TCI con la nueva referencia + features invariantes
+data-local/venv-ml/Scripts/python -I scripts/ml/train_public.py --export   # diabetes vs control → src/config/models/
+data-local/venv-ml/Scripts/python -I scripts/ml/train_adjusted.py          # HbA1c con features invariantes y ajuste por centro
+npm run ml:summary                             # agrega los resultados a «Detalle técnico»
+data-local/venv-ml/Scripts/python -I scripts/ml/dice_public.py             # control de dominio de la U-Net
+data-local/venv-ml/Scripts/python -I scripts/ml/dice_corrected.py          # Dice vs máscaras corregidas en /mascaras
+data-local/venv-ml/Scripts/python -I scripts/ml/train-outcome.py           # modelo de úlcera (se niega con < 10 lesiones)
+```
+
+- **Patrón térmico compatible con pie diabético:** se entrena diabetes vs control en la base pública. Con validación cruzada por sujeto da AUC 0,91 (0,86–0,95), n = 167. **No predice úlcera** y no cambia la categoría de riesgo. Los controles de la base son más jóvenes, así que parte de la señal puede ser la edad.
+- **Corrección de máscaras:** en `/mascaras` (sólo local), el médico/a o el administrador/a corrige el contorno de los pies. Las máscaras se guardan en `data-local/ml/corrected-masks/`.
+- **Desenlace real:** con datos reales, se guarda también en `data-local/outcomes/outcomes.json`, así se conserva al reiniciar.
+
+Detalle en [docs/arquitectura.md §8.3–8.8](docs/arquitectura.md). Los pesos, máscaras y matrices quedan en `data-local/`; nunca se versionan.
 
 ### Cuentas demo (contraseña `Demo1234!`)
 
@@ -129,6 +148,9 @@ El tema por defecto es **claro**; el oscuro se activa con el botón ☀/☾ y se
 | `npm run train:model` | Entrena y valida (LOO y 5 pliegues ×20) el modelo preliminar; escribe `src/config/models/pointwise-logreg.json` (sólo agregados). |
 | `npm run ml:export` | Exporta las réplicas IS2 reales a `data-local/ml/cache` (.npy) para la U-Net (local). |
 | `npm run ml:features` | Exporta features y mapas registrados para comparar modelos (local). |
+| `npm run ml:public` | Registra la base pública 2019 a la grilla canónica y regenera el atlas de angiosomas (local). |
+| `npm run ml:pattern` | Exporta features invariantes de la base pública y de la cohorte (local). |
+| `npm run ml:summary` | Agrega los resultados de `train_public.py` y `train_adjusted.py` a `src/config/models/model-comparison.json`. |
 | `npm run generate:pointwise` | Regenera las grillas punto a punto de los pares demo (`src/seed/demoPointwise.json`). |
 | `npm run seed:supabase` | Carga la semilla demo en Supabase (Auth + DB + Storage). Admite `-- --reset`. |
 

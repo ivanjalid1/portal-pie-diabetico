@@ -293,7 +293,7 @@ Los 10 % se calibraron con la toma 1 de los 54 pacientes de la hoja «DifT°» d
 
 **Concordancia con la Parte 1.** El ΔT general por regiones calculado sobre la grilla tiene r = 0,84 con la planilla del equipo (54 pacientes, toma 1), con una diferencia mediana de 0,09 °C (con la segmentación clásica: r = 0,83). El script de entrenamiento lo vuelve a calcular.
 
-### 8.1 Modelo preliminar
+### 8.1 Modelo preliminar (HbA1c, retirado de la interfaz)
 
 `PointwisePredictor` (`puntual-v1`) es la estrategia por defecto (`PREDICTOR=puntual`) detrás de la interfaz `UlcerPredictor`. `MockUlcerPredictor` queda como respaldo sólo cuando se suben imágenes no radiométricas (JPG/PNG), y el resultado se rotula «simulado».
 
@@ -308,7 +308,7 @@ Los 10 % se calibraron con la toma 1 de los 54 pacientes de la hoja «DifT°» d
   - con la segmentación clásica eran 0,27 (LOO) y 0,42 (5 × 20). La caída no indica un modelo «peor»: sin señal, la validación cruzada en muestras chicas tiene un sesgo negativo conocido, extremo en LOO;
   - comparación con los demás modelos en §8.5.
 - **Conclusión:** con estos datos, **la asimetría punto a punto no predice el desenlace sustituto**. El AUC LOO menor a 0,5 es el sesgo conocido de LOO cuando no hay señal. Por eso:
-  - la probabilidad se muestra rotulada «Modelo preliminar · no validado», con su AUC y su n, y sin zonas de riesgo;
+  - **la probabilidad ya no se muestra**: ni en el estudio, ni en el informe, ni en el gráfico de la ficha, ni en el CSV. En su lugar se informa el patrón térmico compatible con pie diabético (§8.6), que tiene una etiqueta real y validada pero **no predice úlcera**. El modelo se sigue calculando internamente, sólo para comparar;
   - mientras el AUC de validación sea < 0,7, la **categoría** (sin riesgo / moderado / alto) se toma del **hallazgo térmico** y no de la probabilidad: sin asimetría → sin riesgo; área ≥ mínima → moderado; además con \|ΔT\| p95 ≥ 2,2 °C → alto.
 - **Archivos:** los coeficientes, medias, desvíos y métricas agregadas están en `src/config/models/pointwise-logreg.json`, sin datos por paciente. Se regeneran con `npm run train:model`.
 
@@ -394,24 +394,31 @@ TCI = ( Σ_a | CG_a − DM_a | ) / 4, con a ∈ {MPA, LPA, MCA, LCA}
 
 Implementación (`src/imaging/tci.js`), sobre la grilla canónica registrada:
 
-- **Angiosomas aproximados** (no hay segmentación anatómica):
-  - MPA = mitad medial de 0–70 % del largo;
-  - LPA = mitad lateral de 0–70 %;
-  - MCA / LCA = mitades medial / lateral del talón (70–100 %).
+- **Angiosomas por atlas** (`src/config/models/angiosome-atlas.json`). La base pública 2019 trae los angiosomas de cada pie. Se registraron sus 334 pies a la misma grilla canónica y cada celda toma la etiqueta mayoritaria (acuerdo medio entre pies: 0,968).
+  - En la base, LPA cubre dedos, antepié y borde lateral; MPA, el arco medial (≈ 33–60 % del largo); el talón (MCA / LCA) empieza en ≈ 60 %.
+  - La aproximación geométrica anterior (mitades medial / lateral de 0–70 % y del talón) coincidía con el atlas sólo en el 63 % de las celdas. Queda como respaldo si falta el atlas; en las celdas del borde se usa la etiqueta más cercana de la misma fila.
 - **Versión punto a punto:** desvío por celda D = T(pie) − T(referencia). Es el mapa de la pestaña «TCI». También se calculan:
   - el TCI puntual: media de |D|;
   - el TCI de patrón: media de |D − mediana(D)|, sin el nivel general del pie.
-- **Referencia** (`src/services/predictors/tciReference.js`): a falta de grupo control, los pacientes **más simétricos de la cohorte**. Criterio, toma 1:
+- **Referencia** (`src/services/predictors/tciReference.js`): el **grupo control de la base pública 2019** (45 sujetos sin diabetes), registrado a la grilla con `scripts/ml/export-public.js` (§8.6). Si la base no está en local, o con `TCI_REFERENCIA=cohorte`, se usan los pacientes **más simétricos de la cohorte**. Criterio de esa alternativa, toma 1:
   - no marcado «no válido» y calidad ≥ 0,6;
   - |ΔT general| < 1 °C en la planilla de la Parte 1;
   - área con |ΔT| > 1 °C menor al 10 %.
 
   Con la U-Net son **20 pacientes** (25 con la clásica). El criterio no usa el desenlace. Al puntuar a un miembro se lo **excluye de su propia referencia** (leave-one-out). Los miembros se guardan sólo en `data-local/real/tci-reference.json`. Sin esa carpeta (demo, CI) se usa una referencia de demostración con los pares demo.
-- **Punto de extensión:** `REFERENCE_SOURCES.hernandez2019` reserva la base pública *Plantar Thermogram Database for the Study of Diabetic Foot Complications* (Hernández-Contreras et al., IEEE Access 2019). Para usarla hay que registrar los termogramas de su grupo control a la misma grilla canónica y pasarlos como miembros a `buildReference`. No se descargó.
+- **Cámara y escala de temperatura.** La base pública se adquirió con otra cámara y otro protocolo (sala controlada, México), en °C radiométricos. En el portal, la conversión cuentas → °C es aproximada. Diferencias medidas (mediana del pie, p10 / p50 / p90):
+  - controles públicos: 24,6 / 26,9 / 28,9 °C;
+  - con diabetes de la base: 25,6 / 30,4 / 33,1 °C;
+  - cohorte: 28,0 / 29,7 / 31,6 °C.
+
+  El rango intercuartil dentro del pie es menor en la cohorte (mediana 1,08 °C) que en la base (1,80 en los controles, 1,40 con diabetes), compatible con una ganancia distinta de la conversión. Por eso:
+  - el **TCI absoluto** contra esta referencia arrastra la diferencia de nivel (cohorte, toma 1: p10 / p50 / p90 = 0,74 / 2,53 / 4,65 °C; clases 1–5: 24 / 24 / 14 / 6 / 5 de 73 pacientes válidos) y no se debe leer como la clase publicada;
+  - el **TCI de patrón** (sin la mediana de cada pie) no depende del nivel (0,56 / 0,74 / 1,06 °C) y es el que tiene sentido comparar entre cámaras;
+  - ninguno de los dos se asocia con HbA1c > 7 % (§8.5).
 
 **Limitación importante.** El TCI usa temperaturas **absolutas**, y la conversión cuentas → °C es aproximada. Además, las temperaturas dependen del ambiente, del día y del centro: un mismo paciente puede pasar de clase 3 en la toma 1 a clase 1 en la toma 2. Por eso el TCI absoluto mide en buena parte las condiciones de adquisición (ver §8.5).
 
-### 8.5 Comparación de modelos
+### 8.5 Comparación de modelos (desenlace sustituto)
 
 Script: `scripts/ml/train_models.py`. Las features salen de `scripts/ml/export-features.js`, que usa las mismas funciones que el portal.
 
@@ -454,15 +461,124 @@ AUC univariadas:
 - La CNN muestra el mismo patrón: con sólo ΔT queda en 0,53.
 - El modelo actual queda **por debajo** del azar. No hay señal, y la validación cruzada en muestras chicas tiene un sesgo negativo conocido.
 
+**Ajuste por centro con features invariantes** (`scripts/ml/train_adjusted.py`; resultados en `data-local/ml/adjusted-comparison-hba1c7.json`). Para no medir condiciones de adquisición, se repitió la comparación sólo con features que no dependen del nivel de temperatura (`src/imaging/thermalPattern.js`):
+
+- contralaterales: área, \|ΔT\| medio y p95, diferencia de nivel entre pies, asimetría de patrón;
+- normalizadas por sujeto: T − mediana del pie, por angiosoma y zona, y la dispersión; también su versión z (dividida por el rango intercuartil).
+
+Validación:
+
+- CV estratificada por desenlace × centro, 5 × 20, con C anidado;
+- AUC **dentro de cada centro** (Hospital Córdoba, n = 36; Reina Fabiola, n = 13; Ferreyra, con n = 4, no alcanza);
+- permutación del desenlace **dentro de cada centro**.
+
+| Modelo (n = 53, 35 positivos) | AUC (IC 95 %) | AUC dentro de centro |
+| --- | --- | --- |
+| *Control: sólo el centro* | *0,64 (0,50–0,76)* | *0,50* |
+| Contralaterales | 0,39 (0,28–0,49) | 0,29 |
+| Contralaterales + centro | 0,53 (0,39–0,68) | 0,25 |
+| Normalizadas por sujeto | 0,63 (0,49–0,77) | 0,64 |
+| Normalizadas + centro | 0,66 (0,51–0,80) | 0,60 |
+| Normalizadas z | 0,58 (0,42–0,73) | 0,59 |
+| Todas las invariantes | 0,67 (0,53–0,80) | 0,72 (p perm. dentro de centro 0,07) |
+| Todas las invariantes + centro | 0,69 (0,54–0,82) | 0,71 |
+| TCI de patrón (controles públicos), directo | 0,56 (0,39–0,73) | 0,43 |
+| TCI absoluto (controles públicos), directo | 0,47 (0,28–0,67) | 0,61 |
+| Puntaje de patrón diabético (§8.6), directo | 0,64 (0,47–0,80) | 0,50 |
+
+**Lectura.** La variante con todas las invariantes es la única con el IC por encima de 0,5, y mantiene la AUC dentro de cada centro. Pero:
+
+- la permutación dentro de centro no la distingue del azar (p ≈ 0,07, 100 permutaciones);
+- se probaron 11 variantes, sin corrección por comparaciones múltiples.
+
+Es **exploratorio**: no alcanza para un modelo y no se usa en el portal. El puntaje de patrón diabético sólo separa centros.
+
 **Qué usa el portal.**
 
-- Sigue el modelo logístico preliminar, rotulado «Modelo preliminar · no validado»; la categoría sale del hallazgo térmico.
+- Ya no muestra la probabilidad del modelo preliminar (HbA1c).
+- Muestra el patrón térmico compatible con pie diabético (§8.6), rotulado «modelo entrenado con base pública, no predice úlcera».
+- La categoría sale del hallazgo térmico.
 - La regresión con TCI queda como estrategia opcional `TciPointwisePredictor` (`PREDICTOR=puntual-tci`, `src/config/models/pointwise-tci-logreg.json`).
 - La tabla resumida, sólo con agregados, está en `src/config/models/model-comparison.json` y se muestra en «Detalle técnico».
 
 **Pendientes para el equipo:**
 
-- conseguir un desenlace real (lesión) con casos suficientes;
-- contar con un grupo control propio, o con la base de 2019 como referencia;
-- estandarizar la adquisición entre centros, o ajustar por centro;
-- validar la U-Net contra contornos manuales en una muestra.
+- conseguir un desenlace real (lesión) con casos suficientes (§8.8);
+- contar con un grupo control propio adquirido con la misma cámara (la base 2019 ya se usa como referencia, con las limitaciones de escala de §8.4);
+- estandarizar la adquisición entre centros;
+- corregir máscaras en una muestra para validar la U-Net (§8.7).
+
+### 8.6 Base pública 2019 y modelo de patrón térmico (diabetes vs control)
+
+**Fuente.** *Plantar Thermogram Database for the Study of Diabetic Foot Complications* (Hernández-Contreras D., Peregrina-Barreto H., Rangel-Magdaleno J., Renero-Carrillo F., *IEEE Access* 7 (2019) 161296; IEEE DataPort, DOI 10.21227/tm4t-9n15).
+
+- **Licencia:** CC BY 4.0, que permite redistribuir con atribución.
+- **Descarga:** en IEEE DataPort hay que iniciar sesión. Se usó una copia publicada en GitHub (`Qsinap/Plantar-Thermogram-diabetes-mellitus-`, `ThermoDataBase.zip`, 19 378 576 bytes: los 18,48 MB que informa DataPort).
+- **Contenido** (66 MB descomprimida): 1 670 CSV de temperatura por píxel, 1 671 PNG ilustrativos, la planilla `Plantar Thermogram Database.xlsx` y un script de MATLAB, que **no se ejecutó**.
+- **Sujetos:** 45 controles (CG) y 122 con diabetes (DM). Por pie, un CSV con la temperatura (°C, fondo = 0) y cuatro con los angiosomas.
+- **Almacenamiento:** sólo en `data-local/public/hernandez2019/` (ignorada por git y Vercel). Los archivos se leen como texto numérico.
+
+**Registro** (`scripts/ml/export-public.js`, `src/imaging/footCrop.js`). Cada pie recortado se registra con las mismas funciones que el portal: centroide + eje principal + escala, remuestreo a 40 × 100 y 1 px de contorno descartado. Dos ajustes:
+
+- se agrega un margen de ceros; si no, el pie «toca el borde» y se tomaría como cortado;
+- el lado medial se decide con los angiosomas de la base (MPA + MCA). En la base, el medial del pie izquierdo queda a la izquierda del recorte, así que se espejaron los 167 pies izquierdos.
+
+**Features** (`src/imaging/thermalPattern.js`): invariantes a la adquisición. Un corrimiento constante de la escala no cambia ninguna; lo verifica una prueba.
+
+**Modelo** (`scripts/ml/train_public.py`): regresión logística L2 sobre 13 features invariantes. Un sujeto por fila; 5 pliegues estratificados × 20 repeticiones con C anidado; IC por bootstrap de sujetos; 200 permutaciones.
+
+| Modelo (base pública, n = 167, 122 DM) | AUC (IC 95 %) |
+| --- | --- |
+| **Logística sobre features invariantes (la del portal)** | **0,91 (0,86–0,95)**, p perm. 0,005 |
+| CNN chica sobre mapas relativos (T − mediana) | 0,89 (0,84–0,94) |
+| Temperatura absoluta del pie (no trasladable) | 0,82 (0,75–0,88) |
+| Invariantes + temperatura absoluta | 0,92 (0,87–0,95) |
+| TCI publicado en la planilla de la base | 0,85 (0,79–0,90) |
+| Clase de TCI publicada (1–5) | 0,83 (0,77–0,88) |
+| *Control: edad sola* | *0,97 (0,94–0,99)* |
+| Invariantes + edad | 0,99 (0,97–1,00) |
+
+Clases de TCI publicadas (1 / 2 / 3 / 4 / 5): controles 34 / 7 / 2 / 1 / 1; con diabetes 22 / 13 / 18 / 16 / 53.
+
+**Confusión por edad.** Los controles de la base son jóvenes (mediana 25 años, rango 21–52) y los sujetos con diabetes, mayores (mediana 56, rango 23–84). La edad sola separa los grupos mejor que cualquier modelo térmico.
+
+- En el subgrupo de 30 a 60 años, fijado de antemano (n = 93, 80 DM), el modelo da AUC 0,87 (0,76–0,95) y la edad sola 0,88.
+- Agregar las features térmicas a la edad sube la AUC de 0,95 a 0,99.
+
+Conclusión: el patrón térmico aporta información, pero parte de lo que el modelo llama «compatible con pie diabético» puede ser envejecimiento.
+
+**Evaluación externa** en la cohorte del portal (n = 73). Como es toda con diabetes y no hay controles, no hay AUC: sólo la distribución del puntaje.
+
+- Cohorte: p10 / p25 / p50 / p75 / p90 = 47 / 61 / 83 / 91 / 98 %; el 84 % de los pacientes queda sobre 50 %.
+- En la base, la mediana es 95 % en los DM y 29 % en los controles.
+- Por centro, la mediana es 86 % en el Hospital Córdoba (n = 54), 84 % en el Ferreyra (n = 5) y 49 % en Reina Fabiola (n = 14): todavía hay efecto de adquisición.
+
+**En el portal** (`src/services/predictors/diabeticPattern.js`, `src/config/models/diabetic-pattern-logreg.json`):
+
+- en el resultado, el informe y el gráfico de la ficha se muestra «Patrón térmico compatible con pie diabético: X % — modelo entrenado con base pública, no predice úlcera»;
+- la AUC, el IC y el n van en el tooltip y en «Detalle técnico», junto con las variables que más pesan;
+- no cambia la categoría de riesgo;
+- la edad no se usa como feature, para no confundir edad con patrón térmico.
+
+**Segmentación.** La base trae cada pie ya segmentado por los autores, pero no la escena original. Sin inventar el fondo, no se puede medir la U-Net sobre sus imágenes ni reentrenarla con ellas.
+
+Como control de dominio, `scripts/ml/dice_public.py` arma escenas sintéticas: los dos pies de cada sujeto sobre un fondo artificial 2–4 °C más frío. Dice U-Net vs máscara de los autores: 0,973 de media (mediana 0,979, p10 0,952; por pie, 0,972). Muestra que la U-Net reconoce pies de otra cámara, pero **no es una validación** en escenas reales: no hay tela, piernas ni objetos.
+
+### 8.7 Corrección de máscaras (herramienta local)
+
+`/mascaras`, para médico/a y administrador/a (`src/services/MaskService.js`, `public/js/mask-editor.js`). Sólo existe en local: se desactiva en producción, en Vercel y si falta `data-local/ml/cache/`, y en esos casos tampoco aparece en el menú.
+
+- **Listado:** las réplicas exportadas para la U-Net, primero las de menor calidad de segmentación, con filtro pendientes / corregidas / todas y el avance.
+- **Editor:** el termograma (High Contrast, 320 × 240) con la máscara encima.
+  - Herramientas: pincel para cada pie, goma, tamaño, opacidad, deshacer, ocultar y «empezar desde» U-Net, clásica o la corrección guardada.
+  - Atajos: 1 / 2 / E, [ / ], Ctrl + Z, H.
+- **Guardado:** la máscara (0 fondo, 1 pie a la izquierda de la imagen, 2 a la derecha) viaja comprimida en RLE con el token CSRF. Queda en `data-local/ml/corrected-masks/<clave>.npy`, con un `.json` de metadatos: rol, id interno del usuario, fecha y máscara de partida. Las claves son hashes: nunca se muestran nombres.
+- **Evaluación:** `scripts/ml/dice_corrected.py` calcula el Dice de la U-Net y de la clásica contra las corregidas: por pie, del pie como un todo, por paciente y sólo en los pacientes de validación de la U-Net. Todavía no hay máscaras corregidas.
+
+### 8.8 Desenlace real y modelo de úlcera
+
+- **Registro:** el «Desenlace real» (¿generó lesión?, fecha, pie y zona) se guarda en el paciente. Con el driver `memory` y datos reales, `src/services/OutcomeLog.js` (observador de `outcome.recorded`) lo copia además a `data-local/outcomes/outcomes.json` y lo vuelve a aplicar al arrancar, así no se pierde al reiniciar. Guarda sólo código, lesión, fecha, pie y zona; no las notas libres.
+- **Exportación:** el CSV de estudios incluye `GENERÓ LESIÓN`, `FECHA LESIÓN`, `PIE LESIÓN` y `ZONA LESIÓN`.
+- **Entrenamiento:** `scripts/ml/train-outcome.py` entrena un modelo de lesión (logística sobre las features invariantes de la toma 1, con la misma validación) **sólo si hay al menos 10 lesiones y 10 pacientes sin lesión** (configurable). Si no, se niega con código de salida 2.
+  - El desenlace sale del portal y, si falta, de la planilla. No se inventan desenlaces.
+  - Hoy hay 0 pacientes con desenlace y features.

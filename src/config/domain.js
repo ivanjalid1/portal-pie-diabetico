@@ -119,7 +119,7 @@ const RISK_CUTS = Object.freeze({ moderado: 50, alto: 70 });
 const RISK_CATEGORIES = Object.freeze({
   sin_riesgo: Object.freeze({
     key: 'sin_riesgo',
-    nombre: 'Sin riesgo',
+    nombre: 'Riesgo bajo',
     tono: 'ok',
     paciente: 'Riesgo bajo',
     mensajePaciente:

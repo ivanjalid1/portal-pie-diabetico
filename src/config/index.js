@@ -41,7 +41,9 @@ function build(env = process.env) {
     appName: 'TermoPie',
     appUrl: env.APP_URL || 'http://localhost:3000',
     dataDriver: (env.DATA_DRIVER || 'memory').toLowerCase(),
-    predictor: (env.PREDICTOR || 'puntual').toLowerCase(),
+    predictor: (env.PREDICTOR || 'riesgo-bibliografia').toLowerCase(),
+    // auto: usa el modelo entrenado con los desenlaces cuando existe y está validado.
+    riesgoModelo: (env.RIESGO_MODELO || 'auto').toLowerCase(),
     // SEED=real carga los pacientes reales precalculados en data-local/ (sólo local).
     seed: (env.SEED || 'demo').toLowerCase(),
     realDataDir: env.REAL_DATA_DIR || require('node:path').join(__dirname, '..', '..', 'data-local', 'real'),

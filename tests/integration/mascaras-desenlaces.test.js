@@ -210,8 +210,11 @@ describe('Desenlace real: registro persistente y exportación', () => {
     expect(saved.registros[0]).toEqual(expect.objectContaining({ codigo: patient.codigo, generoLesion: false }));
   });
 
-  test('el CSV exporta el desenlace detallado y el patrón de la base pública, no la probabilidad HbA1c', () => {
+  test('el CSV exporta el desenlace, el riesgo de úlcera y el patrón de la base pública, no la probabilidad HbA1c', () => {
     const heads = COLUMNS.map(([h]) => h);
+    expect(heads).toEqual(
+      expect.arrayContaining(['RIESGO ULCERA (%)', 'RIESGO ULCERA IC (%)', 'HORIZONTE (SEMANAS)', 'GRUPO IWGDF']),
+    );
     expect(heads).toEqual(expect.arrayContaining(['GENERÓ LESIÓN', 'FECHA LESIÓN', 'PIE LESIÓN', 'ZONA LESIÓN']));
     expect(heads).toContain('PATRON PIE DIABETICO (%) BASE PUBLICA');
     expect(heads.some((h) => /PROBABILIDAD/.test(h))).toBe(false);

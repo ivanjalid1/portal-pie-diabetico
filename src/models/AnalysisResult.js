@@ -56,7 +56,12 @@ class AnalysisResult {
       umbral: this.umbral,
       horizonteSemanas: Number(a.horizonteSemanas ?? DEFAULT_PARAMS.horizonteSemanas),
       ...Object.fromEntries(
-        Object.entries(p).map(([k, v]) => [k, v !== null && typeof v === 'object' ? v : Number(v)]),
+        Object.entries(p).map(([k, v]) => [
+          k,
+          (v !== null && typeof v === 'object') || (typeof v === 'string' && !Number.isFinite(Number(v)))
+            ? v
+            : Number(v),
+        ]),
       ),
     };
     // Análisis punto a punto (grillas canónicas, métricas por toma, cambio entre tomas y modelo).

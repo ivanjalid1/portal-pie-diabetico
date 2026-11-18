@@ -18,7 +18,7 @@
   <span><%= p.edad() !== null ? `${p.edad()} años` : 'Edad sin dato' %><%= p.sexo === 'F' ? ', femenino' : p.sexo === 'M' ? ', masculino' : '' %></span>
   <span><%= p.tipoDm ? `DM tipo ${p.tipoDm}` : 'DM tipo sin dato' %><%= p.aniosEvolucionDm !== null ? `, ${fmt.num(p.aniosEvolucionDm, 1)} años` : '' %></span>
   <span><%= p.centro %></span>
-  <% if (last) { %><%- include('../partials/risk-badge', { analysis: last.analysis, showPct: false }) %><% if (last.analysis.puntualActual) { %><span class="badge badge--<%= last.analysis.puntualActual.conAsimetria ? 'danger' : 'ok' %>"><%= last.analysis.puntualActual.conAsimetria ? 'Con asimetría punto a punto' : 'Sin asimetría punto a punto' %></span><% } %><% } %>
+  <% if (last) { %><%- include('../partials/risk-badge', { analysis: last.analysis, showPct: true }) %><% if (last.analysis.puntualActual) { %><span class="badge badge--<%= last.analysis.puntualActual.conAsimetria ? 'danger' : 'ok' %>"><%= last.analysis.puntualActual.conAsimetria ? 'Con asimetría punto a punto' : 'Sin asimetría punto a punto' %></span><% } %><% } %>
   <% if (!p.consentimientoFirmado) { %><span class="badge badge--danger">Sin consentimiento vigente</span><% } %>
 </div>
 
@@ -34,10 +34,10 @@
       <script type="application/json" id="<%= srcId %>" data-pw-data><%- pw.json(data) %></script>
       <div class="pw-evo">
         <div>
-          <h3 class="card__subtitle">Área con diferencia entre pies, por toma</h3>
+          <h3 class="card__subtitle">Riesgo de úlcera y área con diferencia entre pies, por toma</h3>
           <%- include('../partials/pw-evolution', { serie: seriePuntual, areaMinima: lastPw.umbralPixel ? lastPw.areaMinima : 10 }) %>
-          <% if (lastPw.patronDm) { const D = lastPw.patronDm; %>
-          <p class="muted small">Línea violeta: patrón térmico compatible con pie diabético, de un modelo entrenado con una base pública (diabetes vs control; AUC <span class="num"><%= fmt.num(D.auc, 2) %></span>, n = <%= D.n %>). No predice úlcera; la categoría se basa en el hallazgo térmico.</p>
+          <% const RL = pw.riesgoDe(la); if (RL) { %>
+          <p class="muted small">Línea violeta: riesgo de úlcera en <%= pw.horizonteTexto(RL.horizonteSemanas) %> (eje derecho), estimado con la asimetría de cada toma y la evidencia publicada<%= RL.grupoIwgdf !== null && RL.grupoIwgdf !== undefined ? ` (IWGDF ${RL.grupoIwgdf})` : '' %>.</p>
           <% } %>
         </div>
         <div>

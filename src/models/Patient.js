@@ -42,6 +42,8 @@ class Patient {
     this.hba1cNota = p.hba1cNota || null;
     this.tabaquismo = triState(p.tabaquismo);
     this.neuropatia = Boolean(p.neuropatia);
+    // La planilla no registró neuropatía (se usa el grupo IWGDF por defecto del riesgo).
+    this.neuropatiaSinDato = Boolean(p.neuropatiaSinDato) && !p.neuropatia;
     this.neuropatiaPuntaje = numOrNull(p.neuropatiaPuntaje);
     this.vibratoriaDer = numOrNull(p.vibratoriaDer);
     this.vibratoriaDerMas50 = Boolean(p.vibratoriaDerMas50);

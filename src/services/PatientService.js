@@ -115,6 +115,8 @@ class PatientService {
     // El código y el correo (identidad de acceso) no se editan desde la ficha.
     const { codigo: _c, consentimientoFirmado: _cf, consentimientoFecha: _cfe, ...changes } = clinical;
     const { email: _e, ...profile } = personal;
+    // Al guardar la ficha la neuropatía queda registrada (sí o no).
+    if ('neuropatia' in changes) changes.neuropatiaSinDato = false;
     await this.patients.update(id, changes);
     if (patient.userId && Object.keys(profile).length) await this.users.update(patient.userId, profile);
     this.events.publish(EVENTS.PATIENT_UPDATED, { actor, entity: 'paciente', entityId: id, detail: patient.codigo });
@@ -191,8 +193,8 @@ class PatientService {
           deltaTMax: Math.abs(i.analysis.deltaTMax),
         },
       ]);
-    // Serie punto a punto: un punto por toma (área caliente) y el patrón térmico
-    // compatible con pie diabético (modelo de la base pública; no es riesgo de úlcera).
+    // Serie punto a punto: un punto por toma (área caliente) y el riesgo de úlcera
+    // estimado hasta esa toma (la toma 1 sola; desde la toma 2, el del estudio).
     const seriePuntual = items
       .filter((i) => i.analysis?.puntual)
       .slice()
@@ -204,7 +206,8 @@ class PatientService {
           toma: t.toma,
           areaCalientePct: t.metricas ? t.metricas.areaCalientePct : null,
           conAsimetria: t.conAsimetria,
-          patronDm: Number.isFinite(t.patronDm) ? t.patronDm : null,
+          riesgo: Number.isFinite(t.riesgo?.probabilidad) ? t.riesgo.probabilidad : null,
+          riesgoRango: t.riesgo?.rango || null,
         })),
       );
     return { items, serie, seriePuntual };

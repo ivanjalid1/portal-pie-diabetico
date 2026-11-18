@@ -33,12 +33,21 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
   const { repos, authProvider } = data;
   const predictor =
     overrides.predictor ||
-    createPredictor(config.predictor, { realDataDir: config.seed === 'real' ? config.realDataDir : null });
+    createPredictor(config.predictor, {
+      realDataDir: config.seed === 'real' ? config.realDataDir : null,
+      riesgoModelo: config.riesgoModelo,
+    });
 
   const auditService = new AuditService({ audit: repos.audit, events }).subscribe();
   const authService = new AuthService({ authProvider, users: repos.users, events });
   const userService = new UserService({ users: repos.users, authProvider, events });
-  const settingsService = new SettingsService({ settings: repos.settings, analyses: repos.analyses, events });
+  const settingsService = new SettingsService({
+    settings: repos.settings,
+    analyses: repos.analyses,
+    studies: repos.studies,
+    patients: repos.patients,
+    events,
+  });
   const analysisService = new AnalysisService({
     predictor,
     analyses: repos.analyses,

@@ -14,6 +14,7 @@ const {
 const { thermalGroup, categoryFor } = require('../config/domain');
 const { analyzePointwise } = require('./predictors/pointwiseAnalysis');
 const { categoriaTermica } = require('./predictors/PointwisePredictor');
+const LiteratureRiskPredictor = require('./predictors/LiteratureRiskPredictor');
 
 /**
  * Configuración global del análisis (parámetros editables).
@@ -24,9 +25,11 @@ const { categoriaTermica } = require('./predictors/PointwisePredictor');
  * `AuditService` registra.
  */
 class SettingsService {
-  constructor({ settings, analyses, events, ttlMs = 15000 }) {
+  constructor({ settings, analyses, events, ttlMs = 15000, studies = null, patients = null }) {
     this.repo = settings;
     this.analyses = analyses;
+    this.studies = studies;
+    this.patients = patients;
     this.events = events;
     this.ttlMs = ttlMs;
     this.cache = null;
@@ -139,6 +142,10 @@ class SettingsService {
         if (actual?.conAsimetria) conAsimetriaPuntual += 1;
         if (a.puntual.tomas.at(-1)?.conAsimetria) conAsimetriaPuntualActual += 1;
         if (a.puntual.categoriaPor === 'hallazgo_termico') categoria = categoriaTermica(actual, params);
+        if (a.puntual.categoriaPor === 'riesgo_bibliografia') {
+          const patient = await this.#patientOf(a.studyId);
+          categoria = LiteratureRiskPredictor.applyRisk({ puntual: pw }, patient, params).categoria ?? categoria;
+        }
       }
       riesgo[categoria] += 1;
     }
@@ -152,6 +159,12 @@ class SettingsService {
       conAsimetriaPuntual,
       conAsimetriaPuntualActual,
     };
+  }
+
+  async #patientOf(studyId) {
+    if (!this.studies || !this.patients) return null;
+    const study = await this.studies.findById(studyId);
+    return study ? this.patients.findById(study.patientId) : null;
   }
 
   /** Validación tolerante para la vista previa: ignora los campos inválidos. */

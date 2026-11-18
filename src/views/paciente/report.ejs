@@ -30,6 +30,12 @@
         <span class="badge badge--<%= cat.tono %>"><%= cat.paciente %></span>
         <span><%= cat.mensajePaciente %></span>
       </div>
+      <% const RP = pw.riesgoDe(a); if (RP) { %>
+      <div class="report__big">
+        <span class="label">Riesgo estimado de úlcera en <%= pw.horizonteFrase(RP.horizonteSemanas) %></span>
+        <span class="num report__pct"><%= pw.riesgoPct(RP.probabilidad) %></span>
+      </div>
+      <% } %>
       <% if (m) { %>
       <div class="report__big">
         <span class="label">Diferencia de temperatura entre tus pies</span>

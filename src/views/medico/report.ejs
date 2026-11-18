@@ -57,6 +57,13 @@
       <% } %>
     </section>
     <section class="report__result">
+      <% const R = pw.riesgoDe(a); if (R) { const cat = domain.RISK_CATEGORIES[a.categoria]; %>
+      <div class="report__big report__big--risk">
+        <span class="label">Riesgo de úlcera en <%= pw.horizonteFrase(R.horizonteSemanas) %></span>
+        <span class="num report__pct"><%= pw.riesgoPct(R.probabilidad) %></span>
+        <span><% if (R.rango) { %><span class="num">(<%= pw.riesgoRango(R.rango) %>)</span> · <% } %><%= cat.nombre %><% if (R.grupoIwgdf !== null && R.grupoIwgdf !== undefined) { %> · IWGDF <%= R.grupoIwgdf %><% } %></span>
+      </div>
+      <% } %>
       <% if (mA) { %>
       <div class="report__big">
         <span class="label">Planta con diferencia &gt; <%= fmt.num(PW.umbralPixel, 1) %> °C</span>
@@ -75,10 +82,9 @@
         <% PW && PW.tomas.forEach((t) => { if (t.zonasNoAnalizadas.length) { %><span>Toma <%= t.toma %>: <%= pw.noAnalizadoTexto(t) %></span><% } }) %>
       </div>
     </section>
-    <% const DM = PW && PW.patronDm; if (DM) { %>
-    <p class="small report__model">Patrón térmico compatible con pie diabético: <span class="num"><%= fmt.num(DM.probabilidad, 0) %> %</span> — modelo entrenado con base pública, no predice úlcera (diabetes vs control en Hernández-Contreras et al. 2019; AUC <%= fmt.num(DM.auc, 2) %>, IC 95 % <%= fmt.num(DM.aucIC95[0], 2) %>–<%= fmt.num(DM.aucIC95[1], 2) %>, n = <%= DM.n %>). La categoría de riesgo se basa en el hallazgo térmico.</p>
+    <% const RB = PW && PW.riesgo; if (RB) { %>
+    <p class="small report__model">Riesgo de úlcera estimado con la asimetría térmica punto a punto (zona caliente contigua: <span class="num"><%= fmt.num(RB.asimetria, 1) %> °C</span>, banda <%= RB.banda.nombre %>, LR <span class="num"><%= fmt.num(RB.lr, 2) %></span><%= RB.confirmable ? (RB.persistente ? ', persistente en ambas tomas' : ', no confirmada por la otra toma') : '' %>) y la evidencia publicada: prior IWGDF <%= RB.grupoIwgdf %> de Peters y Lavery 2001 (<span class="num"><%= pw.riesgoPct(RB.prior) %></span> en el horizonte); LR de Frykberg et al. 2017 (Diabetes Care 40:973).<% if (PW.riesgoEntrenado) { %> Valor mostrado: modelo entrenado con los desenlaces del portal (AUC <%= fmt.num(PW.riesgoEntrenado.auc, 2) %>).<% } %></p>
     <% } %>
-
     <% if (PW) { const data = pw.payload(a); const srcId = `pw-rep-${s.id}`; %>
     <script type="application/json" id="<%= srcId %>" data-pw-data><%- pw.json(data) %></script>
     <section>
@@ -119,7 +125,7 @@
     <% } %>
 
     <footer class="report__foot">
-      <p>Análisis <%= a ? a.predictorVersion : '—' %><%= a && a.puntual && a.puntual.patronDm ? ` · patrón térmico ${a.puntual.patronDm.version} (base pública, no predice úlcera)` : '' %>.</p>
+      <p>Análisis <%= a ? a.predictorVersion : '—' %>.</p>
       <p>Documento con datos de salud: tratamiento confidencial según Ley 25.326 y Ley 26.529.</p>
       <div class="report__sign"><span>Firma y sello</span></div>
     </footer>

@@ -98,6 +98,29 @@ const TAIL_COLUMNS = [
     ({ analysis }) => (analysis ? `${analysis.parametros.corteModerado}/${analysis.parametros.corteAlto}` : ''),
   ],
   ['UMBRAL POR PUNTO (°C)', ({ analysis }) => num(analysis?.puntual?.umbralPixel, 1)],
+  // Riesgo de úlcera (calibrado con la bibliografía, o el modelo entrenado si existe).
+  [
+    'RIESGO ULCERA (%)',
+    ({ analysis }) =>
+      analysis?.puntual?.riesgo || analysis?.puntual?.riesgoEntrenado ? num(analysis.probabilidad, 2) : '',
+  ],
+  [
+    'RIESGO ULCERA IC (%)',
+    ({ analysis }) => {
+      const r = analysis?.puntual?.riesgo?.rango;
+      return r && !analysis.puntual.riesgoEntrenado ? `${num(r[0], 2)}-${num(r[1], 2)}` : '';
+    },
+  ],
+  ['HORIZONTE (SEMANAS)', ({ analysis }) => analysis?.puntual?.riesgo?.horizonteSemanas ?? ''],
+  ['GRUPO IWGDF', ({ analysis }) => analysis?.puntual?.riesgo?.grupoIwgdf ?? ''],
+  ['CATEGORIA RIESGO', ({ analysis }) => analysis?.categoria || ''],
+  [
+    'MODELO RIESGO',
+    ({ analysis }) =>
+      analysis?.puntual?.riesgoEntrenado
+        ? analysis.puntual.riesgoEntrenado.version
+        : analysis?.puntual?.riesgo?.version || '',
+  ],
   // Patrón térmico compatible con pie diabético (modelo de la base pública 2019,
   // diabetes vs control). NO es una probabilidad de úlcera.
   ['PATRON PIE DIABETICO (%) BASE PUBLICA', ({ analysis }) => num(analysis?.puntual?.patronDm?.probabilidad, 1)],
@@ -129,6 +152,7 @@ function buildControlesCsv(items) {
     ['GRUPO T1', ({ analysis }) => analysis?.grupoDeToma(1) || ''],
     ['GRUPO T2', ({ analysis }) => analysis?.grupoDeToma(2) || ''],
     ['PUNTUAL AREA |DT|>UMBRAL (%)', ({ analysis }) => num(analysis?.puntualActual?.metricas?.areaCalientePct, 1)],
+    ['RIESGO ULCERA (%)', ({ analysis }) => (analysis?.puntual?.riesgo ? num(analysis.probabilidad, 2) : '')],
     ['PATRON PIE DIABETICO (%) BASE PUBLICA', ({ analysis }) => num(analysis?.puntual?.patronDm?.probabilidad, 1)],
     ['GENERÓ LESIÓN', ({ patient }) => yesNo(patient.generoLesion)],
   ];

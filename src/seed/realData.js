@@ -69,7 +69,7 @@ function splitNombre(nombre) {
 }
 
 function clinicalFields(c, f1) {
-  if (!c) return { tipoDm: null, sexo: null, fechaNacimiento: null };
+  if (!c) return { tipoDm: null, sexo: null, fechaNacimiento: null, neuropatiaSinDato: true };
   const anio = new Date(f1).getFullYear();
   return {
     fechaNacimiento: c.edad ? `${anio - Math.round(c.edad)}-07-01` : null,
@@ -81,6 +81,7 @@ function clinicalFields(c, f1) {
     hba1cNota: c.hba1c !== null ? 'Valor de la planilla clínica (sin fecha registrada).' : null,
     tabaquismo: c.tabaquismo,
     neuropatia: Boolean(c.neuropatia),
+    neuropatiaSinDato: c.neuropatia === null || c.neuropatia === undefined,
     neuropatiaPuntaje: c.neuropatiaPuntaje,
     vibratoriaDer: c.vibratoriaDer,
     vibratoriaIzq: c.vibratoriaIzq,

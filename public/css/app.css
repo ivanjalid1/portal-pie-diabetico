@@ -2859,6 +2859,16 @@ input[aria-invalid='true'] {
   background: var(--danger);
 }
 
+.patient-status__risk {
+  margin: 0 0 8px;
+  font-size: 1.02rem;
+  color: var(--text);
+}
+
+.patient-status__risk strong {
+  font-weight: 700;
+}
+
 .patient-status__level {
   display: flex;
   align-items: center;
@@ -7791,6 +7801,11 @@ body.has-savebar {
   fill: var(--text);
 }
 
+.pw-evo__chart .lbl--prob {
+  font-size: 11px;
+  fill: var(--accent);
+}
+
 .pw-evo__legend {
   display: flex;
   flex-wrap: wrap;
@@ -8096,6 +8111,75 @@ body.has-savebar {
 .sr-model strong {
   color: var(--text-2);
   font-weight: 600;
+}
+
+/* Riesgo de úlcera (resultado principal del estudio). */
+.sr-risk {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  margin: 0 0 18px;
+  padding: 16px 20px;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  box-shadow:
+    inset 4px 0 0 var(--risk-tone, var(--line)),
+    inset 0 0 0 1px var(--line);
+}
+
+.sr-risk--ok {
+  --risk-tone: var(--ok);
+}
+
+.sr-risk--warn {
+  --risk-tone: var(--warn);
+}
+
+.sr-risk--danger {
+  --risk-tone: var(--danger);
+}
+
+.sr-risk__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 560;
+  color: var(--text-2);
+}
+
+.sr-risk__value {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 2rem + 2.4vw, 3.6rem);
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  color: var(--risk-tone, var(--text));
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-risk__value small {
+  font-size: 0.45em;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.sr-risk__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 2px 0 0;
+  font-size: 0.88rem;
+  color: var(--text-2);
+}
+
+.sr-cite {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-2);
 }
 
 .sr-tip .help-dot {

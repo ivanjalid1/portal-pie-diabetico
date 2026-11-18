@@ -6,6 +6,7 @@
     <% if (ultimo) { const cat = domain.RISK_CATEGORIES[ultimo.analysis.categoria]; %>
     <p class="patient-status__level"><span class="dot dot--<%= cat.tono %>" aria-hidden="true"></span><%= cat.paciente %></p>
     <p><%= cat.mensajePaciente %></p>
+    <% const RP = pw.riesgoDe(ultimo.analysis); if (RP) { %><p class="patient-status__risk">Riesgo estimado de úlcera en <%= pw.horizonteFrase(RP.horizonteSemanas) %>: <strong class="num"><%= pw.riesgoPct(RP.probabilidad) %></strong></p><% } %>
     <p class="muted small">Estudio del <%= fmt.dateLong(ultimo.study.fechaHora) %>.</p>
     <a class="btn btn--ghost" href="/paciente/estudios/<%= ultimo.study.id %>">Ver detalle</a>
     <% } else if (totalEstudios) { %>

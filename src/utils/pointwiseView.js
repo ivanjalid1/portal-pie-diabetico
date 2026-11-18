@@ -145,7 +145,70 @@ function cambioArea(a) {
   };
 }
 
+/* ---------------- Riesgo de úlcera ---------------- */
+
+/** Número de un porcentaje de riesgo (los de pocas semanas suelen ser < 1 %). */
+function riesgoNum(v) {
+  if (v === null || v === undefined || !Number.isFinite(Number(v))) return '—';
+  const n = Number(v);
+  if (n > 0 && n < 0.1) return '< 0,1';
+  return fmt.num(n, n < 10 ? 1 : 0);
+}
+
+/** «0,8 %» */
+const riesgoPct = (v) => `${riesgoNum(v)} %`;
+
+/** «0,4–1,8 %» */
+function riesgoRango(r) {
+  if (!r || r.length !== 2) return '';
+  const lo = riesgoNum(r[0]);
+  return `${lo === '< 0,1' ? '0' : lo}–${riesgoNum(r[1])} %`;
+}
+
+/** Horizonte en lenguaje simple: «8 semanas» o «2 meses». */
+function horizonteTexto(semanas) {
+  const s = Number(semanas);
+  if (!Number.isFinite(s)) return '';
+  if (s % 4 === 0 && s >= 8) return `${s / 4} meses`;
+  return `${s} semanas`;
+}
+
+/** «los próximos 2 meses» / «las próximas 6 semanas». */
+function horizonteFrase(semanas) {
+  const t = horizonteTexto(semanas);
+  return t.endsWith('meses') ? `los próximos ${t}` : `las próximas ${t}`;
+}
+
+/** Riesgo que muestra la interfaz (modelo entrenado si lo hay; si no, el bibliográfico). */
+function riesgoDe(a) {
+  const P = a && a.puntual;
+  if (!P) return null;
+  if (P.riesgoEntrenado) {
+    return {
+      fuente: 'modelo',
+      probabilidad: P.riesgoEntrenado.probabilidad,
+      rango: null,
+      horizonteSemanas: P.riesgo ? P.riesgo.horizonteSemanas : a.horizonteSemanas,
+      grupoIwgdf: P.riesgo ? P.riesgo.grupoIwgdf : null,
+      bib: P.riesgo || null,
+      modelo: P.riesgoEntrenado,
+    };
+  }
+  if (!P.riesgo) return null;
+  return { fuente: 'bibliografia', ...P.riesgo, bib: P.riesgo, modelo: null };
+}
+
+const TOOLTIP_RIESGO =
+  'Estimado a partir de la asimetría térmica punto a punto y la evidencia publicada (Frykberg 2017; Peters y Lavery 2001; IWGDF 2023). Se reemplazará por un modelo entrenado con los desenlaces del portal cuando haya ≥10 lesiones registradas.';
+
 module.exports = {
+  riesgoNum,
+  riesgoPct,
+  riesgoRango,
+  horizonteTexto,
+  horizonteFrase,
+  riesgoDe,
+  TOOLTIP_RIESGO,
   payload,
   json,
   zonasTexto,

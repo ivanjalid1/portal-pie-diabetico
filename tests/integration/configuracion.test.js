@@ -25,7 +25,9 @@ describe('Configuración de los parámetros del análisis', () => {
       expect(v.referenciaBibliografica).toBe(2.2);
       expect(v.cambioRelevante).toBe(0.3);
       expect([v.corteModerado, v.corteAlto]).toEqual([50, 70]);
-      expect(v.horizonteSemanas).toBe(6);
+      expect(v.horizonteSemanas).toBe(8);
+      expect([v.priorIwgdf0, v.priorIwgdf1, v.priorIwgdf2, v.priorIwgdf3]).toEqual([5.1, 14.3, 18.8, 55.8]);
+      expect(v.modoRiesgo).toBe('graduado');
       expect([v.diasEntreTomas, v.diasControl]).toEqual([30, 42]);
       expect(v.paletaDefecto).toBe('alto_contraste');
     });
@@ -69,8 +71,11 @@ describe('Configuración de los parámetros del análisis', () => {
       const laxo = await svc.preview({ areaMinima: 0.5 });
       expect(estricto.puntuales).toBe(estricto.total);
       expect(estricto.conAsimetriaPuntual).toBeLessThanOrEqual(laxo.conAsimetriaPuntual);
-      // Mientras el modelo no esté validado, la categoría sale del hallazgo térmico (no de los cortes).
-      expect(estricto.riesgo.sin_riesgo).toBe(estricto.total - estricto.conAsimetriaPuntual);
+      // La categoría sale del riesgo bibliográfico (cortes = riesgo basal IWGDF 1 y 3), no de 50/70 %.
+      const suma = (r) => r.sin_riesgo + r.moderado + r.alto;
+      expect(suma(estricto.riesgo)).toBe(estricto.total);
+      const largo = await svc.preview({ horizonteSemanas: 26 });
+      expect(suma(largo.riesgo)).toBe(largo.total);
       expect((await svc.get()).corteAlto).toBe(70);
     });
   });
@@ -126,7 +131,7 @@ describe('Configuración de los parámetros del análisis', () => {
       expect(entry.detail).toMatch(/\d+ estudios recalculados/);
       const page = await medico.get(`/medico/estudios/${all[0].studyId}`);
       expect(page.text).toMatch(/Umbral por punto <strong class="num">1,0 °C/);
-      expect(page.text).not.toContain('2,2 °C');
+      expect(page.text).not.toContain('Referencia: análisis por regiones');
       const csv = await medico.get('/medico/pacientes/exportar.csv');
       expect(csv.text).toContain('CORTE SIMETRIA');
     });

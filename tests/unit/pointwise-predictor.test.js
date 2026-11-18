@@ -12,8 +12,8 @@ const study = new Study({ fechaHora: '2026-10-01T12:00:00.000Z', fechaToma1: '20
 const is2 = (slot, opts) => ({ slot, buffer: fakeIs2(opts), mime: 'application/x-fluke-is2' });
 
 describe('PointwisePredictor (estrategia por defecto)', () => {
-  it('es la estrategia por defecto e implementa UlcerPredictor', () => {
-    const p = createPredictor();
+  it('implementa UlcerPredictor', () => {
+    const p = createPredictor('puntual');
     expect(p).toBeInstanceOf(PointwisePredictor);
     expect(p).toBeInstanceOf(UlcerPredictor);
     expect(p.info.id).toBe('puntual');

@@ -10,6 +10,8 @@
   const PW = a && a.puntual;
   const DM = PW && PW.patronDm;
   const DMI = predictorInfo.patronDm;
+  const R = a ? pw.riesgoDe(a) : null;
+  const RB = R && R.bib;
   const t2 = PW ? PW.tieneToma2 : Boolean(s.image('toma2'));
   const tA = a && a.puntualActual;
   const mA = tA && tA.metricas;
@@ -76,6 +78,23 @@
 
 <section class="card sr-summary" aria-labelledby="sum-title">
   <h2 id="sum-title" class="sr-summary__eyebrow">Resultado<% if (tA) { %> · <%= tomaLabel(tA.toma).toLowerCase() %><% } %></h2>
+  <% if (R) { const cat = domain.RISK_CATEGORIES[a.categoria]; %>
+  <div class="sr-risk sr-risk--<%= cat.tono %>">
+    <p class="sr-risk__label">
+      Riesgo de úlcera en <%= pw.horizonteFrase(R.horizonteSemanas) %>
+      <span class="sr-tip">
+        <button type="button" class="help-dot" aria-describedby="tip-risk" aria-label="Cómo se estima el riesgo de úlcera">i</button>
+        <span role="tooltip" id="tip-risk" class="sr-tip__body"><%= R.fuente === 'modelo' ? `Modelo entrenado con los desenlaces registrados en el portal (${R.modelo.positivos} lesiones; AUC ${fmt.num(R.modelo.auc, 2)}).` : pw.TOOLTIP_RIESGO %></span>
+      </span>
+    </p>
+    <p class="sr-risk__value"><span class="num"><%= pw.riesgoNum(R.probabilidad) %></span><small> %</small></p>
+    <p class="sr-risk__meta">
+      <% if (R.rango) { %><span class="num">(<%= pw.riesgoRango(R.rango) %>)</span><% } %>
+      <span class="badge badge--<%= cat.tono %>"><span class="dot" aria-hidden="true"></span><%= cat.nombre %></span>
+      <% if (R.grupoIwgdf !== null && R.grupoIwgdf !== undefined) { %><span class="badge badge--outline">IWGDF <%= R.grupoIwgdf %><%= R.bib && R.bib.grupoPorDefecto ? ' (supuesto)' : '' %></span><% } %>
+    </p>
+  </div>
+  <% } %>
   <% if (lectura) { %>
   <p class="sr-summary__lead"><%= lectura.frase %></p>
   <% if (cambio) { %><p class="sr-summary__sub"><%= cambio.frase %></p><% } %>
@@ -101,19 +120,6 @@
   <p class="sr-summary__lead">No hubo puntos comparables en ambos pies: revisá la termografía original.</p>
   <% } else { %>
   <p class="sr-summary__lead">No se pudo hacer el análisis punto a punto porque las imágenes no son archivos radiométricos (.IS2).</p>
-  <% } %>
-  <% if (DM) { %>
-  <div class="sr-summary__foot">
-    <span class="sr-model">
-      Patrón térmico compatible con pie diabético: <strong class="num"><%= fmt.num(DM.probabilidad, 0) %> %</strong> <span class="muted">— modelo entrenado con base pública, no predice úlcera</span>
-      <span class="sr-tip">
-        <button type="button" class="help-dot" aria-describedby="tip-model" aria-label="Qué es el patrón térmico compatible con pie diabético">i</button>
-        <span role="tooltip" id="tip-model" class="sr-tip__body">
-          Cuánto se parece el patrón térmico plantar (toma <%= DM.tomaUsada %>) al de personas con diabetes de una base pública (Hernández-Contreras et al. 2019: <%= DM.positivos %> con diabetes y <%= DM.n - DM.positivos %> controles). AUC <%= fmt.num(DM.auc, 2) %> (IC 95 % <%= fmt.num(DM.aucIC95[0], 2) %>–<%= fmt.num(DM.aucIC95[1], 2) %>), n = <%= DM.n %>. No predice úlcera ni cambia la categoría de riesgo, que sale del hallazgo térmico.
-        </span>
-      </span>
-    </span>
-  </div>
   <% } %>
 </section>
 
@@ -203,6 +209,20 @@
     </section>
     <% } %>
 
+    <% if (RB) { const EV = (predictorInfo.riesgo || {}).evidencia || {}; %>
+    <section class="sr-tech__block" aria-labelledby="tech-risk">
+      <h3 id="tech-risk" class="card__subtitle">Riesgo de úlcera: cálculo</h3>
+      <dl class="kv kv--compact">
+        <div><dt>Fórmula</dt><dd>odds(riesgo) = odds(prior IWGDF) × LR de la banda de asimetría (un solo LR; teorema de Bayes)</dd></div>
+        <div><dt>Prior</dt><dd>IWGDF <%= RB.grupoIwgdf %> (<%= RB.grupoMotivo %>): <span class="num"><%= pw.riesgoPct(RB.prior) %></span> en <%= pw.horizonteTexto(RB.horizonteSemanas) %>, desde la úlcera a 3 años de Peters y Lavery 2001 con riesgo constante</dd></div>
+        <div><dt>Asimetría</dt><dd>Zona caliente contigua de la toma <%= tA ? tA.toma : '' %>: <span class="num"><%= fmt.num(RB.asimetria, 2) %> °C</span><% if (RB.zona) { %> en <%= pw.ZONA_CON_ARTICULO[RB.zona] %>, más caliente el pie <%= RB.pieMasCaliente %> (<span class="num"><%= fmt.num(RB.areaZonaPct, 1) %> %</span> de la planta)<% } %>. <%= RB.confirmable ? (RB.persistente ? 'Persistente en ambas tomas.' : `No confirmada por la otra toma (persistente: ${fmt.num(RB.asimetriaConfirmada, 2)} °C).`) : 'Una sola toma: sin confirmación.' %></dd></div>
+        <div><dt>Banda y LR</dt><dd><%= RB.banda.nombre %>: LR <span class="num"><%= fmt.num(RB.lr, 2) %></span> (<span class="num"><%= fmt.num(RB.lrRango[0], 2) %>–<%= fmt.num(RB.lrRango[1], 2) %></span>) · <%= predictorInfo.riesgo && predictorInfo.riesgo.modos ? predictorInfo.riesgo.modos[RB.modo] : RB.modo %></dd></div>
+        <div><dt>Resultado</dt><dd><span class="num"><%= pw.riesgoPct(RB.probabilidad) %></span> (<span class="num"><%= pw.riesgoRango(RB.rango) %></span>)<%= R.fuente === 'modelo' ? ' · reemplazado por el modelo entrenado' : '' %>. Categoría: bajo &lt; <span class="num"><%= pw.riesgoPct(RB.cortes.moderado) %></span> (basal IWGDF 1) ≤ moderado &lt; <span class="num"><%= pw.riesgoPct(RB.cortes.alto) %></span> (basal IWGDF 3) ≤ alto</dd></div>
+        <div><dt>Fuentes</dt><dd><% ['frykberg2017', 'lavery2019', 'peters2001', 'iwgdf2023'].forEach((k) => { const e = EV[k]; if (e) { %><span class="sr-cite"><%= e.cita %>. doi:<%= e.doi %> (<%= e.pagina %>).</span> <% } }) %></dd></div>
+      </dl>
+    </section>
+    <% } %>
+
     <section class="sr-tech__block" aria-labelledby="tech-model">
       <h3 id="tech-model" class="card__subtitle">Patrón térmico compatible con pie diabético (base pública)</h3>
       <% if (DM && DMI) { %>
@@ -211,7 +231,7 @@
         <div><dt>Modelo</dt><dd>Regresión logística L2 sobre features relativas a cada pie y contralaterales (invariantes a la cámara y a la escala de temperatura)</dd></div>
         <div><dt>Validación</dt><dd><%= DMI.metodo %>: AUC <span class="num"><%= fmt.num(DMI.auc, 3) %></span> (IC 95 % <span class="num"><%= fmt.num(DMI.aucIC95[0], 2) %>–<%= fmt.num(DMI.aucIC95[1], 2) %></span>); n = <%= DMI.n %> (<%= DMI.positivos %> con diabetes)<% if (DMI.pPermutacion !== null) { %>; p de permutación <span class="num"><%= fmt.num(DMI.pPermutacion, 3) %></span><% } %></dd></div>
         <% if (DMI.subgrupoEdad) { %><div><dt>Edad</dt><dd>Los controles de la base son más jóvenes: la edad sola da AUC <span class="num"><%= fmt.num(DMI.aucEdadSola, 2) %></span>. Entre 30 y 60 años (n = <%= DMI.subgrupoEdad.n %>) el modelo da <span class="num"><%= fmt.num(DMI.subgrupoEdad.auc, 2) %></span> y la edad sola <span class="num"><%= fmt.num(DMI.subgrupoEdad.aucEdadSola, 2) %></span>: parte de la discriminación puede ser edad.</dd></div><% } %>
-        <div><dt>Resultado</dt><dd><span class="num"><%= fmt.num(DM.probabilidad, 1) %> %</span> con la toma <%= DM.tomaUsada %></dd></div>
+        <div><dt>Resultado</dt><dd>Patrón térmico compatible con pie diabético: <span class="num"><%= fmt.num(DM.probabilidad, 1) %> %</span> con la toma <%= DM.tomaUsada %></dd></div>
       </dl>
       <% if (DM.factores.length) { %>
       <ul class="factors">
@@ -229,7 +249,7 @@
       <% } else { %>
       <p class="muted small">Sin resultado: el análisis punto a punto no está disponible para este estudio.</p>
       <% } %>
-      <p class="muted small">El modelo preliminar de HbA1c &gt; 7 % (desenlace sustituto) ya no se muestra: su AUC quedó por debajo del azar (ver la comparación). La categoría de riesgo sale del hallazgo térmico.</p>
+      <p class="muted small">Dato secundario: no cambia el riesgo de úlcera ni su categoría. El modelo preliminar de HbA1c &gt; 7 % (desenlace sustituto) ya no se muestra: su AUC quedó por debajo del azar (ver la comparación).</p>
     </section>
 
     <% const CMP = predictorInfo.comparacion; if (CMP && CMP.modelos && CMP.modelos.length) { %>

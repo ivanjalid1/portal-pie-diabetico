@@ -13,7 +13,9 @@ lesiones (10 por defecto) o menos de --min-negativos sin lesión (10), entre
 los pacientes con features y sin la marca «no válido». Con datos suficientes:
 logística L2, 5 pliegues estratificados por paciente × 20 repeticiones con C
 anidado, IC 95 % por bootstrap y test de permutación; exporta sólo
-coeficientes y métricas agregadas a src/config/models/outcome-logreg.json.
+coeficientes y métricas agregadas a data-local/models/outcome-logreg.json (deriva de
+datos reales: no se versiona). Si el modelo queda validado (AUC ≥ 0,7 con IC inferior
+> 0,5), el portal lo usa en lugar del riesgo bibliográfico (RIESGO_MODELO=auto).
 
 Uso: python -I scripts/ml/train-outcome.py [--min-positivos 10] [--min-negativos 10] [--dry-run]
 """
@@ -116,7 +118,8 @@ def main(argv=None):
             "fuentes": fuentes,
         },
     }
-    dest = C.ROOT / "src" / "config" / "models" / "outcome-logreg.json"
+    dest = C.DATA / "models" / "outcome-logreg.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(out, indent=2, ensure_ascii=False) + "\n", encoding="utf8", newline="\n")
     print(f"AUC {out['validacion']['auc']} (IC 95 % {out['validacion']['aucIC95']}), p perm. {pv:.4f}")
     print(f"modelo exportado: {dest.relative_to(C.ROOT)}")

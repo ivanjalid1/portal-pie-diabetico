@@ -36,7 +36,7 @@ describe('Controles: próximos, vencidos y realizados', () => {
     expect(realizados.text).toContain('Área |ΔT| &gt; umbral');
     const alto = await agent.get('/medico/controles?vista=realizados&riesgo=alto');
     expect(alto.text).toContain('Alto riesgo');
-    expect(alto.text).not.toContain('Sin riesgo ');
+    expect(alto.text).not.toContain('Riesgo bajo ');
   });
 
   it('exporta el CSV de controles sin datos personales', async () => {

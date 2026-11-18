@@ -223,7 +223,8 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
     expect(res.status).toBe(303);
     const page = await medico.get(res.headers.location);
     expect(page.status).toBe(200);
-    expect(page.text).toContain('Análisis punto a punto');
+    expect(page.text).toContain('análisis punto a punto');
+    expect(page.text).toMatch(/Riesgo de úlcera en los próximos 2 meses/);
     expect(page.text).toContain('data-pw-map="1:dt"');
     expect(page.text).toContain('data-pw-map="2:dt"');
     expect(page.text).toContain('data-pw-hist="2"');
@@ -233,7 +234,7 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
     expect(page.text).toContain('data-pw-map="tci-2:izq"');
     expect(page.text).toMatch(/<dt>Segmentación<\/dt><dd>Toma 1: clásica · Toma 2: clásica/);
     expect(page.text).toContain('Comparación de modelos');
-    // La probabilidad del modelo HbA1c ya no se muestra; sí el patrón de la base pública.
+    // La probabilidad del modelo HbA1c ya no se muestra; el patrón de la base pública, en el detalle.
     expect(page.text).not.toContain('Modelo preliminar · no validado');
     expect(page.text).toContain('Patrón térmico compatible con pie diabético');
     expect(page.text).toContain('no predice úlcera');

@@ -15,7 +15,15 @@ Portal médico–paciente para la **estimación del riesgo de úlcera de pie dia
 > Antecedente (Parte 1): «Correlación entre la termografía y la predicción de úlceras en pie diabético», Ana Paula Muñoz (FCEFyN – UNC).
 
 > [!WARNING]
-> **Herramienta exploratoria complementaria, no diagnóstica.** El análisis compara ambos pies **punto a punto**: segmentación, espejado del pie derecho, registro afín y mapa ΔT píxel a píxel (estrategia `puntual-v1`). Las temperaturas son aproximadas (conversión lineal de las cuentas de la cámara). La probabilidad proviene de un **modelo preliminar no validado**: regresión logística, desenlace sustituto HbA1c > 7 %, AUC de validación cruzada 0,27 con n = 53. Por eso la categoría de riesgo resume el hallazgo térmico y no esa probabilidad. Detalles y limitaciones en [docs/arquitectura.md §8](docs/arquitectura.md#8-análisis-punto-a-punto-parte-2).
+> **Herramienta exploratoria complementaria, no diagnóstica.** El análisis compara ambos pies **punto a punto**: segmentación, espejado del pie derecho, registro afín y mapa ΔT píxel a píxel. Las temperaturas son aproximadas (conversión lineal de las cuentas de la cámara).
+>
+> El resultado principal es el **riesgo de úlcera** en un horizonte de 8 semanas (estrategia `riesgo-bibliografia`). Se calcula con el teorema de Bayes:
+>
+> - **Prior:** la incidencia del grupo de riesgo IWGDF del paciente (Peters y Lavery 2001).
+> - **Cociente de verosimilitud:** el de la asimetría térmica de zona caliente contigua (Frykberg et al. 2017, *Diabetes Care* 40:973).
+> - **Rango:** sale de los IC de esas cifras.
+>
+> Todavía no hay desenlaces de la cohorte para validarlo. Con ≥ 10 lesiones registradas, el portal pasa solo al modelo entrenado. Método, citas y limitaciones en [docs/arquitectura.md §8.9](docs/arquitectura.md#89-riesgo-de-úlcera-calibrado-con-la-bibliografía-estrategia-por-defecto).
 
 ## Capturas
 
@@ -112,14 +120,16 @@ data-local/venv-ml/Scripts/python -I scripts/ml/train_adjusted.py          # HbA
 npm run ml:summary                             # agrega los resultados a «Detalle técnico»
 data-local/venv-ml/Scripts/python -I scripts/ml/dice_public.py             # control de dominio de la U-Net
 data-local/venv-ml/Scripts/python -I scripts/ml/dice_corrected.py          # Dice vs máscaras corregidas en /mascaras
-data-local/venv-ml/Scripts/python -I scripts/ml/train-outcome.py           # modelo de úlcera (se niega con < 10 lesiones)
+data-local/venv-ml/Scripts/python -I scripts/ml/train-outcome.py           # modelo de úlcera (se niega con < 10 lesiones) → data-local/models/
 ```
 
-- **Patrón térmico compatible con pie diabético:** se entrena diabetes vs control en la base pública. Con validación cruzada por sujeto da AUC 0,91 (0,86–0,95), n = 167. **No predice úlcera** y no cambia la categoría de riesgo. Los controles de la base son más jóvenes, así que parte de la señal puede ser la edad.
+- **Patrón térmico compatible con pie diabético:** se entrena diabetes vs control en la base pública. Con validación cruzada por sujeto da AUC 0,91 (0,86–0,95), n = 167. **No predice úlcera.** Queda como dato secundario en «Detalle técnico» y no cambia el riesgo ni su categoría. Los controles de la base son más jóvenes, así que parte de la señal puede ser la edad.
+- **Atlas de angiosomas:** `npm run ml:public` lo escribe en `data-local/models/angiosome-atlas.json`. Como deriva de la base pública, no se versiona; si falta (CI, Vercel), el TCI usa la aproximación geométrica.
+- **Modelo de úlcera:** `train-outcome.py` escribe `data-local/models/outcome-logreg.json` si hay casos suficientes. Si queda validado, el portal lo usa en lugar del riesgo bibliográfico (`RIESGO_MODELO=auto|bibliografia|entrenado`).
 - **Corrección de máscaras:** en `/mascaras` (sólo local), el médico/a o el administrador/a corrige el contorno de los pies. Las máscaras se guardan en `data-local/ml/corrected-masks/`.
 - **Desenlace real:** con datos reales, se guarda también en `data-local/outcomes/outcomes.json`, así se conserva al reiniciar.
 
-Detalle en [docs/arquitectura.md §8.3–8.8](docs/arquitectura.md). Los pesos, máscaras y matrices quedan en `data-local/`; nunca se versionan.
+Detalle en [docs/arquitectura.md §8.3–8.9](docs/arquitectura.md). Los pesos, máscaras y matrices quedan en `data-local/`; nunca se versionan.
 
 ### Cuentas demo (contraseña `Demo1234!`)
 

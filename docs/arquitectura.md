@@ -54,7 +54,7 @@ flowchart LR
 | **MVC** | `controllers/`, `views/`, `models/` | Separar presentación, control y dominio. |
 | **Repository** | `repositories/contracts.js` (interfaces), `repositories/memory`, `repositories/supabase` | Aislar a los servicios de la tecnología de persistencia. |
 | **Factory** | `repositories/RepositoryFactory.js` (`DATA_DRIVER`), `services/predictors/PredictorFactory.js` (`PREDICTOR`) | Elegir implementaciones concretas por configuración. |
-| **Strategy** | `services/predictors/UlcerPredictor.js` → `PointwisePredictor` (por defecto, análisis punto a punto + modelo preliminar), `MockUlcerPredictor` (respaldo para imágenes no radiométricas), `LogisticRegressionPredictor`, `CnnPredictor`; `services/auth/AuthProvider.js` → `PasswordAuthProvider`, `SupabaseAuthProvider`, `GoogleOAuthProvider` | Intercambiar el algoritmo de predicción y el mecanismo de autenticación sin tocar los casos de uso. |
+| **Strategy** | `services/predictors/UlcerPredictor.js` → `LiteratureRiskPredictor` (por defecto: riesgo de úlcera calibrado con la bibliografía sobre el análisis punto a punto, §8.9), `TrainedOutcomePredictor` (modelo entrenado con los desenlaces, cuando está validado), `PointwisePredictor` (análisis punto a punto + modelo preliminar), `MockUlcerPredictor` (respaldo para imágenes no radiométricas), `LogisticRegressionPredictor`, `CnnPredictor`; `services/auth/AuthProvider.js` → `PasswordAuthProvider`, `SupabaseAuthProvider`, `GoogleOAuthProvider` | Intercambiar el algoritmo de predicción y el mecanismo de autenticación sin tocar los casos de uso. |
 | **Singleton** | `config/index.js` (`getConfig`), `config/supabase.js` (`getSupabaseClients`) | Una sola configuración inmutable y un único cliente de base de datos por proceso. |
 | **Chain of Responsibility** | `app.js` (cadena global) y `routes/index.js` (`requireAuth → requireRole → multer → verifyCsrf → validate → controlador`) | Cada eslabón decide si corta (redirección, 403, error de validación) o delega. |
 | **Observer** | `utils/eventBus.js` (`DomainEventBus`), `services/AuditService.js` | Los servicios publican eventos (`patient.created`, `analysis.completed`, …) y la auditoría se suscribe sin acoplamiento. |
@@ -295,7 +295,7 @@ Los 10 % se calibraron con la toma 1 de los 54 pacientes de la hoja «DifT°» d
 
 ### 8.1 Modelo preliminar (HbA1c, retirado de la interfaz)
 
-`PointwisePredictor` (`puntual-v1`) es la estrategia por defecto (`PREDICTOR=puntual`) detrás de la interfaz `UlcerPredictor`. `MockUlcerPredictor` queda como respaldo sólo cuando se suben imágenes no radiométricas (JPG/PNG), y el resultado se rotula «simulado».
+`PointwisePredictor` (`puntual-v1`, `PREDICTOR=puntual`) hace el análisis punto a punto detrás de la interfaz `UlcerPredictor`. La estrategia por defecto, `LiteratureRiskPredictor` (§8.9), lo extiende. `MockUlcerPredictor` queda como respaldo sólo cuando se suben imágenes no radiométricas (JPG/PNG), y el resultado se rotula «simulado».
 
 - **Variables:** % de área con \|ΔT\| > 1 °C, \|ΔT\| medio y \|ΔT\| p95 de la última toma, con el umbral fijo del modelo.
 - **Ajuste:** regresión logística L2, C = 0,5 como en la Parte 1 (`src/services/predictors/logistic.js`).
@@ -555,9 +555,8 @@ Conclusión: el patrón térmico aporta información, pero parte de lo que el mo
 
 **En el portal** (`src/services/predictors/diabeticPattern.js`, `src/config/models/diabetic-pattern-logreg.json`):
 
-- en el resultado, el informe y el gráfico de la ficha se muestra «Patrón térmico compatible con pie diabético: X % — modelo entrenado con base pública, no predice úlcera»;
-- la AUC, el IC y el n van en el tooltip y en «Detalle técnico», junto con las variables que más pesan;
-- no cambia la categoría de riesgo;
+- se muestra sólo en «Detalle técnico» del estudio, como dato secundario («Patrón térmico compatible con pie diabético: X %»), con la AUC, el IC, el n y las variables que más pesan; el CSV lo sigue exportando;
+- no cambia el riesgo de úlcera ni su categoría (§8.9);
 - la edad no se usa como feature, para no confundir edad con patrón térmico.
 
 **Segmentación.** La base trae cada pie ya segmentado por los autores, pero no la escena original. Sin inventar el fondo, no se puede medir la U-Net sobre sus imágenes ni reentrenarla con ellas.
@@ -582,3 +581,113 @@ Como control de dominio, `scripts/ml/dice_public.py` arma escenas sintéticas: l
 - **Entrenamiento:** `scripts/ml/train-outcome.py` entrena un modelo de lesión (logística sobre las features invariantes de la toma 1, con la misma validación) **sólo si hay al menos 10 lesiones y 10 pacientes sin lesión** (configurable). Si no, se niega con código de salida 2.
   - El desenlace sale del portal y, si falta, de la planilla. No se inventan desenlaces.
   - Hoy hay 0 pacientes con desenlace y features.
+  - El modelo se escribe en `data-local/models/outcome-logreg.json`. Deriva de datos reales, así que no se versiona.
+- **Cambio automático** (`PredictorFactory.resolvePredictorName`). Se activa cuando se cumplen tres condiciones:
+  - `PREDICTOR=riesgo-bibliografia` (por defecto);
+  - `RIESGO_MODELO=auto` (por defecto);
+  - ese archivo existe y el modelo está validado: ≥ 10 lesiones, ≥ 10 sin lesión, AUC ≥ 0,7 y límite inferior del IC > 0,5.
+
+  Entonces el portal usa `TrainedOutcomePredictor` (`riesgo-entrenado`): la probabilidad y la categoría salen del modelo, con los cortes configurables de 50 / 70 %, y el riesgo bibliográfico queda en «Detalle técnico».
+  - `RIESGO_MODELO=bibliografia` lo impide.
+  - `OUTCOME_MODEL` cambia la ruta del archivo.
+  - En CI y en Vercel no hay archivo, así que siempre se usa el riesgo bibliográfico.
+
+### 8.9 Riesgo de úlcera calibrado con la bibliografía (estrategia por defecto)
+
+El objetivo del portal es dar un **porcentaje de riesgo de úlcera**. La cohorte todavía no tiene desenlaces de úlcera utilizables (§8.8), así que no se puede entrenar un modelo con datos propios. `LiteratureRiskPredictor` (`riesgo-bibliografia-v1`, `src/services/predictors/literatureRisk.js`) estima ese riesgo con el **teorema de Bayes**. Combina los hallazgos punto a punto de cada paciente con cifras publicadas. Ninguna cifra se ajusta con los datos del portal.
+
+**Fórmula**
+
+```
+prior_h = 1 − (1 − p3años[grupo IWGDF]) ^ (h / 156,43 semanas)    (riesgo constante)
+odds(riesgo) = odds(prior_h) × LR(banda de asimetría)              (un solo LR)
+riesgo = odds / (1 + odds)
+```
+
+**Cifras utilizadas (todas verificadas en la fuente)**
+
+| Cifra | Valor | Fuente |
+| --- | --- | --- |
+| Sensibilidad a 2,22 °C (4 °F) | 97 % | Frykberg RG et al. *Diabetes Care* 2017;40(7):973-980, doi:10.2337/dc16-2294, p. 973 (resumen) |
+| Falsos positivos a 2,22 °C | 57 % (especificidad 43 %) | ídem; la especificidad de 43 % la repite Lavery 2019 en la introducción |
+| Sensibilidad / falsos positivos a 3,20 °C | 70 % / 32 % | Frykberg 2017, p. 973 |
+| Anticipación media | 37 días (2,22 °C), 35 días (3,20 °C) | Frykberg 2017, p. 973 |
+| Cohorte de Frykberg | 129 evaluables con úlcera previa; 37 (28,7 %) con 53 úlceras en 34 semanas | Frykberg 2017, p. 973 |
+| Unidad de las tasas | períodos de 2 meses | Lavery LA et al. *BMJ Open Diabetes Res Care* 2019;7(1):e000696, doi:10.1136/bmjdrc-2019-000696, Métodos |
+| Úlcera a 3 años, grupos 0 / 1 / 2 / 3 | 5,1 / 14,3 / 18,8 / 55,8 % | Peters EJ, Lavery LA. *Diabetes Care* 2001;24(8):1442-1447, doi:10.2337/diacare.24.8.1442, p. 1442 (resumen) |
+| Estratificación IWGDF 0–3 | 0: sin LOPS ni EAP; 1: LOPS o EAP; 2: LOPS + EAP, o una de ellas + deformidad; 3: LOPS o EAP + úlcera o amputación previa o enfermedad renal terminal | Bus SA et al. (IWGDF 2023). *Diabetes Metab Res Rev* 2024;40(3):e3651, doi:10.1002/dmrr.3651, tabla 1 (p. 12 de la versión de iwgdfguidelines.org) |
+| Alerta: > 2,2 °C en dos días consecutivos | recomendación 7 | IWGDF 2023, pp. 4 y 17 |
+
+Los ensayos de Lavery 2004 (*Diabetes Care* 27:2642-2647, doi:10.2337/diacare.27.11.2642), Lavery 2007 (*Diabetes Care* 30:14-20, doi:10.2337/dc06-1600) y Armstrong 2007 (*Am J Med* 120:1042-1046, doi:10.1016/j.amjmed.2007.06.028) miden la **eficacia** de la autotermometría, no su exactitud diagnóstica, así que no aportan LR. Sirven para dos cosas: el umbral de 4 °F entre sitios homólogos y la regla de alerta.
+
+- Armstrong 2007 halló una diferencia de 3,50 ± 1,0 °C en el sitio de la úlcera la semana previa, frente a 0,74 ± 0,05 °C en quienes no ulceraron.
+- Control de coherencia: el grupo estándar de Lavery 2007 (con úlcera previa) ulceró un 29,3 % en 15 meses. Anualizado da ≈ 24 %, igual que el grupo 3 de Peters (≈ 24 % anual).
+
+**LR por banda** (estratos excluyentes, a partir de las tasas acumuladas de Frykberg):
+
+| Banda (asimetría) | LR | Rango |
+| --- | --- | --- |
+| < 2,2 °C | 0,03 / 0,43 = 0,07 | 0,01–0,35 |
+| 2,2–3,2 °C | (0,97 − 0,70) / (0,57 − 0,32) = 1,08 | 0,49–2,33 |
+| ≥ 3,2 °C | 0,70 / 0,32 = 2,19 | 1,35–3,45 |
+
+En Configuración se puede usar un solo umbral. Con 2,2 °C, el LR es 1,70 por encima y 0,07 por debajo; con 3,2 °C, 2,19 y 0,44.
+
+**Entrada punto a punto** (`src/imaging/hotspot.js`):
+
+- **Zonas calientes contiguas.** Frykberg compara 6 sitios homólogos; el portal, 4 000 celdas por pie. Para no inflar el máximo con un píxel aislado, la asimetría se mide sobre el \|ΔT\| suavizado 3 × 3 y sólo en zonas calientes contiguas. Son componentes conexas de celdas que cumplen tres condiciones:
+  - \|ΔT\| ≥ umbral por punto;
+  - el mismo pie más caliente;
+  - al menos 1 % de la planta y 20 celdas (≈ 2 cm², del orden de un sitio de medición).
+- **Valor:** el mayor \|ΔT\| de esas zonas en la **última toma**. Se excluyen las zonas no analizadas.
+- **Persistencia:** el mapa persistente toma, celda a celda, el menor \|ΔT\| de la toma 1 y la toma 2 cuando el mismo pie está más caliente en ambas. Es el equivalente de las «dos mediciones consecutivas».
+
+**Decisiones:**
+
+- **Un solo LR por estudio.** El área caliente, el \|ΔT\| máximo y las dos tomas miden el mismo fenómeno. Multiplicar sus LR supondría independencia y exageraría el riesgo.
+- **La persistencia no suma un LR**, porque no hay uno publicado; lo que hace es acotar el rango.
+  - Si la otra toma confirma la banda de la última, el rango es el IC de su LR.
+  - Si no la confirma, o hay una sola toma, el límite inferior baja hasta la banda confirmada (con una sola toma, hasta la banda < umbral). Así se refleja que, en los estudios, la alerta exige dos mediciones.
+- **Rango.** El resumen de Frykberg no publica IC, así que se usan IC de Wilson al 95 %, con n = 53 úlceras para la sensibilidad y n = 92 participantes sin úlcera para la especificidad.
+  - Las tasas reales se calcularon sobre más unidades (períodos de 2 meses), así que este rango es conservador (más ancho).
+  - No incluye la incertidumbre del prior: el resumen de Peters 2001 no informa el tamaño de cada grupo.
+- **Horizonte:** 8 semanas por defecto, configurable de 4 a 26. Las tasas de Frykberg se informan por períodos de 2 meses (≈ 8,7 semanas), con unas 5 semanas de anticipación; un horizonte más largo extrapola el LR.
+- **Grupo IWGDF:**
+  - LOPS = neuropatía en la planilla o percepción vibratoria alterada;
+  - EAP = isquemia;
+  - úlcera previa en cualquier pie → grupo 3, como en Peters 2001;
+  - la planilla no registra deformidad, monofilamento, amputación ni insuficiencia renal: el grupo 2 sólo surge de LOPS + EAP, y algunos pacientes que serían del grupo 2 pueden quedar en el 1;
+  - sin dato de neuropatía y sin otro factor → grupo configurable, 1 por defecto. En la cohorte, 38 de los 92 pacientes con el dato tienen neuropatía.
+- **Categoría:**
+  - los cortes 50 / 70 % no sirven en esta escala, porque un riesgo a 2 meses casi nunca los alcanza;
+  - se usan como cortes los riesgos basales del propio horizonte: **bajo** por debajo del basal IWGDF 1 (0,79 % a 8 semanas); **moderado** desde ahí; **alto** desde el basal IWGDF 3 (4,09 %);
+  - estos cortes cambian con el horizonte y con los priors configurados;
+  - los cortes 50 / 70 % quedan para el modelo entrenado.
+
+**Distribución en la cohorte real** (105 estudios, `SEED=real`, 8 semanas):
+
+| | Valor |
+| --- | --- |
+| Riesgo p10 / p25 / mediana / p75 / p90 / máximo | 0,02 / 0,06 / 0,29 / 0,58 / 0,85 / 8,5 % |
+| Categoría bajo / moderado / alto | 79 / 25 / 1 |
+| Grupo IWGDF 0 / 1 / 1 por defecto (sin dato) / 2 / 3 | 53 / 34 / 13 / 2 / 3 |
+| Banda < 2,2 / 2,2–3,2 / ≥ 3,2 °C (última toma) | 48 / 49 / 8 |
+| Confirmadas por la otra toma | 38 de 73 estudios con dos tomas |
+
+La distribución no es degenerada, pero sí **discreta**: con 4 grupos × 3 bandas, el valor central toma pocos valores (9 en la cohorte). La gradación fina queda en el rango y en el detalle técnico (asimetría en °C, zona y persistencia).
+
+**En la interfaz:**
+
+- **Resultado del estudio:** el porcentaje grande, el rango, el horizonte, la categoría y el grupo IWGDF, con un tooltip sobre el método. El cálculo completo (prior, asimetría, banda, LR, cortes y citas) va en «Detalle técnico», junto al patrón térmico como dato secundario.
+- **Ficha del paciente:** el gráfico de evolución muestra el riesgo en cada toma: con la toma 1 sola y, desde la toma 2, el del estudio.
+- **Informe imprimible:** el porcentaje, el rango, la categoría y el grupo.
+- **Vista del paciente:** «Riesgo estimado de úlcera en los próximos 2 meses: X %».
+- **CSV:** `RIESGO ULCERA (%)`, `RIESGO ULCERA IC (%)`, `HORIZONTE (SEMANAS)`, `GRUPO IWGDF`, `CATEGORIA RIESGO` y `MODELO RIESGO`.
+
+**Supuestos y limitaciones:**
+
+- **Las LR provienen de monitoreo diario en el hogar**, con alerta en cualquier par de días consecutivos dentro de 2 meses. Una o dos termografías de consultorio separadas unas 5 semanas no son esa prueba. Su sensibilidad real probablemente es menor, así que el LR < 2,2 °C (0,07) puede subestimar el riesgo.
+- La población de Frykberg es de alto riesgo (todos con úlcera previa) y usa otro dispositivo. Aplicar sus LR a los grupos 0–2 supone que la exactitud de la prueba no depende del grupo.
+- La conversión de cuentas a °C del portal es aproximada (§8). Las diferencias entre pies son más confiables que los valores absolutos.
+- Las incidencias de Peters 2001 vienen de una cohorte de EE. UU. de la década de 1990, con la clasificación IWGDF de entonces. Llevarlas a semanas supone riesgo constante.
+- Nada de esto está validado con desenlaces de la cohorte. Cuando haya ≥ 10 lesiones y ≥ 10 pacientes sin lesión, `train-outcome.py` entrena el modelo y el portal lo usa automáticamente (§8.8).

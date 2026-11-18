@@ -23,7 +23,7 @@ Portal médico–paciente para la **estimación del riesgo de úlcera de pie dia
 > - **Cociente de verosimilitud:** el de la asimetría térmica de zona caliente contigua (Frykberg et al. 2017, *Diabetes Care* 40:973).
 > - **Rango:** sale de los IC de esas cifras.
 >
-> Todavía no hay desenlaces de la cohorte para validarlo. Con ≥ 10 lesiones registradas, el portal pasa solo al modelo entrenado. Método, citas y limitaciones en [docs/arquitectura.md §8.9](docs/arquitectura.md#89-riesgo-de-úlcera-calibrado-con-la-bibliografía-estrategia-por-defecto).
+> Todavía no hay desenlaces de la cohorte para validarlo. Con ≥ 10 lesiones registradas, el portal pasa solo al modelo entrenado. Mientras tanto, si la ficha no registra neuropatía, el grupo IWGDF se estima con una CNN entrenada con la cohorte para detectar neuropatía desde el termograma (AUC 0,79; [§8.10](docs/arquitectura.md#810-modelo-entrenado-con-datos-propios-neuropatía-desde-el-termograma)). Método, citas y limitaciones en [docs/arquitectura.md §8.9](docs/arquitectura.md#89-riesgo-de-úlcera-calibrado-con-la-bibliografía-estrategia-por-defecto).
 
 ## Capturas
 
@@ -121,15 +121,18 @@ npm run ml:summary                             # agrega los resultados a «Detal
 data-local/venv-ml/Scripts/python -I scripts/ml/dice_public.py             # control de dominio de la U-Net
 data-local/venv-ml/Scripts/python -I scripts/ml/dice_corrected.py          # Dice vs máscaras corregidas en /mascaras
 data-local/venv-ml/Scripts/python -I scripts/ml/train-outcome.py           # modelo de úlcera (se niega con < 10 lesiones) → data-local/models/
+data-local/venv-ml/Scripts/python -I scripts/ml/train_riskfactor.py       # factores de riesgo (neuropatía…) desde el termograma, todas las variantes
+data-local/venv-ml/Scripts/python -I scripts/ml/check_riskfactor_cnn.py --export  # controles de la CNN de neuropatía → data-local/models/
 ```
 
 - **Patrón térmico compatible con pie diabético:** se entrena diabetes vs control en la base pública. Con validación cruzada por sujeto da AUC 0,91 (0,86–0,95), n = 167. **No predice úlcera.** Queda como dato secundario en «Detalle técnico» y no cambia el riesgo ni su categoría. Los controles de la base son más jóvenes, así que parte de la señal puede ser la edad.
 - **Atlas de angiosomas:** `npm run ml:public` lo escribe en `data-local/models/angiosome-atlas.json`. Como deriva de la base pública, no se versiona; si falta (CI, Vercel), el TCI usa la aproximación geométrica.
 - **Modelo de úlcera:** `train-outcome.py` escribe `data-local/models/outcome-logreg.json` si hay casos suficientes. Si queda validado, el portal lo usa en lugar del riesgo bibliográfico (`RIESGO_MODELO=auto|bibliografia|entrenado`).
+- **Neuropatía desde el termograma:** CNN preentrenada con la base pública y ajustada con la neuropatía de la planilla: AUC 0,79 (0,68–0,89), 0,84 dentro del Hospital Córdoba, n = 70. Si la ficha no registra neuropatía, define el prior IWGDF del riesgo (`riesgo-neuropatia`). Los pesos quedan en `data-local/models/`.
 - **Corrección de máscaras:** en `/mascaras` (sólo local), el médico/a o el administrador/a corrige el contorno de los pies. Las máscaras se guardan en `data-local/ml/corrected-masks/`.
 - **Desenlace real:** con datos reales, se guarda también en `data-local/outcomes/outcomes.json`, así se conserva al reiniciar.
 
-Detalle en [docs/arquitectura.md §8.3–8.9](docs/arquitectura.md). Los pesos, máscaras y matrices quedan en `data-local/`; nunca se versionan.
+Detalle en [docs/arquitectura.md §8.3–8.10](docs/arquitectura.md). Los pesos, máscaras y matrices quedan en `data-local/`; nunca se versionan.
 
 ### Cuentas demo (contraseña `Demo1234!`)
 

@@ -592,6 +592,8 @@ Como control de dominio, `scripts/ml/dice_public.py` arma escenas sintéticas: l
   - `OUTCOME_MODEL` cambia la ruta del archivo.
   - En CI y en Vercel no hay archivo, así que siempre se usa el riesgo bibliográfico.
 
+  Si no hay modelo de lesión validado pero sí la CNN de neuropatía (§8.10), se usa `riesgo-neuropatia`: el riesgo bibliográfico con el prior IWGDF estimado cuando falta el dato de neuropatía.
+
 ### 8.9 Riesgo de úlcera calibrado con la bibliografía (estrategia por defecto)
 
 El objetivo del portal es dar un **porcentaje de riesgo de úlcera**. La cohorte todavía no tiene desenlaces de úlcera utilizables (§8.8), así que no se puede entrenar un modelo con datos propios. `LiteratureRiskPredictor` (`riesgo-bibliografia-v1`, `src/services/predictors/literatureRisk.js`) estima ese riesgo con el **teorema de Bayes**. Combina los hallazgos punto a punto de cada paciente con cifras publicadas. Ninguna cifra se ajusta con los datos del portal.
@@ -658,6 +660,7 @@ En Configuración se puede usar un solo umbral. Con 2,2 °C, el LR es 1,70 por e
   - úlcera previa en cualquier pie → grupo 3, como en Peters 2001;
   - la planilla no registra deformidad, monofilamento, amputación ni insuficiencia renal: el grupo 2 sólo surge de LOPS + EAP, y algunos pacientes que serían del grupo 2 pueden quedar en el 1;
   - sin dato de neuropatía y sin otro factor → grupo configurable, 1 por defecto. En la cohorte, 38 de los 92 pacientes con el dato tienen neuropatía.
+  - con la CNN de neuropatía validada (§8.10), ese grupo por defecto se reemplaza por la mezcla de los priors IWGDF 1 y 0 con la probabilidad de neuropatía estimada por el termograma.
 - **Categoría:**
   - los cortes 50 / 70 % no sirven en esta escala, porque un riesgo a 2 meses casi nunca los alcanza;
   - se usan como cortes los riesgos basales del propio horizonte: **bajo** por debajo del basal IWGDF 1 (0,79 % a 8 semanas); **moderado** desde ahí; **alto** desde el basal IWGDF 3 (4,09 %);
@@ -691,3 +694,115 @@ La distribución no es degenerada, pero sí **discreta**: con 4 grupos × 3 band
 - La conversión de cuentas a °C del portal es aproximada (§8). Las diferencias entre pies son más confiables que los valores absolutos.
 - Las incidencias de Peters 2001 vienen de una cohorte de EE. UU. de la década de 1990, con la clasificación IWGDF de entonces. Llevarlas a semanas supone riesgo constante.
 - Nada de esto está validado con desenlaces de la cohorte. Cuando haya ≥ 10 lesiones y ≥ 10 pacientes sin lesión, `train-outcome.py` entrena el modelo y el portal lo usa automáticamente (§8.8).
+
+### 8.10 Modelo entrenado con datos propios: neuropatía desde el termograma
+
+La cohorte no tiene úlceras, pero la planilla registra **factores de riesgo de úlcera establecidos**. El factor que define el grupo IWGDF 1 es la pérdida de sensibilidad protectora (neuropatía). Un modelo que estima la neuropatía desde el termograma es un modelo **entrenado con datos propios** y ligado al riesgo de úlcera por la vía del prior IWGDF (§8.9).
+
+**Inventario de etiquetas** (planilla «(3)»: 108 filas con código; las otras dos planillas de `tesis-2026info/` tienen las mismas columnas y conteos). Muestra válida = consentimiento, toma 1 analizable y sin la marca «no válido» (por la imagen).
+
+| Etiqueta | Planilla: n con dato (positivos) | Muestra válida: n (positivos) |
+| --- | --- | --- |
+| Neuropatía (sí/no) | 92 (38) | 70 (26) |
+| Grado de neuropatía | 52 (texto: normal 5, leve 7, moderada 7, grave 2; 31 numéricos 0–6) | — |
+| Percepción vibratoria (por pie) | 27 | — |
+| Isquemia | 77 (3) | 59 (3) |
+| Úlcera previa (algún pie) | 78 (3) | 59 (1) |
+| Ampollas / eritemas / hematomas / hiperqueratosis | 77 (0 / 0 / 1 / 2) | — |
+| IWGDF ≥ 1 (derivado: neuropatía, isquemia o úlcera previa) | — | 70 (27) |
+| Insulinorrequiriente | 95 (41) | 72 (28) |
+| Años de diabetes (≥ 10) | 96 (mediana 10) | 70 |
+| Tipo de diabetes (1 / 2) | 95 (12 / 83) | — |
+| Generó lesión | 1 (1) | 0 |
+
+No hay columnas de monofilamento, reflejos, pulsos o ITB, deformidad, callo, Charcot, amputación, retinopatía, nefropatía ni grupo IWGDF. En las observaciones libres, «amput», «isquem» y «neuro» aparecen 1, 1 y 3 veces: no alcanza para una etiqueta. La neuropatía es la única etiqueta de riesgo con casos suficientes.
+
+**Confusión por centro.** La neuropatía casi sólo se registró en el Hospital Córdoba: 25 de 51 allí, 1 de 14 en Reina Fabiola y 0 de 5 en el Ferreyra. El centro solo da AUC 0,69. Por eso la prueba que importa es **dentro del Hospital Córdoba**, el único centro con casos de ambas clases.
+
+**Validación** (`scripts/ml/train_riskfactor.py`, `scripts/ml/check_riskfactor_cnn.py`; agregados en `data-local/ml/riskfactor-*.json`):
+
+- logísticas: 5 pliegues estratificados por etiqueta × centro, 20 repeticiones, C anidado;
+- CNN: 5 × 4 con hiperparámetros fijos (los de §8.5 y §8.6);
+- IC 95 % por bootstrap de pacientes;
+- AUC dentro del Hospital Córdoba;
+- permutación de la etiqueta **dentro de cada centro**, que conserva la confusión por centro;
+- regla fijada antes de correr: IC inferior > 0,5, permutación p < 0,05 y AUC dentro de centro > 0,5.
+
+| Neuropatía (n = 70, 26 positivos) | AUC (IC 95 %) | AUC dentro del H. Córdoba | p perm. dentro de centro |
+| --- | --- | --- | --- |
+| *Control: centro* | *0,69 (0,60–0,76)* | *0,50* | |
+| *Control: edad* | *0,67 (0,54–0,79)* | *0,70* | |
+| *Control: años de diabetes* | *0,76 (0,63–0,87)* | *0,78* | |
+| *Control: logística edad + años de diabetes* | *0,76 (0,64–0,86)* | *0,79* | |
+| Temperatura absoluta (no invariante) | 0,44 (0,30–0,58) | 0,56 | |
+| Logística contralateral (punto a punto + zona caliente) | 0,54 (0,43–0,65) | 0,48 | 0,31 |
+| Logística por angiosoma (relativa al pie) | 0,58 (0,45–0,70) | 0,50 | 0,25 |
+| Logística invariante (13 + zona caliente) | 0,55 (0,45–0,65) | 0,47 | 0,38 |
+| Ídem, promedio de toma 1 y toma 2 | 0,56 (0,45–0,67) | 0,51 | 0,35 |
+| Invariante + edad + años de diabetes | 0,67 (0,57–0,78) | 0,70 | |
+| Puntaje de patrón diabético (§8.6), directo | 0,64 (0,50–0,76) | 0,58 | |
+| CNN chica sobre mapas relativos | 0,68 (0,57–0,80) | 0,68 | |
+| **CNN preentrenada con la base pública y ajustada** | **0,79 (0,68–0,89)** | **0,84** | **0,005** (0 de 200) |
+
+Se probaron **10 variantes** para neuropatía, sin contar los controles directos. Las features manuales no tienen señal; la única con señal es la CNN, y sobre todo la preentrenada. La regla se fijó para cada modelo, pero la CNN preentrenada se eligió **después** de ver la tabla. Con 10 variantes, una corrección de Bonferroni pide p ≤ 0,005.
+
+- Se corrieron dos tandas de 100 permutaciones con semillas distintas (`riskfactor-cnn-neuropatia.json` y `-s1.json`). En ninguna de las 200 una permutación igualó al AUC observado, así que p = 1/201 = 0,005: justo en el límite.
+- En la nula, la mediana del AUC es 0,56–0,57 y el percentil 95, 0,65–0,68. El máximo de la segunda tanda fue 0,79: la señal es real pero no está lejos del extremo de la nula.
+- Al repetir toda la CV, el AUC observado fue 0,79–0,80 y el AUC dentro del Hospital Córdoba, 0,84.
+
+**Controles de la CNN preentrenada**
+
+- **Sólo Hospital Córdoba**, entrenando y evaluando dentro del centro: AUC 0,82–0,83 (IC inferior 0,70–0,71), n = 51.
+- **Edad y años de diabetes.** El puntaje se correlaciona con la edad (ρ = 0,43) y con los años de diabetes (ρ = 0,38).
+  - Dentro de estratos de edad: < 55 años, AUC 0,91 (n = 35, 10 positivos); ≥ 55 años, 0,69 (n = 35, 16 positivos).
+  - Agregado a una logística con edad + años de diabetes: razón de verosimilitud 6,0, p = 0,014.
+  - En CV: clínica 0,76 → clínica + CNN 0,78.
+  - Conclusión: aporta información además de la clínica, pero parte de la señal es edad / duración.
+- **Calidad de segmentación.** Dentro del Hospital Córdoba, la calidad sola da AUC 0,40, es decir, peor calidad en quienes tienen neuropatía. El puntaje se correlaciona −0,27 con la calidad. Hay un efecto menor de adquisición que no se puede descartar.
+- **Con los «no válidos» (problemas de imagen) incluidos** (n = 92, 38 positivos): AUC 0,72 (0,61–0,83), dentro del Hospital Córdoba 0,73. En los 22 «no válidos» solos, 0,62. Con estos pacientes, las logísticas siguen sin señal (0,51–0,56).
+- **El preentrenamiento no usa la cohorte**: la base pública 2019 entera, diabetes vs control.
+
+**Etiquetas secundarias (exploratorias, sólo logísticas).**
+
+- IWGDF ≥ 1 (70 / 27): igual que la neuropatía; la mejor es 0,61 (0,50–0,72), dentro de centro 0,55, p 0,14.
+- Insulinorrequiriente (72 / 28): invariante 0,65 (0,52–0,76), dentro de centro 0,63, p 0,050. No es un factor IWGDF y los años de diabetes solos dan 0,83.
+- Diabetes ≥ 10 años (73 / 36): las térmicas no la predicen (0,52–0,59; dentro de centro ≤ 0,62; p ≥ 0,10). Los controles clínicos son circulares (los años de diabetes definen la etiqueta).
+
+**Bases públicas con etiquetas de riesgo.** Se buscaron bases de termografía plantar con úlcera, neuropatía o grupo de riesgo:
+
+- **STANDUP** (Bouallal et al., *Open Research Europe* 2022, doi:10.12688/openreseurope.14706.1).
+  - Grupos de riesgo **R0** (sin neuropatía ni isquemia), **R1** (neuropatía) y **R2** (isquemia): 69 / 34 / 42 pacientes con diabetes, más controles, en T0 y T10 de una prueba de estrés por frío.
+  - Se descargó sin cuenta (191 MB) a `data-local/public/standup/`. El readme permite el uso en investigación citando el artículo; no tiene una licencia formal.
+  - **No se pudo usar.** Las imágenes térmicas son capturas PNG de 8 bits con autoescala por imagen (el mínimo y el máximo sólo están impresos en la imagen), no matrices en °C. Además, el sujeto sentado aparece detrás de los pies.
+  - La U-Net del portal, con un recorte por forma, incluyó el cuerpo en cerca de la mitad de las imágenes revisadas.
+  - Para usarla hacen falta máscaras manuales de unas 145 imágenes T0. Con features invariantes a la escala (las «Z»), daría una **validación externa** de neuropatía (R1 vs R0).
+- **Kaggle «Thermography images of diabetic foot»**: derivada de la base 2019, sólo diabetes vs control, PNG; requiere cuenta.
+- **IACTEC** (Hernández-Guedes 2022): sólo sanos; formulario con aceptación de términos.
+- **DFUC 2020–2022**: fotos RGB de úlceras, no térmicas; requiere acuerdo de licencia.
+- Los trabajos de Khandakar 2022 y Cruz-Vega 2020 usan la base 2019, sin datos nuevos.
+
+**En el portal** (`RiskFactorLiteraturePredictor`, `riesgo-neuropatia`; `src/services/predictors/riskFactorCnn.js`):
+
+- La CNN se evalúa en JS. Son 5 redes (semillas 0–4) entrenadas con toda la muestra y se promedian. El logit se corrige por el `pos_weight` del entrenamiento.
+- Coincide con PyTorch en los 105 pacientes (diferencia máxima 3 × 10⁻⁸).
+- Los pesos derivan de datos reales: viven en `data-local/models/riskfactor-neuropatia-cnn.json` y no se versionan. `RIESGO_FACTOR_MODELO` cambia la ruta.
+- **Cambio automático:** con `riesgo-bibliografia` y `RIESGO_MODELO=auto`, si el archivo existe y cumple la regla (IC inferior > 0,5, permutación < 0,05, AUC dentro de centro > 0,5, ≥ 10 casos por clase), se usa `riesgo-neuropatia`. El modelo de lesión validado (§8.8) tiene prioridad. En CI y en Vercel no hay archivo.
+- **Uso en el riesgo:**
+  - si la ficha registra neuropatía (o isquemia o úlcera previa), **manda el dato clínico**;
+  - si falta, el prior deja de ser el grupo por defecto y pasa a ser p × prior(IWGDF 1) + (1 − p) × prior(IWGDF 0), con p de la CNN;
+  - el grupo se muestra como «IWGDF 0/1 (estimado)».
+- **Detalle técnico:** la fila «Neuropatía (modelo)» da la probabilidad, con qué se entrenó (n, positivos, AUC, IC, AUC dentro del Hospital Córdoba, p de permutación) y si define el prior.
+- **CSV:** columna `NEUROPATIA MODELO (%)`.
+- **Efecto en la cohorte** (105 estudios): el prior estimado se aplica en **13** estudios (sin dato de neuropatía): 9 quedan como IWGDF 0 y 4 como IWGDF 1.
+  - Categorías bajo / moderado / alto: 83 / 21 / 1 (antes 79 / 25 / 1).
+  - Valores distintos de riesgo: 16 (antes 9).
+  - La probabilidad de neuropatía en la cohorte: p10 / p50 / p90 = 8 / 35 / 63 %. En los pacientes con el dato es dentro de la muestra de entrenamiento, así que es optimista. En los 13 sin dato, no.
+
+**Limitaciones.**
+
+- n = 70 y un solo centro con casos.
+- La etiqueta es la neuropatía registrada en la planilla, sin protocolo documentado (monofilamento, diapasón).
+- La CNN se eligió entre 10 variantes.
+- Parte de la señal es edad / duración de la diabetes.
+- No hay validación externa: STANDUP la daría con máscaras manuales.
+- No predice úlcera: sólo informa el prior IWGDF cuando falta el dato clínico.

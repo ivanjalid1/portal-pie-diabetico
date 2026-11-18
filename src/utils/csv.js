@@ -45,6 +45,13 @@ const BASE_COLUMNS = [
   ['ERITEMAS', ({ patient }) => yesNo(patient.eritema)],
   ['HEMATOMAS', ({ patient }) => yesNo(patient.hematomas)],
   ['GENERÓ LESIÓN', ({ patient }) => yesNo(patient.generoLesion)],
+  // Detalle del desenlace real (para entrenar un modelo de úlcera: scripts/ml/train-outcome.py).
+  [
+    'FECHA LESIÓN',
+    ({ patient }) => (patient.generoLesion && patient.lesionFecha ? String(patient.lesionFecha).slice(0, 10) : ''),
+  ],
+  ['PIE LESIÓN', ({ patient }) => (patient.generoLesion ? (patient.lesionPie || '').toUpperCase() : '')],
+  ['ZONA LESIÓN', ({ patient }) => (patient.generoLesion ? (patient.lesionRoi || '').toUpperCase() : '')],
 ];
 
 /** Columnas por ROI y clasificación térmica de una toma (prefijo T1/T2). */
@@ -91,11 +98,10 @@ const TAIL_COLUMNS = [
     ({ analysis }) => (analysis ? `${analysis.parametros.corteModerado}/${analysis.parametros.corteAlto}` : ''),
   ],
   ['UMBRAL POR PUNTO (°C)', ({ analysis }) => num(analysis?.puntual?.umbralPixel, 1)],
-  ['PROBABILIDAD (%) MODELO', ({ analysis }) => num(analysis?.probabilidad, 1)],
-  [
-    'ORIGEN PROBABILIDAD',
-    ({ analysis }) => (!analysis ? '' : analysis.puntual ? 'MODELO PRELIMINAR (NO VALIDADO)' : 'SIMULADA'),
-  ],
+  // Patrón térmico compatible con pie diabético (modelo de la base pública 2019,
+  // diabetes vs control). NO es una probabilidad de úlcera.
+  ['PATRON PIE DIABETICO (%) BASE PUBLICA', ({ analysis }) => num(analysis?.puntual?.patronDm?.probabilidad, 1)],
+  ['MODELO PATRON', ({ analysis }) => analysis?.puntual?.patronDm?.version || ''],
 ];
 
 const COLUMNS = [...BASE_COLUMNS, ...tomaColumns(1), ...tomaColumns(2), ...EVOLUTION_COLUMNS, ...TAIL_COLUMNS];
@@ -123,7 +129,7 @@ function buildControlesCsv(items) {
     ['GRUPO T1', ({ analysis }) => analysis?.grupoDeToma(1) || ''],
     ['GRUPO T2', ({ analysis }) => analysis?.grupoDeToma(2) || ''],
     ['PUNTUAL AREA |DT|>UMBRAL (%)', ({ analysis }) => num(analysis?.puntualActual?.metricas?.areaCalientePct, 1)],
-    ['PROBABILIDAD (%) MODELO', ({ analysis }) => num(analysis?.probabilidad, 1)],
+    ['PATRON PIE DIABETICO (%) BASE PUBLICA', ({ analysis }) => num(analysis?.puntual?.patronDm?.probabilidad, 1)],
     ['GENERÓ LESIÓN', ({ patient }) => yesNo(patient.generoLesion)],
   ];
   const lines = [cols.map(([h]) => escape(h)).join(';')];

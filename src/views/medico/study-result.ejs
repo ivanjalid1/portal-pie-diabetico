@@ -8,7 +8,8 @@
   const P = paramsOf(a);
   const C = s.condiciones(P.protocolo);
   const PW = a && a.puntual;
-  const MOD = PW && PW.modelo;
+  const DM = PW && PW.patronDm;
+  const DMI = predictorInfo.patronDm;
   const t2 = PW ? PW.tieneToma2 : Boolean(s.image('toma2'));
   const tA = a && a.puntualActual;
   const mA = tA && tA.metricas;
@@ -18,7 +19,8 @@
   const fechaToma = (k) => (k === 1 ? s.fechaToma1 : s.fechaHora);
   const tomaLabel = (k) => (k === 1 ? 'Toma 1 · basal' : 'Toma 2 · control');
   const estimadas = ((s.notasMedico || '').match(/Fecha de la toma ([12](?: y [12])?) estimada/) || [])[1] || null;
-  const maxContrib = a && a.factores.length ? Math.max(0.01, ...a.factores.map((f) => Math.abs(f.contribucion))) : 1;
+  const maxContrib = DM && DM.factores.length ? Math.max(0.01, ...DM.factores.map((f) => Math.abs(f.contribucion))) : 1;
+  const fmtFactor = (f) => (f.valor === null ? 'sin dato' : `${fmt.num(f.valor, f.unidad === '%' ? 1 : 2)} ${f.unidad}`);
 
   // Avisos: todo lo que condiciona la lectura, en un solo lugar.
   const avisos = [];
@@ -100,21 +102,19 @@
   <% } else { %>
   <p class="sr-summary__lead">No se pudo hacer el análisis punto a punto porque las imágenes no son archivos radiométricos (.IS2).</p>
   <% } %>
+  <% if (DM) { %>
   <div class="sr-summary__foot">
     <span class="sr-model">
-      Modelo preliminar · no validado: <strong class="num"><%= fmt.num(a.probabilidad, 0) %> %</strong>
+      Patrón térmico compatible con pie diabético: <strong class="num"><%= fmt.num(DM.probabilidad, 0) %> %</strong> <span class="muted">— modelo entrenado con base pública, no predice úlcera</span>
       <span class="sr-tip">
-        <button type="button" class="help-dot" aria-describedby="tip-model" aria-label="Qué es el modelo preliminar">i</button>
+        <button type="button" class="help-dot" aria-describedby="tip-model" aria-label="Qué es el patrón térmico compatible con pie diabético">i</button>
         <span role="tooltip" id="tip-model" class="sr-tip__body">
-          <% if (MOD) { %>
-          Probabilidad de HbA1c &gt; 7 % (desenlace sustituto) con una regresión logística sobre la toma <%= MOD.tomaUsada %>. AUC <%= MOD.metodo === 'Leave-One-Out' ? 'LOO' : 'CV' %> <%= fmt.num(MOD.auc, 2) %>, n = <%= MOD.n %>: todavía no discrimina. No es un riesgo validado; no la uses para decidir.
-          <% } else { %>
-          Probabilidad simulada: sin archivos radiométricos no hay análisis punto a punto. No es un riesgo validado.
-          <% } %>
+          Cuánto se parece el patrón térmico plantar (toma <%= DM.tomaUsada %>) al de personas con diabetes de una base pública (Hernández-Contreras et al. 2019: <%= DM.positivos %> con diabetes y <%= DM.n - DM.positivos %> controles). AUC <%= fmt.num(DM.auc, 2) %> (IC 95 % <%= fmt.num(DM.aucIC95[0], 2) %>–<%= fmt.num(DM.aucIC95[1], 2) %>), n = <%= DM.n %>. No predice úlcera ni cambia la categoría de riesgo, que sale del hallazgo térmico.
         </span>
       </span>
     </span>
   </div>
+  <% } %>
 </section>
 
 <% if (avisos.length) { %>
@@ -196,7 +196,7 @@
         <div><dt>Cambio local</dt><dd>&gt; <span class="num"><%= fmt.num(PW.umbralCambio, 1) %> °C</span> respecto del cambio mediano del pie</dd></div>
         <div><dt>Segmentación</dt><dd><%= PW.tomas.map((t) => `Toma ${t.toma}: ${t.segmentacion === 'unet' ? 'U-Net' : 'clásica'}`).join(' · ') %><span class="muted"> · U-Net entrenada con etiquetas débiles; sin máscara U-Net, la clásica (umbral y crecimiento de regiones)</span></dd></div>
         <% const tciT = PW.tomas.filter((t) => t.tci); if (tciT.length) { const r0 = tciT[0].tci.referencia || {}; %>
-        <div><dt>TCI</dt><dd><%= tciT.map((t) => `Toma ${t.toma}: ${fmt.num(t.tci.valor, 2)} °C (clase ${t.tci.clase}; izq. ${fmt.num(t.tci.izq, 2)}, der. ${fmt.num(t.tci.der, 2)}; puntual ${fmt.num(t.tci.puntual, 2)})`).join(' · ') %>. Índice de cambio térmico (Hernández-Contreras et al., 2017): promedio de |T(angiosoma) − T(referencia)| en 4 angiosomas aproximados. Referencia: <%= r0.fuente === 'cohorte' ? `${r0.miembros} pacientes simétricos de la cohorte${r0.looExcluido ? ' (sin este paciente)' : ''}` : 'pares de demostración' %>.</dd></div>
+        <div><dt>TCI</dt><dd><%= tciT.map((t) => `Toma ${t.toma}: ${fmt.num(t.tci.valor, 2)} °C (clase ${t.tci.clase}; izq. ${fmt.num(t.tci.izq, 2)}, der. ${fmt.num(t.tci.der, 2)}; puntual ${fmt.num(t.tci.puntual, 2)})`).join(' · ') %>. Índice de cambio térmico (Hernández-Contreras et al., 2017): promedio de |T(angiosoma) − T(referencia)| en 4 angiosomas (<%= predictorInfo.tci ? predictorInfo.tci.angiosomas : 'aproximados' %>). Referencia: <%= r0.fuente === 'hernandez2019' ? `grupo control de la base pública 2019 (${r0.miembros} sujetos sin diabetes; otra cámara: el valor absoluto arrastra la diferencia de escala, el de patrón no)` : r0.fuente === 'cohorte' ? `${r0.miembros} pacientes simétricos de la cohorte${r0.looExcluido ? ' (sin este paciente)' : ''}` : 'pares de demostración' %>. De patrón: <%= tciT.map((t) => fmt.num(t.tci.patron, 2)).join(' / ') %> °C.</dd></div>
         <% } %>
         <div><dt>Análisis</dt><dd><code><%= a.predictorVersion %></code> <%= predictorInfo.nombre %></dd></div>
       </dl>
@@ -204,30 +204,32 @@
     <% } %>
 
     <section class="sr-tech__block" aria-labelledby="tech-model">
-      <h3 id="tech-model" class="card__subtitle">Modelo preliminar (no validado)</h3>
-      <% if (MOD) { %>
+      <h3 id="tech-model" class="card__subtitle">Patrón térmico compatible con pie diabético (base pública)</h3>
+      <% if (DM && DMI) { %>
       <dl class="kv kv--compact">
-        <div><dt>Modelo</dt><dd>Regresión logística L2 sobre <%= predictorInfo.modelo ? predictorInfo.modelo.features.join(', ').toLowerCase() : 'métricas punto a punto' %></dd></div>
-        <div><dt>Validación</dt><dd><%= MOD.metodo %>: AUC <span class="num"><%= fmt.num(MOD.auc, 3) %></span><% if (MOD.aucIC95) { %> (IC 95 % <span class="num"><%= fmt.num(MOD.aucIC95[0], 2) %>–<%= fmt.num(MOD.aucIC95[1], 2) %></span>)<% } %><% if (MOD.aucKFold !== null && MOD.aucKFold !== undefined) { %>; 5 pliegues ×20: <span class="num"><%= fmt.num(MOD.aucKFold, 3) %></span><% } %>; n = <%= MOD.n %></dd></div>
-        <div><dt>Desenlace</dt><dd><%= String(MOD.desenlace).replace(/,?\s*igual que la Parte 1/i, '') %></dd></div>
-        <div><dt>Probabilidad</dt><dd><span class="num"><%= fmt.num(a.probabilidad, 1) %> %</span> con la toma <%= MOD.tomaUsada %></dd></div>
+        <div><dt>Qué predice</dt><dd>Diabetes vs control en la base pública <em>Plantar Thermogram Database</em> (Hernández-Contreras et al. 2019, CC BY 4.0). <strong>No predice úlcera.</strong></dd></div>
+        <div><dt>Modelo</dt><dd>Regresión logística L2 sobre features relativas a cada pie y contralaterales (invariantes a la cámara y a la escala de temperatura)</dd></div>
+        <div><dt>Validación</dt><dd><%= DMI.metodo %>: AUC <span class="num"><%= fmt.num(DMI.auc, 3) %></span> (IC 95 % <span class="num"><%= fmt.num(DMI.aucIC95[0], 2) %>–<%= fmt.num(DMI.aucIC95[1], 2) %></span>); n = <%= DMI.n %> (<%= DMI.positivos %> con diabetes)<% if (DMI.pPermutacion !== null) { %>; p de permutación <span class="num"><%= fmt.num(DMI.pPermutacion, 3) %></span><% } %></dd></div>
+        <% if (DMI.subgrupoEdad) { %><div><dt>Edad</dt><dd>Los controles de la base son más jóvenes: la edad sola da AUC <span class="num"><%= fmt.num(DMI.aucEdadSola, 2) %></span>. Entre 30 y 60 años (n = <%= DMI.subgrupoEdad.n %>) el modelo da <span class="num"><%= fmt.num(DMI.subgrupoEdad.auc, 2) %></span> y la edad sola <span class="num"><%= fmt.num(DMI.subgrupoEdad.aucEdadSola, 2) %></span>: parte de la discriminación puede ser edad.</dd></div><% } %>
+        <div><dt>Resultado</dt><dd><span class="num"><%= fmt.num(DM.probabilidad, 1) %> %</span> con la toma <%= DM.tomaUsada %></dd></div>
       </dl>
-      <% } else { %>
-      <p class="muted small">Probabilidad simulada: <span class="num"><%= fmt.num(a.probabilidad, 1) %> %</span>.</p>
-      <% } %>
-      <% if (a.factores.length) { %>
+      <% if (DM.factores.length) { %>
       <ul class="factors">
-        <% a.factores.forEach((f) => { %>
+        <% DM.factores.forEach((f) => { %>
         <li>
           <span class="factors__name"><%= f.nombre %></span>
-          <span class="factors__value"><%= f.valor %></span>
+          <span class="factors__value"><%= fmtFactor(f) %></span>
           <span class="factors__bar<%= f.contribucion < 0 ? ' factors__bar--neg' : '' %>" aria-hidden="true"><span style="width: <%= Math.round((Math.abs(f.contribucion) / maxContrib) * 100) %>%"></span></span>
           <span class="factors__num num"><%= fmt.signed(f.contribucion, 2) %></span>
         </li>
         <% }) %>
       </ul>
+      <p class="muted small">Las cuatro variables que más pesan en este estudio (contribución al log-odds). La base pública usa otra cámara, otro protocolo y otra población; en el portal la conversión a °C es aproximada.</p>
       <% } %>
-      <p class="muted small">Contribución al log-odds de cada variable. Un AUC cercano o menor a 0,5 indica que, con estos datos, la asimetría punto a punto no predice el desenlace sustituto: se muestra por transparencia, no para decidir.</p>
+      <% } else { %>
+      <p class="muted small">Sin resultado: el análisis punto a punto no está disponible para este estudio.</p>
+      <% } %>
+      <p class="muted small">El modelo preliminar de HbA1c &gt; 7 % (desenlace sustituto) ya no se muestra: su AUC quedó por debajo del azar (ver la comparación). La categoría de riesgo sale del hallazgo térmico.</p>
     </section>
 
     <% const CMP = predictorInfo.comparacion; if (CMP && CMP.modelos && CMP.modelos.length) { %>
@@ -239,13 +241,47 @@
           <thead><tr><th scope="col">Modelo</th><th scope="col">AUC</th><th scope="col">IC 95 %</th><th scope="col">n (positivos)</th></tr></thead>
           <tbody>
             <% CMP.modelos.forEach((m) => { %>
-            <tr><th scope="row"><%= m.nombre %></th><td><%= fmt.num(m.auc, 2) %></td><td><%= fmt.num(m.aucIC95[0], 2) %>–<%= fmt.num(m.aucIC95[1], 2) %></td><td><%= m.n %> (<%= m.positivos %>)</td></tr>
+            <tr><th scope="row"><%= m.nombre %></th><td><%= fmt.num(m.auc, 2) %></td><td class="nowrap"><%= fmt.num(m.aucIC95[0], 2) %>–<%= fmt.num(m.aucIC95[1], 2) %></td><td><%= m.n %> (<%= m.positivos %>)</td></tr>
             <% }) %>
           </tbody>
         </table>
       </div>
       <p class="muted small"><%= CMP.conclusion %></p>
     </section>
+    <% if (CMP.ajustado) { const AJ = CMP.ajustado; %>
+    <section class="sr-tech__block" aria-labelledby="tech-adj">
+      <h3 id="tech-adj" class="card__subtitle">HbA1c &gt; 7 % con features invariantes y ajuste por centro (n = <%= AJ.n %>, <%= AJ.positivos %> positivos)</h3>
+      <div class="table-wrap">
+        <table class="table table--num table--dense">
+          <caption class="sr-only">AUC con features invariantes a la adquisición</caption>
+          <thead><tr><th scope="col">Modelo</th><th scope="col">AUC</th><th scope="col">IC 95 %</th><th scope="col">Dentro de centro</th></tr></thead>
+          <tbody>
+            <% AJ.modelos.forEach((m) => { %>
+            <tr><th scope="row"><%= m.nombre %></th><td><%= fmt.num(m.auc, 2) %></td><td class="nowrap"><%= fmt.num(m.aucIC95[0], 2) %>–<%= fmt.num(m.aucIC95[1], 2) %></td><td><%= m.aucDentroDeCentro === null ? '—' : fmt.num(m.aucDentroDeCentro, 2) %><% if (m.pPermutacionDentroDeCentro !== null) { %> <span class="muted">(p <%= fmt.num(m.pPermutacionDentroDeCentro, 2) %>)</span><% } %></td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted small"><%= AJ.metodo %> <%= AJ.conclusion %></p>
+    </section>
+    <% } %>
+    <% if (CMP.basePublica) { const BP = CMP.basePublica; %>
+    <section class="sr-tech__block" aria-labelledby="tech-pub">
+      <h3 id="tech-pub" class="card__subtitle">Base pública: <%= BP.etiqueta %></h3>
+      <div class="table-wrap">
+        <table class="table table--num table--dense">
+          <caption class="sr-only">AUC de validación cruzada por sujeto en la base pública</caption>
+          <thead><tr><th scope="col">Modelo</th><th scope="col">AUC</th><th scope="col">IC 95 %</th><th scope="col">n (diabetes)</th></tr></thead>
+          <tbody>
+            <% BP.modelos.forEach((m) => { %>
+            <tr><th scope="row"><%= m.nombre %></th><td><%= fmt.num(m.auc, 2) %></td><td class="nowrap"><%= fmt.num(m.aucIC95[0], 2) %>–<%= fmt.num(m.aucIC95[1], 2) %></td><td><%= m.n %> (<%= m.positivos %>)</td></tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted small"><%= BP.metodo %><% if (BP.externa) { %> Cohorte del portal (toda con diabetes, sin controles: no hay AUC): puntaje mediano <%= fmt.num(BP.externa.percentiles_10_25_50_75_90[2] * 100, 0) %> % y <%= fmt.num(BP.externa.fraccionMayor50 * 100, 0) %> % de los pacientes sobre 50 % (n = <%= BP.externa.n %>).<% } %></p>
+    </section>
+    <% } %>
     <% } %>
 
     <section class="sr-tech__block" aria-labelledby="tech-acq">

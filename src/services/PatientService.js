@@ -191,8 +191,8 @@ class PatientService {
           deltaTMax: Math.abs(i.analysis.deltaTMax),
         },
       ]);
-    // Serie punto a punto: un punto por toma (área caliente) y la probabilidad
-    // del modelo preliminar en la toma usada por el análisis.
+    // Serie punto a punto: un punto por toma (área caliente) y el patrón térmico
+    // compatible con pie diabético (modelo de la base pública; no es riesgo de úlcera).
     const seriePuntual = items
       .filter((i) => i.analysis?.puntual)
       .slice()
@@ -204,7 +204,7 @@ class PatientService {
           toma: t.toma,
           areaCalientePct: t.metricas ? t.metricas.areaCalientePct : null,
           conAsimetria: t.conAsimetria,
-          probabilidad: t.toma === analysis.puntual.tomaActual ? analysis.probabilidad : null,
+          patronDm: Number.isFinite(t.patronDm) ? t.patronDm : null,
         })),
       );
     return { items, serie, seriePuntual };

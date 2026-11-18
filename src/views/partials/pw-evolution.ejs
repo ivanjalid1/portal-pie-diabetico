@@ -1,7 +1,8 @@
 <%
   // Evolución punto a punto del paciente: % de área con |ΔT| sobre el umbral
-  // en cada toma (línea naranja) y probabilidad del modelo preliminar (línea
-  // violeta discontinua, eje derecho). `serie` viene de PatientService.history.
+  // en cada toma (línea naranja) y patrón térmico compatible con pie diabético
+  // (modelo entrenado con la base pública 2019; no predice úlcera), línea
+  // violeta discontinua, eje derecho. `serie` viene de PatientService.history.
   const pts = serie.filter((p) => p.areaCalientePct !== null);
   const W = 400, H = 220, padL = 34, padR = 36, padT = 20, padB = 38;
   const iw = W - padL - padR, ih = H - padT - padB;
@@ -9,19 +10,19 @@
   const x = (i) => padL + (pts.length === 1 ? iw / 2 : (i * iw) / (pts.length - 1));
   const yA = (v) => padT + ih - (v / maxArea) * ih;
   const yP = (v) => padT + ih - (v / 100) * ih;
-  const probPts = pts.map((p, i) => [i, p.probabilidad]).filter(([, v]) => v !== null);
+  const probPts = pts.map((p, i) => [i, p.patronDm]).filter(([, v]) => v !== null && v !== undefined);
 %>
 <div class="pw-evo__chart">
-  <svg viewBox="0 0 <%= W %> <%= H %>" role="img" aria-label="Evolución del área con diferencia sobre el umbral y de la probabilidad del modelo preliminar en <%= pts.length %> tomas">
+  <svg viewBox="0 0 <%= W %> <%= H %>" role="img" aria-label="Evolución del área con diferencia sobre el umbral y del patrón térmico compatible con pie diabético en <%= pts.length %> tomas">
     <% [0, 0.5, 1].forEach((k) => { const yy = padT + ih - k * ih; %>
     <line class="axis" x1="<%= padL %>" x2="<%= W - padR %>" y1="<%= yy %>" y2="<%= yy %>"/>
     <text class="tick" x="<%= padL - 6 %>" y="<%= yy + 3 %>" text-anchor="end"><%= Math.round(maxArea * k) %> %</text>
-    <text class="tick" x="<%= W - padR + 6 %>" y="<%= yy + 3 %>"><%= Math.round(100 * k) %> %</text>
+    <% if (probPts.length) { %><text class="tick" x="<%= W - padR + 6 %>" y="<%= yy + 3 %>"><%= Math.round(100 * k) %> %</text><% } %>
     <% }) %>
     <line class="thr" x1="<%= padL %>" x2="<%= W - padR %>" y1="<%= yA(areaMinima) %>" y2="<%= yA(areaMinima) %>"/>
     <% if (probPts.length > 1) { %><polyline class="prob-line" points="<%= probPts.map(([i, v]) => `${x(i).toFixed(1)},${yP(v).toFixed(1)}`).join(' ') %>"/><% } %>
     <% if (pts.length > 1) { %><polyline class="area-line" points="<%= pts.map((p, i) => `${x(i).toFixed(1)},${yA(p.areaCalientePct).toFixed(1)}`).join(' ') %>"/><% } %>
-    <% probPts.forEach(([i, v]) => { %><rect class="prob-dot" x="<%= (x(i) - 4).toFixed(1) %>" y="<%= (yP(v) - 4).toFixed(1) %>" width="8" height="8" transform="rotate(45 <%= x(i).toFixed(1) %> <%= yP(v).toFixed(1) %>)"><title>Modelo preliminar: <%= fmt.num(v, 0) %> %</title></rect><% }) %>
+    <% probPts.forEach(([i, v]) => { %><rect class="prob-dot" x="<%= (x(i) - 4).toFixed(1) %>" y="<%= (yP(v) - 4).toFixed(1) %>" width="8" height="8" transform="rotate(45 <%= x(i).toFixed(1) %> <%= yP(v).toFixed(1) %>)"><title>Patrón térmico compatible con pie diabético: <%= fmt.num(v, 0) %> % — modelo entrenado con base pública, no predice úlcera</title></rect><% }) %>
     <% pts.forEach((p, i) => { %>
     <circle class="area-dot" cx="<%= x(i).toFixed(1) %>" cy="<%= yA(p.areaCalientePct).toFixed(1) %>" r="5"><title>Toma <%= p.toma %> (<%= fmt.date(p.fecha) %>): <%= fmt.num(p.areaCalientePct, 1) %> %</title></circle>
     <text class="lbl" x="<%= x(i).toFixed(1) %>" y="<%= (yA(p.areaCalientePct) - 10).toFixed(1) %>" text-anchor="middle"><%= fmt.num(p.areaCalientePct, 0) %> %</text>
@@ -31,7 +32,7 @@
   </svg>
   <div class="pw-evo__legend">
     <span><i></i>Área con |ΔT| &gt; umbral (eje izq.)</span>
-    <span><i class="prob"></i>Modelo preliminar (eje der.)</span>
+    <% if (probPts.length) { %><span><i class="prob"></i>Patrón compatible con pie diabético (eje der.; base pública, no predice úlcera)</span><% } %>
     <span><i class="thr"></i>Área mínima <%= fmt.num(areaMinima, 0) %> %</span>
   </div>
 </div>

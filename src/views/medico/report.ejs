@@ -75,7 +75,9 @@
         <% PW && PW.tomas.forEach((t) => { if (t.zonasNoAnalizadas.length) { %><span>Toma <%= t.toma %>: <%= pw.noAnalizadoTexto(t) %></span><% } }) %>
       </div>
     </section>
-    <p class="small report__model">Modelo preliminar · no validado: <span class="num"><%= fmt.num(a.probabilidad, 0) %> %</span><% if (MOD) { %> (probabilidad de HbA1c &gt; 7 %, desenlace sustituto; AUC <%= fmt.num(MOD.auc, 2) %>, n = <%= MOD.n %>: todavía no discrimina)<% } else { %> (simulado)<% } %>.</p>
+    <% const DM = PW && PW.patronDm; if (DM) { %>
+    <p class="small report__model">Patrón térmico compatible con pie diabético: <span class="num"><%= fmt.num(DM.probabilidad, 0) %> %</span> — modelo entrenado con base pública, no predice úlcera (diabetes vs control en Hernández-Contreras et al. 2019; AUC <%= fmt.num(DM.auc, 2) %>, IC 95 % <%= fmt.num(DM.aucIC95[0], 2) %>–<%= fmt.num(DM.aucIC95[1], 2) %>, n = <%= DM.n %>). La categoría de riesgo se basa en el hallazgo térmico.</p>
+    <% } %>
 
     <% if (PW) { const data = pw.payload(a); const srcId = `pw-rep-${s.id}`; %>
     <script type="application/json" id="<%= srcId %>" data-pw-data><%- pw.json(data) %></script>
@@ -117,7 +119,7 @@
     <% } %>
 
     <footer class="report__foot">
-      <p>Análisis <%= a ? a.predictorVersion : '—' %><%= a && a.puntual && a.puntual.modelo ? ` · modelo preliminar ${a.puntual.modelo.version}, no validado` : '' %>.</p>
+      <p>Análisis <%= a ? a.predictorVersion : '—' %><%= a && a.puntual && a.puntual.patronDm ? ` · patrón térmico ${a.puntual.patronDm.version} (base pública, no predice úlcera)` : '' %>.</p>
       <p>Documento con datos de salud: tratamiento confidencial según Ley 25.326 y Ley 26.529.</p>
       <div class="report__sign"><span>Firma y sello</span></div>
     </footer>

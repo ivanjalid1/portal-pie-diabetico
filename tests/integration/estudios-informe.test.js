@@ -164,7 +164,9 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
       expect(res.status).toBe(200);
       // Resumen: una frase, números grandes y el modelo preliminar como dato secundario.
       expect(res.text).toMatch(/class="sr-summary__lead">(El \d+ % de la planta|Los dos pies)/);
-      expect(res.text).toContain('Modelo preliminar · no validado');
+      expect(res.text).not.toContain('Modelo preliminar · no validado');
+      expect(res.text).toContain('Patrón térmico compatible con pie diabético');
+      expect(res.text).toContain('no predice úlcera');
       expect(res.text).toContain('role="tooltip"');
       // Mapas: pestañas Toma 1 / Toma 2 / Cambio.
       expect(res.text).toContain('role="tablist"');
@@ -192,7 +194,9 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
       const res = await medico.get(`/medico/estudios/${studies[0].id}/informe`);
       expect(res.status).toBe(200);
       expect(res.text).toContain('class="report__lead"');
-      expect(res.text).toContain('Modelo preliminar · no validado');
+      expect(res.text).not.toContain('Modelo preliminar · no validado');
+      expect(res.text).toContain('Patrón térmico compatible con pie diabético');
+      expect(res.text).toContain('no predice úlcera');
       expect(res.text).not.toContain('Referencia: regiones');
       expect(res.text).not.toContain('Parte 1');
       expect(res.text).not.toContain('Herramienta exploratoria');

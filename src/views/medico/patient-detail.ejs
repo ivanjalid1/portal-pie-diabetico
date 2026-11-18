@@ -36,8 +36,8 @@
         <div>
           <h3 class="card__subtitle">Área con diferencia entre pies, por toma</h3>
           <%- include('../partials/pw-evolution', { serie: seriePuntual, areaMinima: lastPw.umbralPixel ? lastPw.areaMinima : 10 }) %>
-          <% if (lastPw.modelo) { %>
-          <p class="muted small">Modelo preliminar (desenlace sustituto HbA1c &gt; 7 %): AUC <span class="num"><%= fmt.num(lastPw.modelo.auc, 2) %></span>, n = <%= lastPw.modelo.n %>. No está validado: la categoría se basa en el hallazgo térmico.</p>
+          <% if (lastPw.patronDm) { const D = lastPw.patronDm; %>
+          <p class="muted small">Línea violeta: patrón térmico compatible con pie diabético, de un modelo entrenado con una base pública (diabetes vs control; AUC <span class="num"><%= fmt.num(D.auc, 2) %></span>, n = <%= D.n %>). No predice úlcera; la categoría se basa en el hallazgo térmico.</p>
           <% } %>
         </div>
         <div>

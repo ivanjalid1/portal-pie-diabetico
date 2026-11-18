@@ -261,7 +261,7 @@ const PROJECT = Object.freeze({
 });
 
 const DISCLAIMER =
-  'Herramienta exploratoria complementaria, no diagnóstica. Análisis punto a punto con temperaturas aproximadas y modelo de probabilidad preliminar, no validado clínicamente.';
+  'Herramienta exploratoria complementaria, no diagnóstica. Análisis punto a punto con temperaturas aproximadas; el patrón térmico de referencia se entrenó con una base pública (diabetes vs control) y no predice úlcera.';
 
 /** Alias histórico: lista de centros para los formularios. */
 const INSTITUCIONES = CENTRO_NOMBRES;

@@ -233,7 +233,10 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
     expect(page.text).toContain('data-pw-map="tci-2:izq"');
     expect(page.text).toMatch(/<dt>Segmentación<\/dt><dd>Toma 1: clásica · Toma 2: clásica/);
     expect(page.text).toContain('Comparación de modelos');
-    expect(page.text).toContain('Modelo preliminar');
+    // La probabilidad del modelo HbA1c ya no se muestra; sí el patrón de la base pública.
+    expect(page.text).not.toContain('Modelo preliminar · no validado');
+    expect(page.text).toContain('Patrón térmico compatible con pie diabético');
+    expect(page.text).toContain('no predice úlcera');
     expect(page.text).toMatch(/AUC/);
     // Las regiones de la Parte 1 (tesis previa) ya no se muestran en el resultado.
     expect(page.text).not.toContain('Referencia: análisis por regiones (tesis parte 1)');

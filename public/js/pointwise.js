@@ -1,7 +1,7 @@
 /* Mapas punto a punto (canvas) a partir de las grillas canónicas del análisis.
  * Los datos llegan en <script type="application/json" data-pw-data id="..."> (no se ejecutan).
  * Lienzos:
- *   <canvas data-pw-map="1:izq|1:der|1:dt|cambio:izq|cambio:der|tci-1:izq|tci-1:der" data-pw-src="id">
+ *   <canvas data-pw-map="1:izq|1:der|1:dt|cambio:izq|cambio:der|tci-1:izq|tci-1:der|fc:actual|fc:esperado" data-pw-src="id">
  *   <canvas data-pw-hist="1" data-pw-src="id">
  * Nunca se modifican las temperaturas: las celdas sin dato se pintan en gris
  * o se dejan transparentes. */
@@ -438,6 +438,18 @@
       silhouette(L, s.W, s.H, unionMask(foot === 'izq' ? tt.izqG : tt.derG), flip, true);
       put(footImage(L, s.W, s.H, g, (v) => diverging(v, 4), flip));
       zones(L, { labels: true });
+      return;
+    }
+    if (which === 'fc') {
+      // Pronóstico: ΔT esperado = β · ΔT de la última toma (encogimiento). La toma actual se dibuja igual.
+      const fc = s.d.pronostico;
+      const tt = fc && s.tomas[fc.toma];
+      if (!tt) return;
+      const g = foot === 'esperado' ? tt.dt.map((v) => (ok(v) ? v * fc.beta : NaN)) : tt.dt;
+      silhouette(L, s.W, s.H, unionMask(tt.izqG, tt.derG), false, true);
+      put(footImage(L, s.W, s.H, g, (v) => diverging(v, 3), false));
+      zones(L, { labels: true });
+      drawContour(L, s.W, s.H, g, s.d.umbralPixel);
       return;
     }
     const t = s.tomas[which];

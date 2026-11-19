@@ -127,6 +127,26 @@ const TAIL_COLUMNS = [
   // diabetes vs control). NO es una probabilidad de úlcera.
   ['PATRON PIE DIABETICO (%) BASE PUBLICA', ({ analysis }) => num(analysis?.puntual?.patronDm?.probabilidad, 1)],
   ['MODELO PATRON', ({ analysis }) => analysis?.puntual?.patronDm?.version || ''],
+  // Pronóstico por zona del próximo control (ThermalForecastService, §8.11): la zona
+  // con mayor área caliente esperada. Vacío sin modelo local (CI, Vercel).
+  ['PRONOSTICO ZONA', ({ forecast }) => (forecast?.peor ? forecast.peor.texto.toUpperCase() : '')],
+  ['PRONOSTICO AREA ACTUAL (%)', ({ forecast }) => num(forecast?.peor?.actual, 1)],
+  ['PRONOSTICO AREA ESPERADA (%)', ({ forecast }) => num(forecast?.peor?.esperado, 1)],
+  [
+    'PRONOSTICO RANGO 80 (%)',
+    ({ forecast }) => (forecast?.peor ? `${num(forecast.peor.rango[0], 1)}-${num(forecast.peor.rango[1], 1)}` : ''),
+  ],
+  ['PRONOSTICO TENDENCIA', ({ forecast }) => (forecast?.peor?.tendencia || '').toUpperCase()],
+  ['PRONOSTICO PROB CALIENTE (%)', ({ forecast }) => num(forecast?.peor ? forecast.peor.prob * 100 : null, 1)],
+  // Zona con área caliente ≥ área mínima en la toma 1 y en la toma 2 (no usa el modelo).
+  [
+    'ZONA CALIENTE PERSISTENTE',
+    ({ forecast }) => (forecast && forecast.tomas >= 2 ? (forecast.persistentes.length ? 'SI' : 'NO') : ''),
+  ],
+  [
+    'ZONAS PERSISTENTES',
+    ({ forecast }) => (forecast ? forecast.persistentes.map((z) => z.texto.toUpperCase()).join(' / ') : ''),
+  ],
 ];
 
 const COLUMNS = [...BASE_COLUMNS, ...tomaColumns(1), ...tomaColumns(2), ...EVOLUTION_COLUMNS, ...TAIL_COLUMNS];

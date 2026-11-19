@@ -23,6 +23,7 @@
       <div class="cfg-col">
         <%- include('group', { g: groups.find((x) => x.key === 'riesgo'), defs, values, defaults, errors, preview }) %>
         <%- include('group', { g: groups.find((x) => x.key === 'seguimiento'), defs, values, defaults, errors, preview }) %>
+        <%- include('group', { g: groups.find((x) => x.key === 'pronostico'), defs, values, defaults, errors, preview }) %>
       </div>
     </div>
     <%- include('group', { g: groups.find((x) => x.key === 'protocolo'), defs, values, defaults, errors, preview }) %>

@@ -26,9 +26,22 @@ function createMedicoController({
   patientService,
   studyService,
   appointmentService,
+  forecastService = null,
   events,
   config,
 }) {
+  /** Agrega a cada fila el pronóstico por zona (columnas del CSV). */
+  const withForecast = (req, rows) =>
+    rows.map((r) => ({
+      ...r,
+      forecast:
+        forecastService && r.analysis
+          ? forecastService.forAnalysis(r.analysis, {
+              tolerancia: req.settings?.pronosticoTolerancia,
+              areaMinima: r.analysis.parametros?.areaMinima,
+            })
+          : null,
+    }));
   const actor = (req) => ({ id: req.user.id, email: req.user.email, ip: req.ip, role: req.user.role });
   const defaultCentro = (req) =>
     CENTRO_NOMBRES.includes(req.user.institucion) ? req.user.institucion : CENTRO_NOMBRES[0];
@@ -142,7 +155,7 @@ function createMedicoController({
       const stamp = new Date().toISOString().slice(0, 10);
       res.set('Content-Type', 'text/csv; charset=utf-8');
       res.set('Content-Disposition', `attachment; filename="termopie-mediciones-${stamp}.csv"`);
-      res.send(buildCsv(rows));
+      res.send(buildCsv(withForecast(req, rows)));
     },
 
     /* ---------- Estudios ---------- */
@@ -164,7 +177,7 @@ function createMedicoController({
       const stamp = new Date().toISOString().slice(0, 10);
       res.set('Content-Type', 'text/csv; charset=utf-8');
       res.set('Content-Disposition', `attachment; filename="termopie-estudios-${stamp}.csv"`);
-      res.send(buildCsv(all));
+      res.send(buildCsv(withForecast(req, all)));
     },
 
     async newStudy(req, res) {

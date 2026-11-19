@@ -18,6 +18,9 @@
   const lectura = PW && tA ? pw.lecturaToma(tA, PW.umbralPixel) : null;
   const cambio = PW && t2 ? pw.cambioArea(a) : null;
   const u = PW ? fmt.num(PW.umbralPixel, 1) : '';
+  // Pronóstico por zona del próximo control (sin modelo local: sólo la marca de persistencia).
+  const FC = PW ? pronosticoDe(a) : null;
+  const FCI = FC && FC.disponible ? pronosticoInfo() : null;
   const fechaToma = (k) => (k === 1 ? s.fechaToma1 : s.fechaHora);
   const tomaLabel = (k) => (k === 1 ? 'Toma 1 · basal' : 'Toma 2 · control');
   const estimadas = ((s.notasMedico || '').match(/Fecha de la toma ([12](?: y [12])?) estimada/) || [])[1] || null;
@@ -55,6 +58,9 @@
       <span class="badge badge--<%= tA.conAsimetria ? 'danger' : 'ok' %>"><span class="dot" aria-hidden="true"></span><%= tA.conAsimetria ? 'Asimetría térmica' : 'Sin asimetría relevante' %></span>
       <% } else if (a && !PW) { %>
       <span class="badge badge--warn">Resultado simulado</span>
+      <% } %>
+      <% if (FC && FC.persistentes.length) { const nP = FC.persistentes.length; %>
+      <span class="badge badge--persist" title="Más del <%= fmt.num(FC.areaMinima, 0) %> % de la zona caliente en la toma 1 y en la toma 2. La asimetría que persiste en mediciones sucesivas se considera preulcerosa (IWGDF 2023, recomendación 7; Lavery et al. 2007)."><%- include('../partials/icon', { name: 'alert', size: 14 }) %><%= nP > 1 ? 'Zonas calientes persistentes' : 'Zona caliente persistente' %>: <%= FC.persistentes.map((z) => z.texto).join(', ') %> (2 tomas)</span>
       <% } %>
       <span class="badge badge--muted"><%= t2 ? 'Toma 1 y toma 2' : 'Sólo toma 1' %></span>
       <span class="badge badge--outline"><%= s.publicado ? 'Visible para el paciente' : 'No visible para el paciente' %></span>
@@ -132,7 +138,8 @@
 </div>
 <% } %>
 
-<% if (PW) { %><%- include('../partials/pointwise-study', { analysis: a, study: s }) %><% } %>
+<% if (PW) { %><%- include('../partials/pointwise-study', { analysis: a, study: s, forecast: FC, etiqueta: settings.pronosticoEtiqueta }) %><% } %>
+<% if (FC && FC.disponible) { %><%- include('../partials/forecast-zones', { forecast: FC, etiqueta: settings.pronosticoEtiqueta, umbral: FC.umbralPixel ?? PW.umbralPixel }) %><% } %>
 
 <details class="disclosure disclosure--card sr-tech" id="detalle">
   <summary>Detalle técnico</summary>
@@ -222,6 +229,15 @@
         <div><dt>Banda y LR</dt><dd><%= RB.banda.nombre %>: LR <span class="num"><%= fmt.num(RB.lr, 2) %></span> (<span class="num"><%= fmt.num(RB.lrRango[0], 2) %>–<%= fmt.num(RB.lrRango[1], 2) %></span>) · <%= predictorInfo.riesgo && predictorInfo.riesgo.modos ? predictorInfo.riesgo.modos[RB.modo] : RB.modo %></dd></div>
         <div><dt>Resultado</dt><dd><span class="num"><%= pw.riesgoPct(RB.probabilidad) %></span> (<span class="num"><%= pw.riesgoRango(RB.rango) %></span>)<%= R.fuente === 'modelo' ? ' · reemplazado por el modelo entrenado' : '' %>. Categoría: bajo &lt; <span class="num"><%= pw.riesgoPct(RB.cortes.moderado) %></span> (basal IWGDF 1) ≤ moderado &lt; <span class="num"><%= pw.riesgoPct(RB.cortes.alto) %></span> (basal IWGDF 3) ≤ alto</dd></div>
         <div><dt>Fuentes</dt><dd><% ['frykberg2017', 'lavery2019', 'peters2001', 'iwgdf2023'].forEach((k) => { const e = EV[k]; if (e) { %><span class="sr-cite"><%= e.cita %>. doi:<%= e.doi %> (<%= e.pagina %>).</span> <% } }) %></dd></div>
+      </dl>
+    </section>
+    <% } %>
+
+    <% if (FCI) { const cv = (k) => FCI[k]; %>
+    <section class="sr-tech__block" aria-labelledby="tech-fc">
+      <h3 id="tech-fc" class="card__subtitle">Pronóstico por zona: modelo</h3>
+      <dl class="kv kv--compact">
+        <div><dt>Validación</dt><dd>CV por paciente (<%= FCI.n.pacientes %> pacientes, <%= FCI.n.filasPieZona %> pie × zona, <%= FCI.horizonteDias.mediana %> días mediana). Área caliente: MAE <span class="num"><%= fmt.num(cv('area').mae, 1) %> pp</span> vs <span class="num"><%= fmt.num(cv('area').maePersistencia, 1) %></span> persistencia · ΔT: <span class="num"><%= fmt.num(cv('dT').mae, 2) %></span> vs <span class="num"><%= fmt.num(cv('dT').maePersistencia, 2) %> °C</span> · prob. caliente: AUC <span class="num"><%= fmt.num(FCI.prob.auc, 2) %></span> (<span class="num"><%= fmt.num(FCI.prob.aucIC95[0], 2) %>–<%= fmt.num(FCI.prob.aucIC95[1], 2) %></span>), persistencia <span class="num"><%= fmt.num(FCI.prob.aucPersistencia, 2) %></span>, pendiente de calibración <span class="num"><%= fmt.num(FCI.prob.pendienteCalibracion, 2) %></span><% if (FCI.pixel) { %> · mapa β = <span class="num"><%= fmt.num(FCI.pixel.beta, 2) %></span>: MAE <span class="num"><%= fmt.num(FCI.pixel.cv.mae, 2) %></span> vs <span class="num"><%= fmt.num(FCI.pixel.cv.maePersistencia, 2) %> °C</span><% } %><% if (FCI.retest) { %> · test-retest <span class="num"><%= fmt.num(FCI.retest.areaAbsMedia, 1) %> pp / <%= fmt.num(FCI.retest.pixelMae, 2) %> °C</span><% } %></dd></div>
       </dl>
     </section>
     <% } %>

@@ -23,6 +23,7 @@ const StudyService = require('./services/StudyService');
 const DashboardService = require('./services/DashboardService');
 const SettingsService = require('./services/SettingsService');
 const OutcomeLog = require('./services/OutcomeLog');
+const ThermalForecastService = require('./services/ThermalForecastService');
 const { MaskService } = require('./services/MaskService');
 const { seedDemoData, DEMO_PASSWORD } = require('./seed');
 const { loadRealDataset, seedRealData } = require('./seed/realData');
@@ -94,6 +95,9 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
     config,
   });
 
+  // Pronóstico térmico por zona: coeficientes en data-local/models/ (sin archivo, sin pronóstico).
+  const forecastService = overrides.forecastService || new ThermalForecastService();
+
   // Herramienta local de corrección de máscaras (nunca en producción ni en Vercel).
   const maskService = new MaskService({
     dir:
@@ -135,6 +139,7 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
       dashboardService,
       settingsService,
       maskService,
+      forecastService,
     },
     outcomeLog,
     ready: Promise.resolve(),

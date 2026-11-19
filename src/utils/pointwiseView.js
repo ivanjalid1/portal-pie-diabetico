@@ -145,6 +145,27 @@ function cambioArea(a) {
   };
 }
 
+/* ---------------- Pronóstico por zona ---------------- */
+
+/**
+ * Una línea en lenguaje simple para el paciente sobre el próximo control, a
+ * partir de la zona con mayor área caliente esperada (ThermalForecastService).
+ */
+function pronosticoFrase(fc) {
+  const w = fc?.disponible ? fc.peor : null;
+  if (!w) return null;
+  const pie = w.pie === 'izq' ? 'izquierdo' : 'derecho';
+  const donde = `en ${ZONA_CON_ARTICULO[w.zona]} del pie ${pie}`;
+  if (w.esperado < (fc.areaUmbral ?? 10) && w.actual < (fc.areaUmbral ?? 10)) {
+    return 'En tu próximo control esperamos que la temperatura de tus dos pies siga siendo parecida.';
+  }
+  if (w.tendencia === 'mejora')
+    return `En tu próximo control esperamos que la diferencia de temperatura ${donde} sea menor.`;
+  if (w.tendencia === 'empeora')
+    return `En tu próximo control esperamos que la diferencia de temperatura ${donde} sea algo mayor; tu médico la va a volver a medir.`;
+  return `En tu próximo control esperamos que la diferencia de temperatura ${donde} se mantenga parecida; tu médico la va a volver a medir.`;
+}
+
 /* ---------------- Riesgo de úlcera ---------------- */
 
 /** Número de un porcentaje de riesgo (los de pocas semanas suelen ser < 1 %). */
@@ -202,6 +223,7 @@ const TOOLTIP_RIESGO =
   'Estimado a partir de la asimetría térmica punto a punto y la evidencia publicada (Frykberg 2017; Peters y Lavery 2001; IWGDF 2023). Se reemplazará por un modelo entrenado con los desenlaces del portal cuando haya ≥10 lesiones registradas.';
 
 module.exports = {
+  pronosticoFrase,
   riesgoNum,
   riesgoPct,
   riesgoRango,

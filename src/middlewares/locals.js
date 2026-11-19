@@ -56,6 +56,15 @@ function locals(config) {
       sl.toma === 1 ? cfg().tituloImagen1 : sl.toma === 2 ? cfg().tituloImagen2 : sl.titulo;
     /** Parámetros de un análisis (su snapshot) o, si no hay análisis, los vigentes. */
     res.locals.paramsOf = (a) => a?.parametros || settingsConfig.analysisParams(cfg());
+    /** Pronóstico por zona del próximo control (null sin análisis punto a punto). */
+    res.locals.pronosticoDe = (a) =>
+      req.app.locals.forecastService && a
+        ? req.app.locals.forecastService.forAnalysis(a, {
+            tolerancia: cfg().pronosticoTolerancia,
+            areaMinima: a.parametros?.areaMinima,
+          })
+        : null;
+    res.locals.pronosticoInfo = () => req.app.locals.forecastService?.info || null;
     res.locals.imagePalettes = (study, slot) => {
       const img = study.image?.(slot);
       if (!img) return null;

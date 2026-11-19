@@ -43,6 +43,13 @@ const GROUPS = Object.freeze([
       'Riesgo de úlcera calibrado con la bibliografía: horizonte, incidencia por grupo IWGDF y umbral de asimetría.',
   }),
   Object.freeze({
+    key: 'pronostico',
+    titulo: 'Pronóstico por zona',
+    icono: 'activity',
+    descripcion:
+      'Pronóstico del próximo control por pie y zona: horizonte que se muestra y tolerancia para marcar una tendencia.',
+  }),
+  Object.freeze({
     key: 'seguimiento',
     titulo: 'Seguimiento',
     icono: 'calendar',
@@ -285,6 +292,35 @@ const DEFINITIONS = Object.freeze([
     default: 70,
     help: 'Sólo para el modelo entrenado. Debe ser mayor que el corte moderado.',
     fuente: 'Cortes del portal sobre la probabilidad del modelo de referencia (Parte 1, Muñoz A. P.).',
+  },
+  {
+    key: 'pronosticoEtiqueta',
+    group: 'pronostico',
+    type: 'text',
+    label: 'Horizonte del pronóstico (etiqueta)',
+    maxLength: 40,
+    default: '~35 días',
+    help: 'Texto que acompaña al pronóstico («próximo control ~35 días»). Sólo cambia la etiqueta: el modelo se entrenó con el intervalo real entre tomas y no se extrapola a otros horizontes.',
+    fuente:
+      'Mediana de días entre la toma 1 y la toma 2 en los 57 pares con fecha registrada: 35 (p25–p75: 31–42). scripts/ml/train_forecast.py, docs/arquitectura.md §8.11.',
+  },
+  {
+    key: 'pronosticoTolerancia',
+    group: 'pronostico',
+    type: 'number',
+    label: 'Tolerancia de la tendencia (área caliente)',
+    unit: 'pp',
+    min: 2.5,
+    max: 30,
+    step: 0.5,
+    default: 6,
+    help: 'Una zona se marca «empeora» o «mejora» si el área caliente esperada difiere de la actual en más de este valor (puntos porcentuales); si no, «estable». Por la regresión a la media, con menos de ~5,5 pp las zonas sin área caliente se marcarían «empeora».',
+    fuente:
+      'Test-retest entre réplicas de la misma toma (170 sesiones): |Δ| medio 2,4 pp, percentil 90 6,2 pp, cambio mínimo detectable (95 %) 12,7 pp. §8.11.',
+    presets: [
+      { value: 6, label: '6 pp', detalle: 'Percentil 90 de la diferencia entre réplicas' },
+      { value: 12.5, label: '12,5 pp', detalle: 'Cambio mínimo detectable (95 %)' },
+    ],
   },
   {
     key: 'diasEntreTomas',

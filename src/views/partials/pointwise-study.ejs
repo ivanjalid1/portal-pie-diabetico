@@ -1,9 +1,13 @@
 <%
   // Mapas del análisis punto a punto (vista del médico/a): una pestaña por toma
-  // y, si hay toma 2, una de cambio entre tomas. Parámetros: analysis, study.
+  // y, si hay toma 2, una de cambio entre tomas. Parámetros: analysis, study y,
+  // opcionales, forecast (ThermalForecastService) y etiqueta (horizonte).
   const A = analysis;
   const PW = A.puntual;
   const data = pw.payload(A);
+  const FCm = typeof forecast !== 'undefined' && forecast && forecast.disponible && forecast.beta ? forecast : null;
+  const fcEtiqueta = typeof etiqueta !== 'undefined' && etiqueta ? etiqueta : 'próximo control';
+  if (FCm) data.pronostico = { beta: FCm.beta, toma: FCm.desdeToma };
   const srcId = `pw-${study.id}`;
   const fecha = (t) => (t.toma === 1 ? study.fechaToma1 : study.fechaHora);
   const rango = data.rango;
@@ -13,6 +17,7 @@
   // TCI (índice de cambio térmico) de la última toma, si se calculó.
   const tciToma = PW.tomas.find((t) => t.toma === PW.tomaActual && t.tci && t.tci.mapas) || null;
   if (tciToma) tabs.push({ id: 'tci', label: 'TCI', sub: fmt.num(tciToma.tci.valor, 2) });
+  if (FCm) tabs.push({ id: 'fc', label: 'Pronóstico', sub: fcEtiqueta });
   const tciTicks = [-4, -2, 0, 2, 4].map((v) => [(v + 4) / 8, v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '0']);
   const activa = `t${PW.tomaActual}`;
   const conTabs = tabs.length > 1;
@@ -124,6 +129,35 @@
           <li><span class="sr-key sr-key--hatch" aria-hidden="true"></span>Sin dato en el pie o en la referencia</li>
         </ul>
         <p class="sr-panel__reading"><span><strong>TCI <span class="num"><%= fmt.num(T.valor, 2) %> °C</span></strong> (clase <%= T.clase %> de 5). Desvío medio por punto <span class="num"><%= fmt.signed(T.desvioMedio, 1) %> °C</span>. Referencia: <%= ref.fuente === 'cohorte' ? `${ref.miembros} pacientes simétricos de la cohorte${ref.looExcluido ? ', sin este paciente' : ''}` : 'pares de demostración' %>.</span></p>
+      </div>
+    </div>
+  </div>
+  <% } %>
+  <% if (FCm) { const PL = FCm.planta; %>
+  <div class="sr-panel" id="panel-fc" role="tabpanel" aria-labelledby="tab-fc" hidden>
+    <div class="sr-maps sr-maps--change">
+      <div class="sr-maps__group">
+        <div class="sr-maps__pair">
+          <figure class="pw-map">
+            <canvas data-pw-map="fc:actual" data-pw-src="<%= srcId %>" role="img" aria-label="Diferencia izquierdo menos derecho por punto, toma <%= FCm.desdeToma %>"></canvas>
+            <figcaption>Toma <%= FCm.desdeToma %><span class="sr-fig-sub">diferencia actual</span></figcaption>
+          </figure>
+          <figure class="pw-map">
+            <canvas data-pw-map="fc:esperado" data-pw-src="<%= srcId %>" role="img" aria-label="Diferencia esperada por punto en el próximo control<%= PL ? `: ${fmt.num(PL.esperado, 0)} % de la planta sobre ${u} °C` : '' %>"></canvas>
+            <figcaption>Próximo control<span class="sr-fig-sub">esperado, <%= fcEtiqueta %></span></figcaption>
+          </figure>
+        </div>
+      </div>
+      <div class="sr-maps__group sr-maps__group--side">
+        <%- include('scale', { gradient: DIV, ticks: divTicks, marks: thrMarks, ends: ['der. más caliente', 'izq. más caliente'], label: 'Escala de diferencia de −3 a +3 °C' }) %>
+        <p class="sr-caption">Diferencia media esperada por punto: <span class="num">β · ΔT</span> actual, con <span class="num">β = <%= fmt.num(FCm.beta, 2) %></span>. El área esperada se estima por zona.</p>
+        <ul class="sr-keys">
+          <li><span class="sr-key sr-key--line" aria-hidden="true"></span>Más de <%= u %> °C</li>
+          <li><span class="sr-key sr-key--hatch" aria-hidden="true"></span>Sin par</li>
+        </ul>
+        <% if (PL) { %>
+        <p class="sr-panel__reading"><span>Planta con más de <%= u %> °C: <strong class="num"><%= fmt.num(PL.actual, 0) %> %</strong> ahora y <strong class="num"><%= fmt.num(PL.esperado, 0) %> %</strong> esperado (<span class="num"><%= fmt.num(PL.rango[0], 0) %>–<%= fmt.num(PL.rango[1], 0) %> %</span>).</span></p>
+        <% } %>
       </div>
     </div>
   </div>

@@ -19,7 +19,8 @@
     "ml:features": "node scripts/ml/export-features.js",
     "ml:public": "node scripts/ml/export-public.js --atlas",
     "ml:pattern": "node scripts/ml/export-pattern-features.js",
-    "ml:summary": "node scripts/ml/summarize-comparison.js"
+    "ml:summary": "node scripts/ml/summarize-comparison.js",
+    "ml:forecast": "node scripts/ml/export-forecast.js --train"
   },
   "license": "MIT",
   "dependencies": {

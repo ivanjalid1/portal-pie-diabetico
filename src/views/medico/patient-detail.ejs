@@ -35,7 +35,8 @@
       <div class="pw-evo">
         <div>
           <h3 class="card__subtitle">Riesgo de úlcera y área con diferencia entre pies, por toma</h3>
-          <%- include('../partials/pw-evolution', { serie: seriePuntual, areaMinima: lastPw.umbralPixel ? lastPw.areaMinima : 10 }) %>
+          <% const FCL = pronosticoDe(la); %>
+          <%- include('../partials/pw-evolution', { serie: seriePuntual, areaMinima: lastPw.umbralPixel ? lastPw.areaMinima : 10, pronostico: FCL && FCL.planta, etiqueta: settings.pronosticoEtiqueta }) %>
           <% const RL = pw.riesgoDe(la); if (RL) { %>
           <p class="muted small">Línea violeta: riesgo de úlcera en <%= pw.horizonteTexto(RL.horizonteSemanas) %> (eje derecho), estimado con la asimetría de cada toma y la evidencia publicada<%= RL.grupoIwgdf !== null && RL.grupoIwgdf !== undefined ? ` (IWGDF ${RL.grupoIwgdf})` : '' %>.</p>
           <% } %>

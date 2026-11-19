@@ -21,6 +21,7 @@ function createApp(container = buildContainer()) {
   const app = express();
   app.locals.seedMode = container.seedMode || 'demo';
   app.locals.maskTool = Boolean(container.services.maskService?.enabled);
+  app.locals.forecastService = container.services.forecastService || null;
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));

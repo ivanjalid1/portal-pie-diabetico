@@ -59,6 +59,7 @@
       <% } else { %>
       <p>Las diferencias fueron pequeñas: la temperatura de ambos pies fue parecida.</p>
       <% } %>
+      <% const frasePron = pw.pronosticoFrase(pronosticoDe(a)); if (frasePron) { %><p class="pac-summary__next"><%- include('../partials/icon', { name: 'calendar', size: 16 }) %><span><%= frasePron %></span></p><% } %>
       <% if (z) { %><p class="notice notice--info small"><%- include('../partials/icon', { name: 'info', size: 18 }) %><span>En este estudio no se analizó: <%= z.noAnalizado %> (no se vio completo en la imagen). Se analizó: <%= z.analizado %>.</span></p><% } %>
       <p class="small muted">En el mapa, el rojo indica que el pie izquierdo estaba más caliente en ese punto y el azul que lo estaba el derecho. El blanco significa temperaturas parecidas.</p>
     </div>

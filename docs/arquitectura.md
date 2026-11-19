@@ -806,3 +806,82 @@ Se probaron **10 variantes** para neuropatía, sin contar los controles directos
 - Parte de la señal es edad / duración de la diabetes.
 - No hay validación externa: STANDUP la daría con máscaras manuales.
 - No predice úlcera: sólo informa el prior IWGDF cuando falta el dato clínico.
+
+### 8.11 Pronóstico térmico por zona (próximo control)
+
+Con dos tomas por paciente se puede estimar **qué esperar en el próximo control** a partir de la última toma. El pronóstico se hace por **pie × zona** (dedos, metatarso, arco, talón) sobre la grilla canónica registrada. Lo calcula `ThermalForecastService` (`src/services/ThermalForecastService.js`) en cada vista; no se guarda en el análisis.
+
+**Variables por pie y zona** (las mismas en el entrenamiento y en el portal: `zoneFeatures`):
+
+- **área caliente**: % de las celdas de la zona en las que ESE pie está más de 1 °C más caliente que el mismo punto del otro pie;
+- **ΔT orientado**: media de (este pie − contralateral) en la zona, en °C.
+
+Las zonas no analizadas (§8, paso 9) quedan fuera. El umbral de 1 °C es el del entrenamiento; si en Configuración se usa otro umbral por punto, el pronóstico sigue usando 1 °C.
+
+**Datos y validación** (`npm run ml:forecast` = `scripts/ml/export-forecast.js --train` → `scripts/ml/train_forecast.py`):
+
+- 73 pacientes con toma 1 y toma 2 analizables → 566 pie × zona comparables;
+- días entre tomas: mediana **35** (p25–p75 31–42), n = 57 con fecha registrada (16 estimadas);
+- validación cruzada por paciente: `GroupKFold` 5 × 10 repeticiones; IC 95 % por bootstrap de pacientes;
+- comparadores: **persistencia** (t2 = t1) y la media del entrenamiento.
+
+**Modelos**
+
+| Salida | Modelo | Coeficientes | Validación cruzada |
+| --- | --- | --- | --- |
+| Área caliente esperada (pp) | regresión a la media | t2 = 5,45 + 0,37 · t1; rango 80 % = esperado −8,2 / +14,9 pp (percentiles 10 y 90 de los residuos fuera de pliegue), acotado a 0–100 | MAE **9,23** vs persistencia 9,69 y media 10,37; cobertura del rango 0,80; r(t1, t2) = 0,37 |
+| ΔT orientado esperado (°C) | ídem | t2 = 0,54 · t1; rango 80 % ± 0,55 °C | MAE **0,369** vs persistencia 0,424 y media 0,435; r = 0,56 |
+| % de la planta con \|ΔT\| > 1 °C | ídem (para el gráfico de evolución) | t2 = 12,0 + 0,28 · t1; rango 80 % −13,0 / +19,3 pp | MAE 9,98 vs persistencia 11,97; cobertura 0,77; n = 73 |
+| P(zona ≥ 10 % en el próximo control) | logística sobre área / 10 y ΔT, recalibrada con la CV | prevalencia 22,6 % | AUC **0,747** (0,69–0,80), dentro de centro 0,745; persistencia (área t1 como puntaje) 0,741 (0,69–0,79); pendiente de calibración 0,99, intercepto −0,01; Brier 0,151 (prevalencia 0,175) |
+| Mapa de ΔT esperado por punto | encogimiento β · ΔT actual | β = 0,39 | MAE **0,536 °C** vs persistencia 0,636 y cero 0,578 |
+| *Empeora (> +10 pp)* | *logística, sólo informativa* | *prevalencia 12,5 %* | *AUC 0,64 (0,56–0,71): débil, no se muestra* |
+
+Transiciones de «zona ≥ 10 %» entre tomas: 62 siguen calientes, 72 se resuelven, 66 aparecen y 366 siguen normales.
+
+El prototipo probó además ridge con covariables (edad, años de diabetes, neuropatía, días entre tomas, centro, normalización por hospital), *gradient boosting* y una U-Net mapa → mapa. **Ninguno superó a la regresión a la media**: en área, ridge 9,23 y GBM 9,65; en el mapa, la U-Net dio 0,539 °C, igual que β · ΔT. El tamaño del cambio no se correlaciona con los días entre tomas (r = 0,00).
+
+**Test-retest** (réplicas de la misma toma, minutos de diferencia; `export-forecast.js --retest`): 170 sesiones con ≥ 2 réplicas válidas, 739 pares de réplicas.
+
+| Medida | Entre réplicas | Entre tomas (~35 días) |
+| --- | --- | --- |
+| \|Δ área caliente\| por pie × zona | media 2,4 pp, mediana 0,5, p90 6,2; cambio mínimo detectable (95 %) 12,7 pp | MAE de persistencia 9,7 pp |
+| Correlación del área | 0,93 (kappa de «zona ≥ 10 %» 0,83) | 0,37 |
+| \|Δ ΔT zonal\| | 0,10 °C | 0,42 °C |
+| ΔT por punto (MAE) | 0,26 °C | 0,64 °C |
+
+La mayor parte del cambio mensual es **variación real entre visitas**, no ruido de adquisición. Coincide con el monitoreo mensual de Liew, Petrova et al. (*J Diabetes Sci Technol* 2025, doi:10.1177/19322968241249970), donde los puntos calientes fluctuaban entre visitas.
+
+**Tendencia** (empeora / estable / mejora). Se compara el área esperada − el área actual con una **tolerancia** configurable (Configuración → «Pronóstico por zona»):
+
+- por defecto **6 pp**, el percentil 90 de la diferencia entre réplicas; el mínimo es 2,5 pp, el ruido medio;
+- por la regresión a la media (intercepto 5,45 pp), con menos de ~5,5 pp toda zona sin área caliente se marcaría «empeora»;
+- con 6 pp, en la cohorte (105 estudios, 826 pie × zona) quedan 134 «mejora» y 692 «estable»: el modelo sólo anticipa que las zonas muy calientes tienden a atenuarse.
+
+**Zona caliente persistente.** Es una zona con área caliente ≥ el área mínima de Configuración (10 %) en la toma 1 **y** en la toma 2. No usa el modelo, así que se muestra aunque falte el archivo.
+
+- La asimetría que se repite en mediciones sucesivas es la señal de alerta de los protocolos: IWGDF 2023 (Bus et al., doi:10.1002/dmrr.3651, recomendación 7: > 2,2 °C en dos días consecutivos) y Lavery et al. 2007 (*Diabetes Care* 30:14-20, doi:10.2337/dc06-1600).
+- En la cohorte la marcan 37 de 73 estudios con dos tomas (62 zonas).
+- Con el criterio de los protocolos (ΔT medio de la zona > 2,2 °C en ambas tomas) no la marca ningún paciente; con el p95 de la zona, 2.
+
+**Relación con el riesgo de úlcera.** El riesgo bibliográfico (§8.9) ya usa la persistencia donde está diseñado: el mapa persistente (menor \|ΔT\| de ambas tomas) confirma o no la banda de la última toma y **sólo acota el rango**. La marca de zona persistente no agrega un LR ni cambia la banda, porque no hay un LR publicado para ella.
+
+**En la interfaz**
+
+- **Resultado del estudio:** después de los mapas va la tarjeta «Pronóstico por zona», con la etiqueta de Configuración (por defecto «~35 días»). Por pie y zona muestra:
+  - el área actual → esperada con su rango del 80 %, en una pista horizontal con la marca del 10 %;
+  - la tendencia y la probabilidad de zona caliente;
+  - las zonas persistentes, resaltadas en la tarjeta y como chip en el encabezado («Zona caliente persistente: metatarso izq. (2 tomas)»).
+- **Pestaña «Pronóstico»** de los mapas: ΔT actual y ΔT esperado (β · ΔT), con el mismo dibujo, la escala divergente y el contorno del umbral.
+- **Detalle técnico:** una fila con las métricas de CV (MAE frente a persistencia, AUC con IC, calibración, β, test-retest y n).
+- **Ficha del paciente:** en el gráfico de evolución, un tramo discontinuo hasta el «próximo control» con la banda del 80 %, para el % de la planta con \|ΔT\| > 1 °C.
+- **Vista del paciente:** una línea simple, p. ej. «En tu próximo control esperamos que la diferencia de temperatura en el metatarso del pie izquierdo sea menor».
+- **CSV:** `PRONOSTICO ZONA` (la de mayor área esperada), `PRONOSTICO AREA ACTUAL (%)`, `PRONOSTICO AREA ESPERADA (%)`, `PRONOSTICO RANGO 80 (%)`, `PRONOSTICO TENDENCIA`, `PRONOSTICO PROB CALIENTE (%)`, `ZONA CALIENTE PERSISTENTE` y `ZONAS PERSISTENTES`.
+
+**Archivo del modelo.** `data-local/models/forecast-zones.json` tiene sólo coeficientes y métricas agregadas, sin datos de pacientes. Como los demás modelos derivados de datos reales, no se versiona; `PRONOSTICO_MODELO` cambia la ruta. Sin archivo (CI, Vercel, pruebas) no se muestran la tarjeta, la pestaña ni el tramo del gráfico; la marca de persistencia sí.
+
+**Limitaciones**
+
+- **Sólo hay dos tomas por paciente.** El modelo aprende el paso toma 1 → toma 2 (~35 días). Desde la toma 2 se aplica el mismo paso para el próximo control: el pronóstico a varios pasos **no está validado**, y tampoco otros horizontes.
+- El modelo es casi la persistencia encogida hacia la media de la cohorte. Mejora el MAE un 5 % en área y un 13 % en ΔT, y la probabilidad de zona caliente no discrimina mejor que el área actual sola (AUC 0,75 vs 0,74). Anticipar que una zona **empeora** no funciona (AUC 0,64).
+- 16 de 73 fechas de toma son estimadas. En la sensibilidad sin fechas estimadas ni pacientes «no válidos» (36 pacientes), r(t1, t2) = 0,24 y el AUC de persistencia es 0,66.
+- Valen las limitaciones del análisis punto a punto: la conversión a °C es aproximada (§8) y las zonas son fracciones fijas del largo del pie, no la anatomía de cada paciente.

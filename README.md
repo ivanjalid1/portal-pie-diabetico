@@ -123,16 +123,19 @@ data-local/venv-ml/Scripts/python -I scripts/ml/dice_corrected.py          # Dic
 data-local/venv-ml/Scripts/python -I scripts/ml/train-outcome.py           # modelo de úlcera (se niega con < 10 lesiones) → data-local/models/
 data-local/venv-ml/Scripts/python -I scripts/ml/train_riskfactor.py       # factores de riesgo (neuropatía…) desde el termograma, todas las variantes
 data-local/venv-ml/Scripts/python -I scripts/ml/check_riskfactor_cnn.py --export  # controles de la CNN de neuropatía → data-local/models/
+npm run ml:forecast                            # pronóstico por zona toma 1 → toma 2 → data-local/models/forecast-zones.json
+node scripts/ml/export-forecast.js --retest    # (opcional) ruido test-retest entre réplicas de una misma toma
 ```
 
 - **Patrón térmico compatible con pie diabético:** se entrena diabetes vs control en la base pública. Con validación cruzada por sujeto da AUC 0,91 (0,86–0,95), n = 167. **No predice úlcera.** Queda como dato secundario en «Detalle técnico» y no cambia el riesgo ni su categoría. Los controles de la base son más jóvenes, así que parte de la señal puede ser la edad.
 - **Atlas de angiosomas:** `npm run ml:public` lo escribe en `data-local/models/angiosome-atlas.json`. Como deriva de la base pública, no se versiona; si falta (CI, Vercel), el TCI usa la aproximación geométrica.
 - **Modelo de úlcera:** `train-outcome.py` escribe `data-local/models/outcome-logreg.json` si hay casos suficientes. Si queda validado, el portal lo usa en lugar del riesgo bibliográfico (`RIESGO_MODELO=auto|bibliografia|entrenado`).
 - **Neuropatía desde el termograma:** CNN preentrenada con la base pública y ajustada con la neuropatía de la planilla: AUC 0,79 (0,68–0,89), 0,84 dentro del Hospital Córdoba, n = 70. Si la ficha no registra neuropatía, define el prior IWGDF del riesgo (`riesgo-neuropatia`). Los pesos quedan en `data-local/models/`.
+- **Pronóstico por zona del próximo control:** regresión a la media por pie × zona desde la última toma, con rango del 80 %, probabilidad de zona caliente y mapa β · ΔT. En CV por paciente: área MAE 9,2 pp (persistencia 9,7), ΔT 0,37 °C (0,42), AUC 0,75 (0,69–0,80); test-retest 2,4 pp / 0,26 °C. Marca las **zonas calientes persistentes** (≥ 10 % en ambas tomas). Sólo hay dos tomas: el pronóstico a varios pasos no está validado ([§8.11](docs/arquitectura.md#811-pronóstico-térmico-por-zona-próximo-control)).
 - **Corrección de máscaras:** en `/mascaras` (sólo local), el médico/a o el administrador/a corrige el contorno de los pies. Las máscaras se guardan en `data-local/ml/corrected-masks/`.
 - **Desenlace real:** con datos reales, se guarda también en `data-local/outcomes/outcomes.json`, así se conserva al reiniciar.
 
-Detalle en [docs/arquitectura.md §8.3–8.10](docs/arquitectura.md). Los pesos, máscaras y matrices quedan en `data-local/`; nunca se versionan.
+Detalle en [docs/arquitectura.md §8.3–8.11](docs/arquitectura.md). Los pesos, máscaras y matrices quedan en `data-local/`; nunca se versionan.
 
 ### Cuentas demo (contraseña `Demo1234!`)
 
@@ -164,6 +167,7 @@ El tema por defecto es **claro**; el oscuro se activa con el botón ☀/☾ y se
 | `npm run ml:public` | Registra la base pública 2019 a la grilla canónica y regenera el atlas de angiosomas (local). |
 | `npm run ml:pattern` | Exporta features invariantes de la base pública y de la cohorte (local). |
 | `npm run ml:summary` | Agrega los resultados de `train_public.py` y `train_adjusted.py` a `src/config/models/model-comparison.json`. |
+| `npm run ml:forecast` | Exporta los pares toma 1 → toma 2 y entrena el pronóstico por zona (`data-local/models/forecast-zones.json`, local, no se versiona). |
 | `npm run generate:pointwise` | Regenera las grillas punto a punto de los pares demo (`src/seed/demoPointwise.json`). |
 | `npm run seed:supabase` | Carga la semilla demo en Supabase (Auth + DB + Storage). Admite `-- --reset`. |
 

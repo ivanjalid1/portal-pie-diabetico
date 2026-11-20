@@ -50,6 +50,9 @@
     <section class="report__summary">
       <h2>Resultado<% if (tA) { %> (toma <%= tA.toma %>)<% } %></h2>
       <% if (mA) { %><p><span class="badge badge--<%= tA.conAsimetria ? 'danger' : 'ok' %>"><%= tA.conAsimetria ? 'Asimetría térmica' : 'Sin asimetría relevante' %></span></p><% } %>
+      <% const FCR = PW ? pronosticoDe(a) : null; if (FCR && FCR.alertas.length) { %>
+      <p class="report__alert"><strong>Asimetría ≥ <%= fmt.num(FCR.umbralIwgdf, 1) %> °C persistente en <%= FCR.alertas.map((z) => z.texto).join(', ') %> (2 tomas)</strong>: criterio IWGDF de riesgo preulceroso (p95 de la zona <%= FCR.alertas.map((z) => `${fmt.num(z.p95[0], 1)} → ${fmt.num(z.p95[1], 1)} °C`).join('; ') %>). IWGDF 2023, recomendación 7; Lavery et al. 2007.</p>
+      <% } %>
       <% if (lectura) { %>
       <p class="report__lead"><%= lectura.frase %><% if (cambio) { %> <%= cambio.frase %><% } %></p>
       <% } else if (!PW) { %>

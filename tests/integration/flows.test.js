@@ -224,7 +224,7 @@ describe('Flujo del médico: registro de paciente → estudio → resultado → 
     const page = await medico.get(res.headers.location);
     expect(page.status).toBe(200);
     expect(page.text).toContain('análisis punto a punto');
-    expect(page.text).toMatch(/Riesgo de úlcera en los próximos 2 meses/);
+    expect(page.text).toMatch(/Riesgo de úlcera en los próximos 12 meses/);
     expect(page.text).toContain('data-pw-map="1:dt"');
     expect(page.text).toContain('data-pw-map="2:dt"');
     expect(page.text).toContain('data-pw-hist="2"');

@@ -9089,7 +9089,7 @@ body.has-savebar {
 .fc-cols,
 .fc-zone {
   display: grid;
-  grid-template-columns: 92px minmax(70px, 1fr) 118px 88px 52px;
+  grid-template-columns: 96px minmax(90px, 1fr) 124px 64px;
   align-items: center;
   column-gap: 12px;
 }
@@ -9233,30 +9233,6 @@ body.has-savebar {
   color: var(--muted);
 }
 
-.fc-trend {
-  justify-self: end;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0.12rem 0.5rem;
-  border-radius: 99px;
-  font-size: 0.76rem;
-  font-weight: 600;
-  white-space: nowrap;
-  background: var(--surface-3);
-  color: var(--text-2);
-}
-
-.fc-trend--empeora {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.fc-trend--mejora {
-  background: var(--ok-soft);
-  color: var(--ok);
-}
-
 .fc-prob {
   justify-self: end;
   font-weight: 600;
@@ -9290,7 +9266,7 @@ body.has-savebar {
   .fc-zone {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      'name trend'
+      'name name'
       'track track'
       'vals prob';
     row-gap: 4px;
@@ -9308,9 +9284,6 @@ body.has-savebar {
   }
   .fc-zone__vals {
     grid-area: vals;
-  }
-  .fc-trend {
-    grid-area: trend;
   }
   .fc-prob {
     grid-area: prob;
@@ -9338,4 +9311,75 @@ body.has-savebar {
   flex: none;
   margin-top: 2px;
   color: var(--primary);
+}
+
+/* Alerta IWGDF: asimetría ≥ 2,2 °C persistente en dos tomas (más fuerte que la marca del 10 %). */
+.iwgdf-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin: 0 0 18px;
+  padding: 16px 20px;
+  border-radius: var(--r);
+  background: var(--danger-soft);
+  box-shadow:
+    inset 4px 0 0 var(--danger),
+    inset 0 0 0 1px color-mix(in srgb, var(--danger) 28%, transparent);
+  color: var(--text);
+}
+
+.iwgdf-alert__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+}
+
+.iwgdf-alert__body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.iwgdf-alert__body p {
+  margin: 0;
+}
+
+.iwgdf-alert__title {
+  font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--danger);
+  text-wrap: pretty;
+}
+
+.iwgdf-alert__sub {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.iwgdf-alert__cite {
+  font-size: 0.78rem;
+  color: var(--text-2);
+}
+
+.badge--iwgdf {
+  white-space: normal;
+  background: var(--danger);
+  color: #fff;
+}
+
+@media (max-width: 560px) {
+  .iwgdf-alert {
+    gap: 10px;
+    padding: 14px 14px;
+  }
+  .iwgdf-alert__icon {
+    width: 32px;
+    height: 32px;
+  }
 }

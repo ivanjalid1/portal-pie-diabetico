@@ -8,6 +8,8 @@ const {
   priorAt,
   cortesRiesgo,
   literatureRisk,
+  horizonRisk,
+  PERIODO_SEMANAS,
 } = require('../../src/services/predictors/literatureRisk');
 const { contiguousHot, persistentMap, hotspotFindings } = require('../../src/imaging/hotspot');
 const { GRID } = require('../../src/imaging/pointwise');
@@ -66,7 +68,10 @@ describe('Prior por grupo IWGDF', () => {
     expect(priorAt(55.8, EVIDENCIA.peters2001.semanas)).toBeCloseTo(0.558, 6);
     const p8 = priorAt(14.3, 8);
     expect(p8).toBeCloseTo(1 - 0.857 ** (8 / 156.43), 6);
-    expect(cortesRiesgo(DEFAULT_PARAMS)).toEqual({ moderado: 0.79, alto: 4.09 });
+    // 12 meses por defecto: basales IWGDF 1 y 3 a 52 semanas.
+    expect(DEFAULT_PARAMS.horizonteSemanas).toBe(52);
+    expect(cortesRiesgo(DEFAULT_PARAMS)).toEqual({ moderado: 5, alto: 23.77 });
+    expect(cortesRiesgo({ ...DEFAULT_PARAMS, horizonteSemanas: 8 })).toEqual({ moderado: 0.79, alto: 4.09 });
   });
 });
 
@@ -74,8 +79,38 @@ describe('Posterior', () => {
   const p = DEFAULT_PARAMS;
   const g3 = new Patient({ ...base, ulceraPreviaDer: true, neuropatia: true });
 
-  test('odds(posterior) = odds(prior) × LR, un solo LR', () => {
+  test('horizonte de 12 meses: riesgo por período de 2 meses con el LR, compuesto', () => {
     const r = literatureRisk({ asimetria: 3.5, confirmada: 3.4, tomas: 2 }, g3, p);
+    const pp = priorAt(55.8, PERIODO_SEMANAS);
+    const q = ((pp / (1 - pp)) * (0.7 / 0.32)) / (1 + (pp / (1 - pp)) * (0.7 / 0.32));
+    const k = 52 / PERIODO_SEMANAS;
+    expect(r.probabilidad).toBeCloseTo((1 - (1 - q) ** k) * 100, 1);
+    expect(r).toMatchObject({ compuesto: true, horizonteSemanas: 52, categoria: 'alto' });
+    expect(r.periodos).toBeCloseTo(6, 0);
+    expect(r.prior).toBeCloseTo(priorAt(55.8, 52) * 100, 1);
+    // El escenario transitorio (LR sólo en el primer período) queda dentro del rango.
+    const trans = 1 - (1 - q) * (1 - pp) ** (k - 1);
+    expect(r.rango[0]).toBeLessThanOrEqual(trans * 100 + 0.01);
+    expect(r.rango[1]).toBeGreaterThanOrEqual(trans * 100 - 0.01);
+  });
+
+  test('con LR = 1 el compuesto reproduce el prior del horizonte', () => {
+    const pH = priorAt(14.3, 52);
+    const pP = priorAt(14.3, PERIODO_SEMANAS);
+    expect(horizonRisk(pH, pP, 1, 52)).toBeCloseTo(pH, 10);
+    expect(horizonRisk(pH, pP, 1, 52, 'transitorio')).toBeCloseTo(pH, 10);
+  });
+
+  test('un LR < 1 que no se mantiene sube el riesgo: el rango cubre ambos escenarios', () => {
+    const g1 = new Patient({ ...base, neuropatia: true });
+    const r = literatureRisk({ asimetria: 1, confirmada: 1, tomas: 2 }, g1, p);
+    expect(r.probabilidad).toBeLessThan(r.prior);
+    expect(r.rango[1]).toBeGreaterThan(r.probabilidad);
+    expect(r.rango[1]).toBeLessThan(r.prior);
+  });
+
+  test('odds(posterior) = odds(prior) × LR, un solo LR (horizonte de 8 semanas)', () => {
+    const r = literatureRisk({ asimetria: 3.5, confirmada: 3.4, tomas: 2 }, g3, { ...p, horizonteSemanas: 8 });
     const prior = priorAt(55.8, 8);
     const esperado = ((prior / (1 - prior)) * (0.7 / 0.32)) / (1 + (prior / (1 - prior)) * (0.7 / 0.32));
     expect(r.probabilidad).toBeCloseTo(esperado * 100, 1);
@@ -161,10 +196,11 @@ describe('LiteratureRiskPredictor (estrategia por defecto)', () => {
       params: DEFAULT_PARAMS,
     });
     const r = out.puntual.riesgo;
-    expect(out.predictorVersion).toBe('riesgo-bibliografia-v1');
+    expect(out.predictorVersion).toBe('riesgo-bibliografia-v2');
     expect(out.probabilidad).toBe(r.probabilidad);
     expect(r.grupoIwgdf).toBe(1);
-    expect(r.horizonteSemanas).toBe(8);
+    expect(r.horizonteSemanas).toBe(52);
+    expect(r.compuesto).toBe(true);
     expect(r.rango[0]).toBeLessThanOrEqual(r.probabilidad);
     expect(r.rango[1]).toBeGreaterThanOrEqual(r.probabilidad);
     expect(out.puntual.categoriaPor).toBe('riesgo_bibliografia');

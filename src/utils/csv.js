@@ -112,6 +112,13 @@ const TAIL_COLUMNS = [
     },
   ],
   ['HORIZONTE (SEMANAS)', ({ analysis }) => analysis?.puntual?.riesgo?.horizonteSemanas ?? ''],
+  [
+    'HORIZONTE (MESES)',
+    ({ analysis }) => {
+      const s = analysis?.puntual?.riesgo?.horizonteSemanas;
+      return Number.isFinite(s) ? num((s * 12) / 52, 1) : '';
+    },
+  ],
   ['GRUPO IWGDF', ({ analysis }) => analysis?.puntual?.riesgo?.grupoIwgdf ?? ''],
   // Neuropatía estimada por la CNN entrenada con la cohorte (§8.10); define el prior sólo sin dato clínico.
   ['NEUROPATIA MODELO (%)', ({ analysis }) => num(analysis?.puntual?.factorRiesgo?.probabilidad, 1)],
@@ -136,12 +143,20 @@ const TAIL_COLUMNS = [
     'PRONOSTICO RANGO 80 (%)',
     ({ forecast }) => (forecast?.peor ? `${num(forecast.peor.rango[0], 1)}-${num(forecast.peor.rango[1], 1)}` : ''),
   ],
-  ['PRONOSTICO TENDENCIA', ({ forecast }) => (forecast?.peor?.tendencia || '').toUpperCase()],
   ['PRONOSTICO PROB CALIENTE (%)', ({ forecast }) => num(forecast?.peor ? forecast.peor.prob * 100 : null, 1)],
   // Zona con área caliente ≥ área mínima en la toma 1 y en la toma 2 (no usa el modelo).
   [
     'ZONA CALIENTE PERSISTENTE',
     ({ forecast }) => (forecast && forecast.tomas >= 2 ? (forecast.persistentes.length ? 'SI' : 'NO') : ''),
+  ],
+  // Criterio IWGDF / Lavery: p95 del ΔT de la zona ≥ 2,2 °C en ambas tomas (mismo pie más caliente).
+  [
+    'ALERTA IWGDF 2,2 °C PERSISTENTE',
+    ({ forecast }) => (forecast && forecast.tomas >= 2 ? (forecast.alertas.length ? 'SI' : 'NO') : ''),
+  ],
+  [
+    'ZONAS ALERTA IWGDF',
+    ({ forecast }) => (forecast ? forecast.alertas.map((z) => z.texto.toUpperCase()).join(' / ') : ''),
   ],
   [
     'ZONAS PERSISTENTES',

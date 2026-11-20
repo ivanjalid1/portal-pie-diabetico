@@ -225,3 +225,14 @@
     break-inside: avoid;
   }
 }
+
+.report__alert {
+  margin: 6px 0 10px;
+  padding: 8px 10px;
+  border-left: 3px solid #b42318;
+  border-radius: 4px;
+  background: #fdecea;
+  color: #4a1410;
+  font-size: 12.5px;
+  line-height: 1.45;
+}

@@ -150,6 +150,8 @@ function cambioArea(a) {
 /**
  * Una línea en lenguaje simple para el paciente sobre el próximo control, a
  * partir de la zona con mayor área caliente esperada (ThermalForecastService).
+ * No anticipa mejoras ni empeoramientos: el modelo es sobre todo regresión a la
+ * media (docs/arquitectura.md §8.11); sólo dice qué se va a volver a mirar.
  */
 function pronosticoFrase(fc) {
   const w = fc?.disponible ? fc.peor : null;
@@ -157,13 +159,9 @@ function pronosticoFrase(fc) {
   const pie = w.pie === 'izq' ? 'izquierdo' : 'derecho';
   const donde = `en ${ZONA_CON_ARTICULO[w.zona]} del pie ${pie}`;
   if (w.esperado < (fc.areaUmbral ?? 10) && w.actual < (fc.areaUmbral ?? 10)) {
-    return 'En tu próximo control esperamos que la temperatura de tus dos pies siga siendo parecida.';
+    return 'En tu próximo control vamos a volver a comparar la temperatura de tus dos pies.';
   }
-  if (w.tendencia === 'mejora')
-    return `En tu próximo control esperamos que la diferencia de temperatura ${donde} sea menor.`;
-  if (w.tendencia === 'empeora')
-    return `En tu próximo control esperamos que la diferencia de temperatura ${donde} sea algo mayor; tu médico la va a volver a medir.`;
-  return `En tu próximo control esperamos que la diferencia de temperatura ${donde} se mantenga parecida; tu médico la va a volver a medir.`;
+  return `En tu próximo control vamos a volver a comparar la temperatura de tus pies, sobre todo ${donde}.`;
 }
 
 /* ---------------- Riesgo de úlcera ---------------- */
@@ -186,11 +184,13 @@ function riesgoRango(r) {
   return `${lo === '< 0,1' ? '0' : lo}–${riesgoNum(r[1])} %`;
 }
 
-/** Horizonte en lenguaje simple: «8 semanas» o «2 meses». */
+/** Horizonte en lenguaje simple: «8 semanas», «2 meses», «12 meses». */
 function horizonteTexto(semanas) {
   const s = Number(semanas);
   if (!Number.isFinite(s)) return '';
-  if (s % 4 === 0 && s >= 8) return `${s / 4} meses`;
+  // 52 semanas = 12 meses (y 26 = 6, 104 = 24); por debajo de 6 meses, 4 semanas ≈ 1 mes.
+  if (s >= 26 && (s * 12) % 52 === 0) return `${(s * 12) / 52} meses`;
+  if (s % 4 === 0 && s >= 8 && s < 26) return `${s / 4} meses`;
   return `${s} semanas`;
 }
 
@@ -220,7 +220,7 @@ function riesgoDe(a) {
 }
 
 const TOOLTIP_RIESGO =
-  'Estimado a partir de la asimetría térmica punto a punto y la evidencia publicada (Frykberg 2017; Peters y Lavery 2001; IWGDF 2023). Se reemplazará por un modelo entrenado con los desenlaces del portal cuando haya ≥10 lesiones registradas.';
+  'Estimado a partir de la asimetría térmica punto a punto y la evidencia publicada (Frykberg 2017; Peters y Lavery 2001; IWGDF 2023). Los cocientes de verosimilitud valen por períodos de 2 meses: el riesgo a 12 meses los compone suponiendo que la asimetría se mantiene, y el rango incluye el caso en que no. Se reemplazará por un modelo entrenado con los desenlaces del portal cuando haya ≥10 lesiones registradas.';
 
 module.exports = {
   pronosticoFrase,

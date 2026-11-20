@@ -46,7 +46,7 @@ class LiteratureRiskPredictor extends PointwisePredictor {
     return {
       ...base,
       id: 'riesgo-bibliografia',
-      version: 'riesgo-bibliografia-v1',
+      version: 'riesgo-bibliografia-v2',
       nombre: 'Riesgo de úlcera calibrado con la bibliografía (análisis punto a punto)',
       descripcion:
         'Probabilidad de úlcera en el horizonte configurado: incidencia del grupo de riesgo IWGDF del paciente (Peters y Lavery 2001) ajustada por el cociente de verosimilitud de la asimetría térmica contralateral (Frykberg et al. 2017), medida punto a punto en zonas calientes contiguas y, con dos tomas, persistente entre ambas.',

@@ -27,7 +27,7 @@ class RiskFactorLiteraturePredictor extends LiteratureRiskPredictor {
     return {
       ...base,
       id: 'riesgo-neuropatia',
-      version: `riesgo-bibliografia-v1+${this.riskFactorModel.version}`,
+      version: `riesgo-bibliografia-v2+${this.riskFactorModel.version}`,
       nombre: 'Riesgo de úlcera calibrado con la bibliografía, con prior IWGDF de un modelo entrenado',
       descripcion: `${base.descripcion} Si falta el dato de neuropatía, el grupo IWGDF sale de una CNN entrenada con la cohorte (${v.n} pacientes, ${v.positivos} con neuropatía; AUC ${v.auc}).`,
       factorRiesgo: {

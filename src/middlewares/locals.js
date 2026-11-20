@@ -60,7 +60,6 @@ function locals(config) {
     res.locals.pronosticoDe = (a) =>
       req.app.locals.forecastService && a
         ? req.app.locals.forecastService.forAnalysis(a, {
-            tolerancia: cfg().pronosticoTolerancia,
             areaMinima: a.parametros?.areaMinima,
           })
         : null;

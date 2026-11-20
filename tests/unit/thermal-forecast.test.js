@@ -123,13 +123,33 @@ describe('ThermalForecastService con modelo', () => {
     expect(p2).toBeCloseTo(1 / (1 + Math.exp(-(-1 + 0.5 * lin))), 3);
   });
 
-  test('tendencia: mejora / estable / empeora según la tolerancia', () => {
-    const g = grids({ metatarso: { delta: 2 } });
-    const fc = svc.forAnalysis(analysis(toma(1, g)), { tolerancia: 6 });
-    expect(zona(fc, 'izq', 'metatarso').tendencia).toBe('mejora'); // 100 → 45
-    expect(zona(fc, 'der', 'arco').tendencia).toBe('estable'); // 0 → 5, dentro de ±6
-    const fc3 = svc.forAnalysis(analysis(toma(1, g)), { tolerancia: 3 });
-    expect(zona(fc3, 'der', 'arco').tendencia).toBe('empeora'); // 0 → 5 > 3
+  test('no se rotula una tendencia (sería sobre todo regresión a la media)', () => {
+    const fc = svc.forAnalysis(analysis(toma(1, grids({ metatarso: { delta: 2 } }))));
+    expect(zona(fc, 'izq', 'metatarso')).not.toHaveProperty('tendencia');
+    expect(fc.peor).not.toHaveProperty('tendencia');
+  });
+
+  test('alerta IWGDF: p95 de la zona ≥ 2,2 °C en ambas tomas, el mismo pie', () => {
+    const fuerte = { delta: 2.5 };
+    const t1 = toma(1, grids({ metatarso: fuerte, talon: fuerte, arco: { delta: 2 } }));
+    const t2 = toma(2, grids({ metatarso: fuerte, arco: { delta: 2 } }));
+    const fc = svc.forAnalysis(analysis(t1, t2));
+    expect(zona(fc, 'izq', 'metatarso').alertaIwgdf).toBe(true);
+    expect(zona(fc, 'izq', 'talon').alertaIwgdf).toBe(false); // sólo en la toma 1
+    expect(zona(fc, 'izq', 'arco').alertaIwgdf).toBe(false); // persistente pero < 2,2 °C
+    expect(zona(fc, 'izq', 'arco').persistente).toBe(true);
+    expect(fc.alertas).toEqual([{ pie: 'izq', zona: 'metatarso', texto: 'metatarso izq.', p95: [2.5, 2.5] }]);
+    expect(fc.umbralIwgdf).toBe(2.2);
+    // Con una sola toma no hay alerta, y no depende del modelo.
+    expect(svc.forAnalysis(analysis(t1)).alertas).toEqual([]);
+    expect(new ThermalForecastService({ model: null }).forAnalysis(analysis(t1, t2)).alertas).toHaveLength(1);
+  });
+
+  test('el p95 de la zona es robusto a un punto aislado', () => {
+    const g = grids();
+    g.der[25 * GRID.w + 5] = 20; // un punto 10 °C más frío en el metatarso derecho
+    const f = zoneFeatures(g.izq, g.der);
+    expect(f.izq.metatarso.p95).toBe(0);
   });
 
   test('zona caliente persistente: sobre el área mínima en ambas tomas', () => {
@@ -161,7 +181,6 @@ describe('ThermalForecastService con modelo', () => {
     const d = zona(fc, 'izq', 'dedos');
     expect(d.actual).toBeNull();
     expect(d.esperado).toBeNull();
-    expect(d.tendencia).toBeNull();
   });
 
   test('peor zona, planta completa y β del mapa', () => {
@@ -216,7 +235,7 @@ describe('Salidas del pronóstico', () => {
   const t1 = toma(1, grids({ metatarso: { delta: 2 } }));
   const t2 = toma(2, grids({ metatarso: { delta: 2 } }), { areaCalientePct: 22 });
 
-  test('CSV: zona peor, área esperada, tendencia y persistencia', () => {
+  test('CSV: zona peor, área esperada, persistencia y alerta IWGDF', () => {
     const forecast = svc.forAnalysis(analysis(t1, t2));
     const csv = buildCsv([
       { patient: { codigo: 'P.X001', edad: () => null, gradoNeuropatia: '' }, study: null, analysis: null, forecast },
@@ -226,16 +245,19 @@ describe('Salidas del pronóstico', () => {
     expect(col('PRONOSTICO ZONA')).toBe('METATARSO IZQ.');
     expect(col('PRONOSTICO AREA ESPERADA (%)')).toBe('45,0');
     expect(col('PRONOSTICO RANGO 80 (%)')).toBe('37,0-59,0');
-    expect(col('PRONOSTICO TENDENCIA')).toBe('MEJORA');
+    expect(head.split(';')).not.toContain('PRONOSTICO TENDENCIA');
+    expect(col('ALERTA IWGDF 2,2 °C PERSISTENTE')).toBe('NO');
     expect(col('ZONA CALIENTE PERSISTENTE')).toBe('SI');
     expect(col('ZONAS PERSISTENTES')).toBe('METATARSO IZQ.');
   });
 
   test('frase para el paciente en lenguaje simple', () => {
     expect(pronosticoFrase(svc.forAnalysis(analysis(t1, t2)))).toBe(
-      'En tu próximo control esperamos que la diferencia de temperatura en el metatarso del pie izquierdo sea menor.',
+      'En tu próximo control vamos a volver a comparar la temperatura de tus pies, sobre todo en el metatarso del pie izquierdo.',
     );
-    expect(pronosticoFrase(svc.forAnalysis(analysis(toma(1, grids()))))).toMatch(/siga siendo parecida/);
+    expect(pronosticoFrase(svc.forAnalysis(analysis(toma(1, grids()))))).toBe(
+      'En tu próximo control vamos a volver a comparar la temperatura de tus dos pies.',
+    );
     expect(pronosticoFrase(new ThermalForecastService({ model: null }).forAnalysis(analysis(t1, t2)))).toBeNull();
   });
 });

@@ -37,7 +37,6 @@ function createMedicoController({
       forecast:
         forecastService && r.analysis
           ? forecastService.forAnalysis(r.analysis, {
-              tolerancia: req.settings?.pronosticoTolerancia,
               areaMinima: r.analysis.parametros?.areaMinima,
             })
           : null,

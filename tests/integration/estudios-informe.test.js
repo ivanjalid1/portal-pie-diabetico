@@ -164,7 +164,7 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
       expect(res.status).toBe(200);
       // Resumen: el riesgo de úlcera grande, con rango, horizonte, grupo IWGDF y tooltip.
       expect(res.text).toContain('class="sr-risk sr-risk--');
-      expect(res.text).toMatch(/Riesgo de úlcera en los próximos 2 meses/);
+      expect(res.text).toMatch(/Riesgo de úlcera en los próximos 12 meses/);
       expect(res.text).toMatch(/class="sr-risk__value"><span class="num">(&lt;|\d)/);
       expect(res.text).toMatch(/IWGDF [0-3]/);
       expect(res.text).toContain('Se reemplazará por un modelo entrenado con los desenlaces del portal');
@@ -203,7 +203,7 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
       expect(res.status).toBe(200);
       expect(res.text).toContain('class="report__lead"');
       expect(res.text).not.toContain('Modelo preliminar · no validado');
-      expect(res.text).toMatch(/Riesgo de úlcera en los próximos 2 meses/);
+      expect(res.text).toMatch(/Riesgo de úlcera en los próximos 12 meses/);
       expect(res.text).toContain('Frykberg et al. 2017');
       expect(res.text).not.toContain('Patrón térmico compatible con pie diabético');
       expect(res.text).not.toContain('Referencia: regiones');

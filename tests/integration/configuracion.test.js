@@ -25,7 +25,7 @@ describe('Configuración de los parámetros del análisis', () => {
       expect(v.referenciaBibliografica).toBe(2.2);
       expect(v.cambioRelevante).toBe(0.3);
       expect([v.corteModerado, v.corteAlto]).toEqual([50, 70]);
-      expect(v.horizonteSemanas).toBe(8);
+      expect(v.horizonteSemanas).toBe(52);
       expect([v.priorIwgdf0, v.priorIwgdf1, v.priorIwgdf2, v.priorIwgdf3]).toEqual([5.1, 14.3, 18.8, 55.8]);
       expect(v.modoRiesgo).toBe('graduado');
       expect([v.diasEntreTomas, v.diasControl]).toEqual([30, 42]);

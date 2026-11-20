@@ -46,8 +46,7 @@ const GROUPS = Object.freeze([
     key: 'pronostico',
     titulo: 'Pronóstico por zona',
     icono: 'activity',
-    descripcion:
-      'Pronóstico del próximo control por pie y zona: horizonte que se muestra y tolerancia para marcar una tendencia.',
+    descripcion: 'Pronóstico del próximo control por pie y zona: horizonte que se muestra.',
   }),
   Object.freeze({
     key: 'seguimiento',
@@ -183,12 +182,16 @@ const DEFINITIONS = Object.freeze([
     label: 'Horizonte del riesgo de úlcera',
     unit: 'semanas',
     min: 4,
-    max: 26,
+    max: 104,
     step: 1,
-    default: 8,
-    help: 'Período para el que se informa la probabilidad de úlcera. Los cocientes de verosimilitud se estimaron en ventanas de 2 meses (≈ 8,7 semanas); horizontes más largos los extrapolan.',
+    default: 52,
+    help: 'Período para el que se informa la probabilidad de úlcera (52 semanas = 12 meses). Los cocientes de verosimilitud valen por período de 2 meses (≈ 8,7 semanas): para horizontes más largos el riesgo se calcula por período y se compone suponiendo que la asimetría se mantiene; el rango incluye el caso en que no se mantiene.',
     fuente:
-      'Frykberg et al. 2017, Diabetes Care 40:973 (doi:10.2337/dc16-2294): anticipación media de 37 días. Lavery et al. 2019, BMJ Open Diabetes Res Care 7:e000696 (doi:10.1136/bmjdrc-2019-000696): tasas informadas en períodos de 2 meses.',
+      'Frykberg et al. 2017, Diabetes Care 40:973 (doi:10.2337/dc16-2294): anticipación media de 37 días. Lavery et al. 2019, BMJ Open Diabetes Res Care 7:e000696 (doi:10.1136/bmjdrc-2019-000696): tasas informadas en períodos de 2 meses. Prior a 12 meses desde la úlcera a 3 años de Peters y Lavery 2001 con riesgo constante.',
+    presets: [
+      { value: 52, label: '12 meses', detalle: 'Por defecto: 6 períodos de 2 meses compuestos' },
+      { value: 8, label: '2 meses', detalle: 'Ventana de los LR (Lavery 2019)' },
+    ],
   },
   {
     key: 'modoRiesgo',
@@ -303,24 +306,6 @@ const DEFINITIONS = Object.freeze([
     help: 'Texto que acompaña al pronóstico («próximo control ~35 días»). Sólo cambia la etiqueta: el modelo se entrenó con el intervalo real entre tomas y no se extrapola a otros horizontes.',
     fuente:
       'Mediana de días entre la toma 1 y la toma 2 en los 57 pares con fecha registrada: 35 (p25–p75: 31–42). scripts/ml/train_forecast.py, docs/arquitectura.md §8.11.',
-  },
-  {
-    key: 'pronosticoTolerancia',
-    group: 'pronostico',
-    type: 'number',
-    label: 'Tolerancia de la tendencia (área caliente)',
-    unit: 'pp',
-    min: 2.5,
-    max: 30,
-    step: 0.5,
-    default: 6,
-    help: 'Una zona se marca «empeora» o «mejora» si el área caliente esperada difiere de la actual en más de este valor (puntos porcentuales); si no, «estable». Por la regresión a la media, con menos de ~5,5 pp las zonas sin área caliente se marcarían «empeora».',
-    fuente:
-      'Test-retest entre réplicas de la misma toma (170 sesiones): |Δ| medio 2,4 pp, percentil 90 6,2 pp, cambio mínimo detectable (95 %) 12,7 pp. §8.11.',
-    presets: [
-      { value: 6, label: '6 pp', detalle: 'Percentil 90 de la diferencia entre réplicas' },
-      { value: 12.5, label: '12,5 pp', detalle: 'Cambio mínimo detectable (95 %)' },
-    ],
   },
   {
     key: 'diasEntreTomas',

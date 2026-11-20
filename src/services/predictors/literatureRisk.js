@@ -13,6 +13,15 @@
  *   y toma 2 miden lo mismo). La persistencia entre tomas no suma un segundo
  *   LR (no hay uno publicado): acota el rango (ver `literatureRisk`).
  *
+ * HORIZONTE. Los LR de Frykberg se informaron por períodos de 2 meses (Lavery
+ * 2019): sólo valen para una ventana de ≈ 8,7 semanas. Para un horizonte más
+ * largo (12 meses por defecto) el riesgo se calcula POR PERÍODO (prior del
+ * período × LR) y se compone a lo largo de k = horizonte / 8,7 períodos
+ * suponiendo que el estado de asimetría se mantiene. Como entre controles la
+ * asimetría cambia mucho (§8.11: r = 0,37 a ~35 días), el rango incluye además
+ * el escenario en que el hallazgo vale sólo para el primer período y los
+ * siguientes vuelven al prior del grupo.
+ *
  * Todas las cifras se verificaron en la fuente (ver EVIDENCIA); ninguna se
  * estimó con los datos del portal. Documentación: docs/arquitectura.md §8.9.
  */
@@ -159,10 +168,30 @@ const prob = (o) => o / (1 + o);
 /** Porcentaje con dos decimales (los riesgos de pocas semanas pueden ser < 1 %). */
 const pct = (p) => Math.round(p * 10000) / 100;
 
-/** Priors por grupo en el horizonte (fracción). */
-function priorsAt(params) {
+/** Horizonte por defecto: 12 meses (52 semanas). */
+const HORIZONTE_DEFECTO = 52;
+/** Período al que corresponden los LR de Frykberg (Lavery 2019: períodos de 2 meses). */
+const PERIODO_SEMANAS = EVIDENCIA.lavery2019.ventanaSemanas;
+
+/** Priors por grupo en el horizonte (fracción); con `semanas`, en ese período. */
+function priorsAt(params, semanas = params?.horizonteSemanas ?? HORIZONTE_DEFECTO) {
   const base = EVIDENCIA.peters2001.ulceracion3Anios;
-  return [0, 1, 2, 3].map((g) => priorAt(params?.[`priorIwgdf${g}`] ?? base[g], params?.horizonteSemanas ?? 8));
+  return [0, 1, 2, 3].map((g) => priorAt(params?.[`priorIwgdf${g}`] ?? base[g], semanas));
+}
+
+/**
+ * Riesgo en el horizonte con un LR que vale por período de 2 meses.
+ * - Horizonte ≤ período: odds(prior del horizonte) × LR (como en el estudio).
+ * - Horizonte > período: q = riesgo del período con el LR; k = horizonte / período.
+ *   «persistente»: 1 − (1 − q)^k (el estado de asimetría se mantiene);
+ *   «transitorio»: 1 − (1 − q)(1 − p)^(k − 1) (sólo el primer período; luego el prior p).
+ */
+function horizonRisk(priorH, priorP, lr, semanas, escenario = 'persistente') {
+  if (semanas <= PERIODO_SEMANAS) return prob(odds(priorH) * lr);
+  const k = semanas / PERIODO_SEMANAS;
+  const q = prob(odds(priorP) * lr);
+  if (escenario === 'transitorio') return 1 - (1 - q) * (1 - priorP) ** Math.max(0, k - 1);
+  return 1 - (1 - q) ** k;
 }
 
 /**
@@ -194,32 +223,46 @@ function categoriaRiesgo(probabilidad, cortes) {
  * < umbral): en los estudios la alerta exige dos mediciones consecutivas.
  */
 function literatureRisk(hallazgo, patient, params = {}) {
-  const semanas = params.horizonteSemanas ?? 8;
+  const semanas = params.horizonteSemanas ?? HORIZONTE_DEFECTO;
   const modo = MODOS[params.modoRiesgo] ? params.modoRiesgo : 'graduado';
   const g = iwgdfGroup(patient, Number(params.grupoIwgdfDefecto ?? 1));
-  const priors = priorsAt(params);
+  const priors = priorsAt(params, semanas);
+  const priorsP = priorsAt(params, PERIODO_SEMANAS);
   let pr = priors[g.grupo];
+  let prP = priorsP[g.grupo];
   // Sin dato de neuropatía: si hay una probabilidad de neuropatía estimada por un
   // modelo entrenado con la cohorte (riskFactorCnn.js), el prior es la mezcla
   // p × prior(IWGDF 1) + (1 − p) × prior(IWGDF 0) en lugar del grupo por defecto.
   const pn = params.probNeuropatia;
   const estimado = g.porDefecto && Boolean(patient) && Number.isFinite(pn);
-  if (estimado) pr = pn * priors[1] + (1 - pn) * priors[0];
+  if (estimado) {
+    pr = pn * priors[1] + (1 - pn) * priors[0];
+    prP = pn * priorsP[1] + (1 - pn) * priorsP[0];
+  }
   const bs = bandas(modo);
   const asimetria = hallazgo.asimetria ?? 0;
   const b = bandaDe(asimetria, bs);
   const conf = hallazgo.confirmada === null || hallazgo.confirmada === undefined ? null : hallazgo.confirmada;
   const bInf = conf === null ? bs[0] : bandaDe(Math.min(conf, asimetria), bs);
   const persistente = conf !== null && bInf.key === b.key;
-  const post = (lr) => prob(odds(pr) * lr);
+  const post = (lr, esc) => horizonRisk(pr, prP, lr, semanas, esc);
   const probabilidad = pct(post(b.lr));
-  const rango = [pct(post(Math.min(bInf.rango[0], b.rango[0]))), pct(post(b.rango[1]))];
+  // Rango: IC del LR (con el límite inferior de la banda confirmada) y, si el
+  // horizonte supera el período de 2 meses, ambos escenarios de persistencia.
+  const lrs = [Math.min(bInf.rango[0], b.rango[0]), b.rango[1]];
+  const extremos = lrs.flatMap((lr) => [post(lr, 'persistente'), post(lr, 'transitorio')]);
+  const rango = [pct(Math.min(...extremos)), pct(Math.max(...extremos))];
+  const compuesto = semanas > PERIODO_SEMANAS;
   const cortes = cortesRiesgo(params);
   return {
-    version: 'riesgo-bibliografia-v1',
+    version: 'riesgo-bibliografia-v2',
     probabilidad,
     rango,
     horizonteSemanas: semanas,
+    periodoSemanas: PERIODO_SEMANAS,
+    periodos: compuesto ? Math.round((semanas / PERIODO_SEMANAS) * 10) / 10 : 1,
+    compuesto,
+    priorPeriodo: pct(prP),
     grupoIwgdf: estimado ? (pn >= 0.5 ? 1 : 0) : g.grupo,
     grupoMotivo: estimado ? 'neuropatía estimada por el termograma' : g.motivo,
     grupoPorDefecto: estimado ? false : g.porDefecto,
@@ -251,6 +294,9 @@ module.exports = {
   iwgdfGroup,
   priorAt,
   priorsAt,
+  horizonRisk,
+  HORIZONTE_DEFECTO,
+  PERIODO_SEMANAS,
   cortesRiesgo,
   categoriaRiesgo,
   literatureRisk,

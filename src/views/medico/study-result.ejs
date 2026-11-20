@@ -82,6 +82,17 @@
 <div class="card"><div class="empty"><h2>El análisis no está disponible</h2><p>Volvé a cargar el estudio.</p></div></div>
 <% } else { %>
 
+<% if (FC && FC.alertas.length) { %>
+<div class="iwgdf-alert" role="alert">
+  <span class="iwgdf-alert__icon" aria-hidden="true"><%- include('../partials/icon', { name: 'alert', size: 22 }) %></span>
+  <div class="iwgdf-alert__body">
+    <p class="iwgdf-alert__title">Asimetría ≥ <%= fmt.num(FC.umbralIwgdf, 1) %> °C persistente en <%= FC.alertas.map((z) => z.texto).join(', ') %> (2 tomas)</p>
+    <p class="iwgdf-alert__sub">Criterio IWGDF de riesgo preulceroso: diferencia contralateral ≥ 2,2 °C en dos mediciones consecutivas. <%= FC.alertas.map((z) => `${z.texto.charAt(0).toUpperCase()}${z.texto.slice(1)}: p95 de la zona ${fmt.num(z.p95[0], 1)} → ${fmt.num(z.p95[1], 1)} °C`).join(' · ') %>.</p>
+    <p class="iwgdf-alert__cite">IWGDF 2023 (Bus et al., doi:10.1002/dmrr.3651), recomendación 7; Lavery et al. 2007, Diabetes Care 30:14-20 (doi:10.2337/dc06-1600).</p>
+  </div>
+</div>
+<% } %>
+
 <section class="card sr-summary" aria-labelledby="sum-title">
   <h2 id="sum-title" class="sr-summary__eyebrow">Resultado<% if (tA) { %> · <%= tomaLabel(tA.toma).toLowerCase() %><% } %></h2>
   <% if (R) { const cat = domain.RISK_CATEGORIES[a.categoria]; %>
@@ -220,7 +231,7 @@
     <section class="sr-tech__block" aria-labelledby="tech-risk">
       <h3 id="tech-risk" class="card__subtitle">Riesgo de úlcera: cálculo</h3>
       <dl class="kv kv--compact">
-        <div><dt>Fórmula</dt><dd>odds(riesgo) = odds(prior IWGDF) × LR de la banda de asimetría (un solo LR; teorema de Bayes)</dd></div>
+        <div><dt>Fórmula</dt><dd>odds(riesgo) = odds(prior IWGDF) × LR de la banda de asimetría (un solo LR; teorema de Bayes)<% if (RB.compuesto) { %>, por período de 2 meses (≈ <span class="num"><%= fmt.num(RB.periodoSemanas, 1) %></span> semanas, la ventana de los LR según Lavery 2019) y compuesto en <span class="num"><%= fmt.num(RB.periodos, 1) %></span> períodos suponiendo que la asimetría se mantiene: 1 − (1 − riesgo del período)<sup>k</sup>. El rango incluye además el caso en que el hallazgo vale sólo para el primer período<% } %></dd></div>
         <div><dt>Prior</dt><dd>IWGDF <%= RB.grupoIwgdf %> (<%= RB.grupoMotivo %>): <span class="num"><%= pw.riesgoPct(RB.prior) %></span> en <%= pw.horizonteTexto(RB.horizonteSemanas) %>, desde la úlcera a 3 años de Peters y Lavery 2001 con riesgo constante<%= RB.grupoEstimado ? `; sin dato de neuropatía en la ficha, se mezclan los priors IWGDF 1 y 0 con la probabilidad de neuropatía del modelo (${fmt.num(RB.grupoEstimado.probNeuropatia, 1)} %)` : '' %></dd></div>
         <% const FR = PW && PW.factorRiesgo; if (FR) { %>
         <div><dt>Neuropatía (modelo)</dt><dd><span class="num"><%= fmt.num(FR.probabilidad, 1) %> %</span> con la toma <%= FR.toma %>. <%= FR.entrenamiento %>: n = <%= FR.n %> (<%= FR.positivos %> con neuropatía), AUC <span class="num"><%= fmt.num(FR.auc, 2) %></span> (IC 95 % <span class="num"><%= fmt.num(FR.aucIC95[0], 2) %>–<%= fmt.num(FR.aucIC95[1], 2) %></span>), dentro del Hospital Córdoba <span class="num"><%= fmt.num(FR.aucDentroDeCentro, 2) %></span>, p de permutación <span class="num"><%= fmt.num(FR.pPermutacion, 3) %></span>. <%= RB.grupoEstimado ? 'Define el prior.' : 'La ficha registra el dato: manda el dato clínico.' %></dd></div>

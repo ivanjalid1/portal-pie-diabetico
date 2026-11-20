@@ -92,6 +92,7 @@
               <span>ΔT máx. por región <strong class="num"><%= fmt.signed(analysis.deltaTMax) %> °C</strong></span>
               <% } %>
               <span class="timeline__tags">
+                <% const FCi = analysis && analysis.puntual ? pronosticoDe(analysis) : null; if (FCi && FCi.alertas.length) { %><span class="badge badge--iwgdf" title="Criterio IWGDF de riesgo preulceroso (IWGDF 2023; Lavery 2007)">≥ 2,2 °C persistente · <%= FCi.alertas.map((z) => z.texto).join(', ') %></span><% } %>
                 <% if (!study.valida) { %><span class="badge badge--warn">Imagen no válida</span><% } %>
                 <% if (study.tempAmbiente !== null && !study.condiciones(paramsOf(analysis).protocolo).ok) { %><span class="badge badge--warn">Condiciones fuera de rango</span><% } %>
                 <% if (analysis && analysis.puntual && !analysis.puntual.tieneToma2) { %><span class="badge badge--outline">Sin toma 2</span><% } %>

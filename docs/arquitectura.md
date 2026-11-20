@@ -601,10 +601,13 @@ El objetivo del portal es dar un **porcentaje de riesgo de úlcera**. La cohorte
 **Fórmula**
 
 ```
-prior_h = 1 − (1 − p3años[grupo IWGDF]) ^ (h / 156,43 semanas)    (riesgo constante)
-odds(riesgo) = odds(prior_h) × LR(banda de asimetría)              (un solo LR)
-riesgo = odds / (1 + odds)
+prior(t)  = 1 − (1 − p3años[grupo IWGDF]) ^ (t / 156,43 semanas)   (riesgo constante)
+q         = odds⁻¹( odds(prior(T)) × LR(banda de asimetría) )      (un solo LR; T = 8,7 semanas)
+k         = h / T                                                   (h = 52 semanas por defecto)
+riesgo(h) = 1 − (1 − q) ^ k                                         (la asimetría se mantiene)
 ```
+
+Con un horizonte h ≤ T se usa directamente odds(prior(h)) × LR. Con LR = 1 la composición devuelve exactamente prior(h): el prior a 12 meses sale de la úlcera a 3 años de Peters y Lavery con riesgo constante.
 
 **Cifras utilizadas (todas verificadas en la fuente)**
 
@@ -653,7 +656,11 @@ En Configuración se puede usar un solo umbral. Con 2,2 °C, el LR es 1,70 por e
 - **Rango.** El resumen de Frykberg no publica IC, así que se usan IC de Wilson al 95 %, con n = 53 úlceras para la sensibilidad y n = 92 participantes sin úlcera para la especificidad.
   - Las tasas reales se calcularon sobre más unidades (períodos de 2 meses), así que este rango es conservador (más ancho).
   - No incluye la incertidumbre del prior: el resumen de Peters 2001 no informa el tamaño de cada grupo.
-- **Horizonte:** 8 semanas por defecto, configurable de 4 a 26. Las tasas de Frykberg se informan por períodos de 2 meses (≈ 8,7 semanas), con unas 5 semanas de anticipación; un horizonte más largo extrapola el LR.
+- **Horizonte: 12 meses (52 semanas) por defecto**, configurable de 4 a 104 semanas.
+  - ¿Valen los LR de Frykberg a 12 meses? **No directamente.** Las tasas de verdaderos y falsos positivos se informaron por **períodos de 2 meses** (Lavery 2019, Métodos; ≈ 8,7 semanas) y la anticipación media fue de 35–37 días. Un LR describe cuánto cambia el riesgo **dentro de esa ventana**. Aplicarlo una sola vez a las odds de un prior de 12 meses supondría que la prueba discrimina igual a 12 meses, y eso no se estudió.
+  - Por eso el riesgo se calcula **por período**: prior del período (8,7 semanas) × LR. Luego se compone en k = 52 / 8,7 ≈ 6 períodos **suponiendo que el estado de asimetría se mantiene** (la misma banda en cada período).
+  - Ese supuesto es fuerte: entre controles la asimetría cambia mucho (r = 0,37 a ~35 días, §8.11). El **rango** se amplía para incluir el escenario opuesto: el hallazgo vale sólo para el primer período y los siguientes vuelven al prior del grupo, 1 − (1 − q)(1 − prior(T))^(k − 1). El rango es el mínimo y el máximo de ambos escenarios con los dos extremos del IC del LR.
+  - Consecuencia: con asimetría baja (LR 0,07), el valor central queda muy por debajo del prior anual y el límite superior del rango, cerca del prior. Con asimetría alta, al revés.
 - **Grupo IWGDF:**
   - LOPS = neuropatía en la planilla o percepción vibratoria alterada;
   - EAP = isquemia;
@@ -662,33 +669,36 @@ En Configuración se puede usar un solo umbral. Con 2,2 °C, el LR es 1,70 por e
   - sin dato de neuropatía y sin otro factor → grupo configurable, 1 por defecto. En la cohorte, 38 de los 92 pacientes con el dato tienen neuropatía.
   - con la CNN de neuropatía validada (§8.10), ese grupo por defecto se reemplaza por la mezcla de los priors IWGDF 1 y 0 con la probabilidad de neuropatía estimada por el termograma.
 - **Categoría:**
-  - los cortes 50 / 70 % no sirven en esta escala, porque un riesgo a 2 meses casi nunca los alcanza;
-  - se usan como cortes los riesgos basales del propio horizonte: **bajo** por debajo del basal IWGDF 1 (0,79 % a 8 semanas); **moderado** desde ahí; **alto** desde el basal IWGDF 3 (4,09 %);
+  - los cortes 50 / 70 % no sirven en esta escala, porque un riesgo a 12 meses casi nunca los alcanza;
+  - se usan como cortes los riesgos basales del propio horizonte: **bajo** por debajo del basal IWGDF 1 (**5,0 %** a 12 meses; 0,79 % a 8 semanas); **moderado** desde ahí; **alto** desde el basal IWGDF 3 (**23,8 %** a 12 meses; 4,09 % a 8 semanas);
   - estos cortes cambian con el horizonte y con los priors configurados;
   - los cortes 50 / 70 % quedan para el modelo entrenado.
 
-**Distribución en la cohorte real** (105 estudios, `SEED=real`, 8 semanas):
+**Distribución en la cohorte real** (105 estudios, `SEED=real`, 12 meses; cuando falta el dato de neuropatía, prior estimado por la CNN de §8.10):
 
 | | Valor |
 | --- | --- |
-| Riesgo p10 / p25 / mediana / p75 / p90 / máximo | 0,02 / 0,06 / 0,29 / 0,58 / 0,85 / 8,5 % |
-| Categoría bajo / moderado / alto | 79 / 25 / 1 |
+| Riesgo p10 / p25 / mediana / p75 / p90 / máximo | 0,12 / 0,21 / 1,86 / 3,11 / 5,39 / 43,9 % |
+| Categoría bajo / moderado / alto | 83 / 21 / 1 |
+| Valores distintos del riesgo | 21 |
+| *Antes: 8 semanas, sin la CNN* | *0,02 / 0,06 / 0,29 / 0,58 / 0,85 / 8,5 %; 79 / 25 / 1* |
 | Grupo IWGDF 0 / 1 / 1 por defecto (sin dato) / 2 / 3 | 53 / 34 / 13 / 2 / 3 |
 | Banda < 2,2 / 2,2–3,2 / ≥ 3,2 °C (última toma) | 48 / 49 / 8 |
 | Confirmadas por la otra toma | 38 de 73 estudios con dos tomas |
 
-La distribución no es degenerada, pero sí **discreta**: con 4 grupos × 3 bandas, el valor central toma pocos valores (9 en la cohorte). La gradación fina queda en el rango y en el detalle técnico (asimetría en °C, zona y persistencia).
+La distribución no es degenerada, pero sí **discreta**: con 4 grupos × 3 bandas, el valor central toma pocos valores (9 en la cohorte antes de la CNN de neuropatía, 21 con ella). La gradación fina queda en el rango y en el detalle técnico (asimetría en °C, zona y persistencia).
 
 **En la interfaz:**
 
 - **Resultado del estudio:** el porcentaje grande, el rango, el horizonte, la categoría y el grupo IWGDF, con un tooltip sobre el método. El cálculo completo (prior, asimetría, banda, LR, cortes y citas) va en «Detalle técnico», junto al patrón térmico como dato secundario.
 - **Ficha del paciente:** el gráfico de evolución muestra el riesgo en cada toma: con la toma 1 sola y, desde la toma 2, el del estudio.
 - **Informe imprimible:** el porcentaje, el rango, la categoría y el grupo.
-- **Vista del paciente:** «Riesgo estimado de úlcera en los próximos 2 meses: X %».
-- **CSV:** `RIESGO ULCERA (%)`, `RIESGO ULCERA IC (%)`, `HORIZONTE (SEMANAS)`, `GRUPO IWGDF`, `CATEGORIA RIESGO` y `MODELO RIESGO`.
+- **Vista del paciente:** «Riesgo estimado de úlcera en los próximos 12 meses: X %».
+- **CSV:** `RIESGO ULCERA (%)`, `RIESGO ULCERA IC (%)`, `HORIZONTE (SEMANAS)`, `HORIZONTE (MESES)`, `GRUPO IWGDF`, `CATEGORIA RIESGO` y `MODELO RIESGO`.
 
 **Supuestos y limitaciones:**
 
+- **La composición a 12 meses supone que la asimetría medida representa los 6 períodos.** Es el supuesto más débil del cálculo; por eso el rango incluye el escenario transitorio. Versión del cálculo: `riesgo-bibliografia-v2` (la v1 aplicaba el LR una vez a las odds del prior del horizonte).
 - **Las LR provienen de monitoreo diario en el hogar**, con alerta en cualquier par de días consecutivos dentro de 2 meses. Una o dos termografías de consultorio separadas unas 5 semanas no son esa prueba. Su sensibilidad real probablemente es menor, así que el LR < 2,2 °C (0,07) puede subestimar el riesgo.
 - La población de Frykberg es de alto riesgo (todos con úlcera previa) y usa otro dispositivo. Aplicar sus LR a los grupos 0–2 supone que la exactitud de la prueba no depende del grupo.
 - La conversión de cuentas a °C del portal es aproximada (§8). Las diferencias entre pies son más confiables que los valores absolutos.
@@ -851,17 +861,43 @@ El prototipo probó además ridge con covariables (edad, años de diabetes, neur
 
 La mayor parte del cambio mensual es **variación real entre visitas**, no ruido de adquisición. Coincide con el monitoreo mensual de Liew, Petrova et al. (*J Diabetes Sci Technol* 2025, doi:10.1177/19322968241249970), donde los puntos calientes fluctuaban entre visitas.
 
-**Tendencia** (empeora / estable / mejora). Se compara el área esperada − el área actual con una **tolerancia** configurable (Configuración → «Pronóstico por zona»):
+**Sin rótulo de tendencia.** Una primera versión rotulaba cada zona «empeora / estable / mejora». Comparaba el área esperada con la actual usando una tolerancia de 6 pp (el percentil 90 entre réplicas). **Se retiró**, junto con su parámetro en Configuración y la columna del CSV:
 
-- por defecto **6 pp**, el percentil 90 de la diferencia entre réplicas; el mínimo es 2,5 pp, el ruido medio;
-- por la regresión a la media (intercepto 5,45 pp), con menos de ~5,5 pp toda zona sin área caliente se marcaría «empeora»;
-- con 6 pp, en la cohorte (105 estudios, 826 pie × zona) quedan 134 «mejora» y 692 «estable»: el modelo sólo anticipa que las zonas muy calientes tienden a atenuarse.
+- el área esperada es 5,45 + 0,37 · área actual, así que la diferencia esperada − actual depende sólo del área actual: el rótulo era **regresión a la media**, no información del paciente;
+- en la cohorte (105 estudios, 826 pie × zona) daba 134 «mejora», 692 «estable» y **0 «empeora»**; con menos de ~5,5 pp de tolerancia, toda zona sin área caliente pasaba a «empeora»;
+- anticipar que una zona empeora no funciona (AUC 0,64), y «mejora» sugería una evolución favorable que el modelo no puede sostener.
+
+Se conservan el área esperada con su rango del 80 % y la probabilidad de zona caliente, que sí están validados frente a la persistencia.
 
 **Zona caliente persistente.** Es una zona con área caliente ≥ el área mínima de Configuración (10 %) en la toma 1 **y** en la toma 2. No usa el modelo, así que se muestra aunque falte el archivo.
 
 - La asimetría que se repite en mediciones sucesivas es la señal de alerta de los protocolos: IWGDF 2023 (Bus et al., doi:10.1002/dmrr.3651, recomendación 7: > 2,2 °C en dos días consecutivos) y Lavery et al. 2007 (*Diabetes Care* 30:14-20, doi:10.2337/dc06-1600).
 - En la cohorte la marcan 37 de 73 estudios con dos tomas (62 zonas).
-- Con el criterio de los protocolos (ΔT medio de la zona > 2,2 °C en ambas tomas) no la marca ningún paciente; con el p95 de la zona, 2.
+- Es una marca **descriptiva** y frecuente (10 % de la zona más de 1 °C más caliente). No es el criterio de los protocolos, que se muestra aparte.
+
+**Alerta IWGDF: asimetría ≥ 2,2 °C persistente.** Es el criterio de riesgo preulceroso de los protocolos: diferencia contralateral ≥ 2,2 °C (4 °F) en dos mediciones consecutivas (IWGDF 2023, recomendación 7; Lavery et al. 2007). En el portal:
+
+- **ΔT de la zona = percentil 95 del ΔT orientado** (este pie − contralateral) de las celdas de la zona, en cada toma. La alerta exige **p95 ≥ 2,2 °C en la toma 1 y en la toma 2, con el mismo pie más caliente** y la zona analizada en ambas.
+- Por qué el p95: los protocolos comparan sitios puntuales (6 sitios de unos pocos cm²).
+  - La media de una zona entera (20–30 % del largo del pie) diluye un sitio caliente.
+  - El máximo de una celda reacciona a un píxel o a un borde mal registrado.
+  - El p95 es la diferencia del 5 % más caliente de la zona (≈ 40–60 celdas, del orden de un sitio de medición) y no cambia por un punto aislado.
+- Estudios que la disparan (de 73 con dos tomas):
+
+| Definición del ΔT de la zona (≥ 2,2 °C en ambas tomas) | Estudios |
+| --- | --- |
+| Media de la zona | 0 |
+| **p95 de la zona (la usada)** | **2** (4 zonas) |
+| p90 de la zona | 2 |
+| Máximo de una celda | 40 |
+| Zona caliente contigua persistente del riesgo (§8.9: \|ΔT\| suavizado, mínimo de ambas tomas) | 5 |
+
+- Dónde se muestra (no usa el modelo de pronóstico):
+  - como alerta destacada arriba del resultado del estudio («Asimetría ≥ 2,2 °C persistente en metatarso izq. (2 tomas)», con la cita del criterio IWGDF de riesgo preulceroso);
+  - en el informe imprimible;
+  - como etiqueta en la lista de estudios de la ficha;
+  - en el CSV: `ALERTA IWGDF 2,2 °C PERSISTENTE` y `ZONAS ALERTA IWGDF`.
+- **No modifica el riesgo de úlcera.** El riesgo ya usa la banda de la última toma y la persistencia para acotar el rango (§8.9); la alerta no agrega un LR.
 
 **Relación con el riesgo de úlcera.** El riesgo bibliográfico (§8.9) ya usa la persistencia donde está diseñado: el mapa persistente (menor \|ΔT\| de ambas tomas) confirma o no la banda de la última toma y **sólo acota el rango**. La marca de zona persistente no agrega un LR ni cambia la banda, porque no hay un LR publicado para ella.
 
@@ -869,13 +905,13 @@ La mayor parte del cambio mensual es **variación real entre visitas**, no ruido
 
 - **Resultado del estudio:** después de los mapas va la tarjeta «Pronóstico por zona», con la etiqueta de Configuración (por defecto «~35 días»). Por pie y zona muestra:
   - el área actual → esperada con su rango del 80 %, en una pista horizontal con la marca del 10 %;
-  - la tendencia y la probabilidad de zona caliente;
+  - la probabilidad de zona caliente;
   - las zonas persistentes, resaltadas en la tarjeta y como chip en el encabezado («Zona caliente persistente: metatarso izq. (2 tomas)»).
 - **Pestaña «Pronóstico»** de los mapas: ΔT actual y ΔT esperado (β · ΔT), con el mismo dibujo, la escala divergente y el contorno del umbral.
 - **Detalle técnico:** una fila con las métricas de CV (MAE frente a persistencia, AUC con IC, calibración, β, test-retest y n).
 - **Ficha del paciente:** en el gráfico de evolución, un tramo discontinuo hasta el «próximo control» con la banda del 80 %, para el % de la planta con \|ΔT\| > 1 °C.
-- **Vista del paciente:** una línea simple, p. ej. «En tu próximo control esperamos que la diferencia de temperatura en el metatarso del pie izquierdo sea menor».
-- **CSV:** `PRONOSTICO ZONA` (la de mayor área esperada), `PRONOSTICO AREA ACTUAL (%)`, `PRONOSTICO AREA ESPERADA (%)`, `PRONOSTICO RANGO 80 (%)`, `PRONOSTICO TENDENCIA`, `PRONOSTICO PROB CALIENTE (%)`, `ZONA CALIENTE PERSISTENTE` y `ZONAS PERSISTENTES`.
+- **Vista del paciente:** una línea simple que no anticipa mejoras ni empeoramientos, p. ej. «En tu próximo control vamos a volver a comparar la temperatura de tus pies, sobre todo en el metatarso del pie izquierdo».
+- **CSV:** `PRONOSTICO ZONA` (la de mayor área esperada), `PRONOSTICO AREA ACTUAL (%)`, `PRONOSTICO AREA ESPERADA (%)`, `PRONOSTICO RANGO 80 (%)`, `PRONOSTICO PROB CALIENTE (%)`, `ZONA CALIENTE PERSISTENTE`, `ZONAS PERSISTENTES`, `ALERTA IWGDF 2,2 °C PERSISTENTE` y `ZONAS ALERTA IWGDF`.
 
 **Archivo del modelo.** `data-local/models/forecast-zones.json` tiene sólo coeficientes y métricas agregadas, sin datos de pacientes. Como los demás modelos derivados de datos reales, no se versiona; `PRONOSTICO_MODELO` cambia la ruta. Sin archivo (CI, Vercel, pruebas) no se muestran la tarjeta, la pestaña ni el tramo del gráfico; la marca de persistencia sí.
 

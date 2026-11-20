@@ -17,7 +17,7 @@ Portal médico–paciente para la **estimación del riesgo de úlcera de pie dia
 > [!WARNING]
 > **Herramienta exploratoria complementaria, no diagnóstica.** El análisis compara ambos pies **punto a punto**: segmentación, espejado del pie derecho, registro afín y mapa ΔT píxel a píxel. Las temperaturas son aproximadas (conversión lineal de las cuentas de la cámara).
 >
-> El resultado principal es el **riesgo de úlcera** en un horizonte de 8 semanas (estrategia `riesgo-bibliografia`). Se calcula con el teorema de Bayes:
+> El resultado principal es el **riesgo de úlcera a 12 meses** (estrategia `riesgo-bibliografia`). Los cocientes de verosimilitud valen por períodos de 2 meses, así que el riesgo se calcula por período y se compone a 12 meses. Se calcula con el teorema de Bayes:
 >
 > - **Prior:** la incidencia del grupo de riesgo IWGDF del paciente (Peters y Lavery 2001).
 > - **Cociente de verosimilitud:** el de la asimetría térmica de zona caliente contigua (Frykberg et al. 2017, *Diabetes Care* 40:973).
@@ -131,7 +131,7 @@ node scripts/ml/export-forecast.js --retest    # (opcional) ruido test-retest en
 - **Atlas de angiosomas:** `npm run ml:public` lo escribe en `data-local/models/angiosome-atlas.json`. Como deriva de la base pública, no se versiona; si falta (CI, Vercel), el TCI usa la aproximación geométrica.
 - **Modelo de úlcera:** `train-outcome.py` escribe `data-local/models/outcome-logreg.json` si hay casos suficientes. Si queda validado, el portal lo usa en lugar del riesgo bibliográfico (`RIESGO_MODELO=auto|bibliografia|entrenado`).
 - **Neuropatía desde el termograma:** CNN preentrenada con la base pública y ajustada con la neuropatía de la planilla: AUC 0,79 (0,68–0,89), 0,84 dentro del Hospital Córdoba, n = 70. Si la ficha no registra neuropatía, define el prior IWGDF del riesgo (`riesgo-neuropatia`). Los pesos quedan en `data-local/models/`.
-- **Pronóstico por zona del próximo control:** regresión a la media por pie × zona desde la última toma, con rango del 80 %, probabilidad de zona caliente y mapa β · ΔT. En CV por paciente: área MAE 9,2 pp (persistencia 9,7), ΔT 0,37 °C (0,42), AUC 0,75 (0,69–0,80); test-retest 2,4 pp / 0,26 °C. Marca las **zonas calientes persistentes** (≥ 10 % en ambas tomas). Sólo hay dos tomas: el pronóstico a varios pasos no está validado ([§8.11](docs/arquitectura.md#811-pronóstico-térmico-por-zona-próximo-control)).
+- **Pronóstico por zona del próximo control:** regresión a la media por pie × zona desde la última toma, con rango del 80 %, probabilidad de zona caliente y mapa β · ΔT. En CV por paciente: área MAE 9,2 pp (persistencia 9,7), ΔT 0,37 °C (0,42), AUC 0,75 (0,69–0,80); test-retest 2,4 pp / 0,26 °C. Marca las **zonas calientes persistentes** (≥ 10 % en ambas tomas) y, aparte, la **alerta IWGDF** de asimetría ≥ 2,2 °C persistente (p95 de la zona en ambas tomas). Sólo hay dos tomas: el pronóstico a varios pasos no está validado ([§8.11](docs/arquitectura.md#811-pronóstico-térmico-por-zona-próximo-control)).
 - **Corrección de máscaras:** en `/mascaras` (sólo local), el médico/a o el administrador/a corrige el contorno de los pies. Las máscaras se guardan en `data-local/ml/corrected-masks/`.
 - **Desenlace real:** con datos reales, se guarda también en `data-local/outcomes/outcomes.json`, así se conserva al reiniciar.
 

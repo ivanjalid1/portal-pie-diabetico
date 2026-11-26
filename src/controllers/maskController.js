@@ -3,7 +3,7 @@
 const { AppError } = require('../utils/errors');
 
 /** Herramienta local de corrección de máscaras (médico/a y administrador/a). */
-function createMaskController({ maskService }) {
+function createMaskController({ maskService, viewerService = null }) {
   const actor = (req) => ({ id: req.user.id, role: req.user.role });
   const FILTROS = ['pendientes', 'corregidas', 'todas'];
 
@@ -29,6 +29,8 @@ function createMaskController({ maskService }) {
       res.render('mascaras/editor', {
         title: `Máscara ${m.codigo} · toma ${m.toma}`,
         m,
+        foto: Boolean(viewerService?.hasVisibleKey(m.key)),
+        info: viewerService?.infoByKey(m.key) || null,
         filtro,
         nextKey: next ? next.key : null,
       });
@@ -39,6 +41,24 @@ function createMaskController({ maskService }) {
       const png = maskService.imagePng(req.params.key, { paleta });
       res.set('Cache-Control', 'private, max-age=3600');
       res.type('png').send(png);
+    },
+
+    /** Matriz de temperaturas compacta (TPV1) para el visor. */
+    thermal(req, res) {
+      maskService.entry(req.params.key);
+      res.set('Cache-Control', 'private, max-age=3600');
+      res.set('X-Content-Type-Options', 'nosniff');
+      res.type('application/octet-stream').send(viewerService.thermalByKey(req.params.key));
+    },
+
+    /** Foto visible del IS2 de la réplica (sólo con la carpeta privada local). */
+    photo(req, res, next) {
+      maskService.entry(req.params.key);
+      const jpeg = viewerService?.visibleByKey(req.params.key);
+      if (!jpeg) return next(new AppError('Foto no disponible.', 404, 'not_found'));
+      res.set('Cache-Control', 'private, no-store');
+      res.set('X-Content-Type-Options', 'nosniff');
+      return res.type('image/jpeg').send(jpeg);
     },
 
     masks(req, res) {

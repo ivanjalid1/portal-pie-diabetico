@@ -22,7 +22,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { decodeIs2 } = require('../src/imaging/is2');
-const { analyzeThermogram, renderThermogram, roisInCelsius, displayRange } = require('../src/imaging/thermogram');
+const {
+  analyzeThermogram,
+  renderThermogram,
+  roisInCelsius,
+  displayRange,
+  toCelsius,
+} = require('../src/imaging/thermogram');
 const { encodePng } = require('../src/imaging/png');
 const { PALETTES, DEFAULT_PALETTE } = require('../src/utils/thermal');
 
@@ -71,7 +77,14 @@ function main() {
       }
       const analysis = analyzeThermogram(img);
       if (!analysis.ok) throw new Error(`Par ${n} toma ${toma}: ${analysis.reason}`);
-      entry[`toma${toma}`] = { file, rois: roisInCelsius(analysis) };
+      // Extremos de la escala en °C (conversión lineal del portal): el visor
+      // reconstruye las temperaturas a partir de la variante en grises.
+      const r2 = (v) => Math.round(v * 1000) / 1000;
+      entry[`toma${toma}`] = {
+        file,
+        escala: { min: r2(toCelsius(lo)), max: r2(toCelsius(hi)) },
+        rois: roisInCelsius(analysis),
+      };
       console.log(
         `par ${n} toma ${toma}: ${file} (escala ${calibrado ? 'calibrada con la cámara' : 'por percentiles'})`,
       );

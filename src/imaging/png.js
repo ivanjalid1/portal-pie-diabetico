@@ -60,4 +60,59 @@ function encodePng(width, height, rgb) {
   ]);
 }
 
-module.exports = { encodePng, crc32 };
+/**
+ * Decodificador PNG mínimo (8 bits; gris, RGB o RGBA; sin entrelazado). Se usa
+ * para leer las imágenes demo en escala de grises (public/demo/*-grises.png).
+ * @returns {{ width: number, height: number, channels: number, data: Buffer }}
+ */
+function decodePng(buf) {
+  if (buf.readUInt32BE(0) !== 0x89504e47) throw new Error('PNG inválido');
+  let p = 8;
+  let width = 0;
+  let height = 0;
+  let channels = 0;
+  const idat = [];
+  while (p < buf.length) {
+    const len = buf.readUInt32BE(p);
+    const type = buf.toString('ascii', p + 4, p + 8);
+    const body = buf.subarray(p + 8, p + 8 + len);
+    if (type === 'IHDR') {
+      width = body.readUInt32BE(0);
+      height = body.readUInt32BE(4);
+      const depth = body[8];
+      const color = body[9];
+      if (depth !== 8 || body[12] !== 0) throw new Error('PNG no soportado (profundidad o entrelazado)');
+      channels = { 0: 1, 2: 3, 4: 2, 6: 4 }[color];
+      if (!channels) throw new Error('PNG no soportado (tipo de color)');
+    } else if (type === 'IDAT') idat.push(body);
+    else if (type === 'IEND') break;
+    p += 12 + len;
+  }
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const stride = width * channels;
+  const out = Buffer.alloc(stride * height);
+  for (let y = 0; y < height; y += 1) {
+    const f = raw[y * (stride + 1)];
+    const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+    const o = y * stride;
+    for (let x = 0; x < stride; x += 1) {
+      const a = x >= channels ? out[o + x - channels] : 0;
+      const b = y > 0 ? out[o - stride + x] : 0;
+      const c = x >= channels && y > 0 ? out[o - stride + x - channels] : 0;
+      let v = line[x];
+      if (f === 1) v += a;
+      else if (f === 2) v += b;
+      else if (f === 3) v += (a + b) >> 1;
+      else if (f === 4) {
+        const pa = Math.abs(b - c);
+        const pb = Math.abs(a - c);
+        const pc = Math.abs(a + b - 2 * c);
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      }
+      out[o + x] = v & 255;
+    }
+  }
+  return { width, height, channels, data: out };
+}
+
+module.exports = { encodePng, decodePng, crc32 };

@@ -5,12 +5,12 @@
 }) %>
 
 <div class="mask-editor" data-mask-editor data-key="<%= m.key %>" data-csrf="<%= csrfToken %>" data-next="<%= nextKey ? `/mascaras/${nextKey}?filtro=${filtro}` : '' %>">
-  <div class="mask-stage card card--flush">
-    <div class="mask-stage__canvas" data-stage>
-      <img src="/mascaras/<%= m.key %>/imagen.png?paleta=grises" alt="Termograma de la réplica" data-src-base="/mascaras/<%= m.key %>/imagen.png" width="<%= m.width %>" height="<%= m.height %>" data-thermo draggable="false">
-      <canvas width="<%= m.width %>" height="<%= m.height %>" data-overlay aria-label="Máscara editable: arrastrá para pintar o borrar"></canvas>
-      <span class="mask-cursor" data-cursor aria-hidden="true"></span>
-    </div>
+  <div class="mask-stage card card--flush" data-tv>
+    <%- include('../partials/thermo-viewer-core', {
+      uid: `tv-${m.key}`,
+      mascara: true,
+      sources: [{ toma: m.toma, origen: 'real', reps: [{ rep: m.replica, calidad: null, mejor: true, noValido: false, info, termica: `/mascaras/${m.key}/termica.bin`, foto: foto ? `/mascaras/${m.key}/foto.jpg` : null }] }],
+    }) %>
     <p class="mask-stage__hint small muted"><kbd>1</kbd> pie a la izquierda · <kbd>2</kbd> pie a la derecha · <kbd>E</kbd> borrar · <kbd>[</kbd> <kbd>]</kbd> tamaño · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer · <kbd>H</kbd> ocultar máscara</p>
   </div>
 
@@ -21,14 +21,6 @@
       <label class="mask-tool mask-tool--r"><input type="radio" name="tool" value="2"><span><i aria-hidden="true"></i>Pie a la derecha</span></label>
       <label class="mask-tool mask-tool--e"><input type="radio" name="tool" value="0"><span><%- include('../partials/icon', { name: 'eraser', size: 16 }) %>Borrar</span></label>
     </fieldset>
-
-    <div class="mask-panel__group">
-      <p class="mask-panel__label">Imagen</p>
-      <div class="tabs tabs--pill mask-sources" role="group" aria-label="Paleta de la imagen">
-        <button type="button" class="tabs__item is-active" data-paleta="grises" aria-pressed="true">Grises</button>
-        <button type="button" class="tabs__item" data-paleta="alto_contraste" aria-pressed="false">High Contrast</button>
-      </div>
-    </div>
 
     <div class="field mask-range">
       <label for="mask-size" class="mask-panel__label">Tamaño del pincel <output class="num" for="mask-size" data-size-out>6</output> px</label>

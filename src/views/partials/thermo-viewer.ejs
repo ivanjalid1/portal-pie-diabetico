@@ -1,0 +1,45 @@
+<%
+  // Tarjeta «Termografía (visor)» del estudio: una pestaña por toma y, con datos
+  // reales, selector de réplica. Parámetros: study, visor
+  // (ThermalViewerService#sources), fecha(toma) y activa (toma inicial).
+  const uid = `tv-${study.id}`;
+  const sources = visor.map((v) => ({
+    toma: v.toma,
+    origen: v.origen,
+    reps: v.reps.map((r) => ({
+      rep: r.rep,
+      calidad: r.calidad,
+      mejor: r.mejor,
+      noValido: r.noValido,
+      info: r.info || null,
+      termica: `/medico/estudios/${study.id}/visor/${v.toma}/${r.rep}/termica.bin`,
+      foto: r.foto ? `/medico/estudios/${study.id}/visor/${v.toma}/${r.rep}/foto.jpg` : null,
+    })),
+  }));
+  const inicial = sources.some((x) => x.toma === activa) ? activa : sources[sources.length - 1].toma;
+  const conFoto = sources.some((x) => x.reps.some((r) => r.foto));
+  const fallbackInfo = {
+    emisividad: study.emisividad,
+    rango: { min: study.rangoMin, max: study.rangoMax },
+    distanciaCm: study.distanciaCm,
+    fechas: Object.fromEntries(sources.map((x) => [x.toma, fmt.date(fecha(x.toma))])),
+  };
+%>
+<section class="card tv-card" id="visor" aria-labelledby="<%= uid %>-title" data-tv data-tv-toma-inicial="<%= inicial %>">
+  <div class="sr-visual__head">
+    <div class="tv-card__heading">
+      <h2 id="<%= uid %>-title" class="card__title">Termografía (visor)</h2>
+      <p class="muted small"><%= conFoto ? 'Foto visible e infrarroja alineadas (IR-Fusion). Fotos sólo en este equipo.' : 'Matriz infrarroja de la cámara en °C aproximados.' %></p>
+    </div>
+    <% if (sources.length > 1) { %>
+    <div class="sr-tabs" role="tablist" aria-label="Toma del visor">
+      <% sources.forEach((src) => { const on = src.toma === inicial; %>
+      <button type="button" role="tab" class="sr-tabs__item" data-tv-toma="<%= src.toma %>" aria-selected="<%= on %>" tabindex="<%= on ? 0 : -1 %>">Toma <%= src.toma %> <span class="num"><%= fmt.date(fecha(src.toma)) %></span></button>
+      <% }) %>
+    </div>
+    <% } else { %>
+    <span class="muted small"><span class="toma-dot toma-dot--<%= sources[0].toma %>"></span>Toma <%= sources[0].toma %> · <span class="num"><%= fmt.date(fecha(sources[0].toma)) %></span></span>
+    <% } %>
+  </div>
+  <%- include('thermo-viewer-core', { uid, sources, fallbackInfo }) %>
+</section>

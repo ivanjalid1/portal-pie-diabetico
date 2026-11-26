@@ -148,12 +148,12 @@ describe('Estudios realizados, informe del paciente y paletas', () => {
       expect(thermal.highContrast(1)).toEqual(lut.lut[255]);
     });
 
-    it('el visor ofrece las variantes pre-renderizadas de las imágenes demo', async () => {
+    it('el visor de termogramas ofrece las tres paletas sobre la matriz de temperaturas', async () => {
       const studies = await container.repos.studies.listByMedico(medicoUser.id);
       const res = await medico.get(`/medico/estudios/${studies[0].id}`);
       expect(res.status).toBe(200);
-      expect(res.text).toMatch(/data-palettes="[^"]*ironbow/);
-      expect(res.text).toContain('name="lb-paleta"');
+      expect(res.text).toContain('data-tv-ui');
+      for (const k of ['alto_contraste', 'ironbow', 'grises']) expect(res.text).toContain(`<option value="${k}"`);
     });
   });
 

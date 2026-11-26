@@ -1,0 +1,192 @@
+<%
+  // Visor de termogramas al estilo del editor de Fluke SmartView, en el tema del
+  // portal: panel con pestañas (Optimizar / Analizar / Información), barra
+  // vertical de nivel y rango (−30 a 90 °C, tres asas), imagen con PIP,
+  // barra de color, barra de herramientas (zoom, giro, desplazamiento) y
+  // deslizador «Fusión IR». Lo arma public/js/thermo-viewer.js.
+  //   uid        prefijo único de ids
+  //   sources    [{ toma, reps: [{ rep, calidad, mejor, noValido, termica, foto, info }] }]
+  //   mascara    (opcional) modo herramienta de máscaras: canvas de la máscara
+  //              encima, sin zoom/giro/PIP ni caja de análisis.
+  //   fallbackInfo (opcional) datos de adquisición del estudio para «Información».
+  const M = typeof mascara !== 'undefined' && mascara;
+  const FI = typeof fallbackInfo !== 'undefined' ? fallbackInfo : null;
+  const svg = (d) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const I = {
+    zoomOut: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/>',
+    zoomIn: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/>',
+    rotL: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+    rotR: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+    up: '<path d="m18 15-6-6-6 6"/>',
+    down: '<path d="m6 9 6 6 6-6"/>',
+    left: '<path d="m15 18-6-6 6-6"/>',
+    right: '<path d="m9 18 6-6-6-6"/>',
+    center: '<circle cx="12" cy="12" r="3"/>',
+    box: '<rect x="4" y="4" width="16" height="16" rx="1.5" stroke-dasharray="3 2.5"/>',
+  };
+%>
+<script type="application/json" data-tv-luts><%- JSON.stringify(thermal.VIEWER_LUTS) %></script>
+<script type="application/json" data-tv-sources><%- JSON.stringify(sources).replace(/</g, '\\u003c') %></script>
+<% if (FI) { %><script type="application/json" data-tv-fallback><%- JSON.stringify(FI).replace(/</g, '\\u003c') %></script><% } %>
+<div class="tv<%= M ? ' tv--mask' : '' %>" data-tv-ui>
+  <!-- Panel lateral -->
+  <div class="tv-side">
+    <div class="tv-tabs" role="tablist" aria-label="Herramientas del visor">
+      <button type="button" role="tab" class="tv-tabs__item" id="<%= uid %>-tab-opt" aria-controls="<%= uid %>-opt" aria-selected="true" data-tv-tab="opt">Optimizar</button>
+      <button type="button" role="tab" class="tv-tabs__item" id="<%= uid %>-tab-ana" aria-controls="<%= uid %>-ana" aria-selected="false" tabindex="-1" data-tv-tab="ana">Analizar</button>
+      <button type="button" role="tab" class="tv-tabs__item" id="<%= uid %>-tab-inf" aria-controls="<%= uid %>-inf" aria-selected="false" tabindex="-1" data-tv-tab="inf">Información</button>
+    </div>
+
+    <div class="tv-pane" id="<%= uid %>-opt" role="tabpanel" aria-labelledby="<%= uid %>-tab-opt" data-tv-pane="opt">
+      <div class="tv-field" data-tv-rep-group hidden>
+        <label class="tv-label" for="<%= uid %>-rep">Réplica</label>
+        <select id="<%= uid %>-rep" class="tv-select" data-tv-rep></select>
+      </div>
+      <div class="tv-field">
+        <label class="tv-label" for="<%= uid %>-pal">Paleta</label>
+        <div class="tv-select-wrap"><span class="tv-swatch" data-tv-swatch aria-hidden="true"></span>
+          <select id="<%= uid %>-pal" class="tv-select tv-select--swatch" data-tv-palette>
+            <option value="alto_contraste">High Contrast</option>
+            <option value="ironbow">Ironbow</option>
+            <option value="grises">Escala de grises</option>
+          </select>
+        </div>
+      </div>
+      <div class="tv-field">
+        <label class="tv-label" for="<%= uid %>-sat">Saturación</label>
+        <select id="<%= uid %>-sat" class="tv-select" data-tv-sat>
+          <option value="estandar">Estándar</option>
+          <option value="completa">Paleta completa</option>
+        </select>
+        <p class="tv-hint">Estándar: bajo el mínimo no se colorea (se ve el fondo velado), como en la cámara.</p>
+      </div>
+      <div class="tv-field">
+        <label class="tv-label" for="<%= uid %>-alarm-mode">Alarma de color</label>
+        <select id="<%= uid %>-alarm-mode" class="tv-select" data-tv-alarm-mode>
+          <option value="none">Ninguna</option>
+          <option value="above">Por encima de…</option>
+          <option value="below">Por debajo de…</option>
+          <option value="between">Entre…</option>
+        </select>
+        <div class="tv-alarm" data-tv-alarm-box hidden>
+          <label class="tv-alarm__label num" for="<%= uid %>-alarm" data-tv-alarm-label>Alarma de color ≥ —</label>
+          <input id="<%= uid %>-alarm" class="tv-range tv-range--alarm" type="range" step="0.1" data-tv-alarm>
+          <input class="tv-range tv-range--alarm" type="range" step="0.1" data-tv-alarm2 aria-label="Límite superior de la alarma (°C)" hidden>
+          <p class="tv-hint">Fuera de la alarma: la foto (o la térmica en grises), según «Fusión IR».</p>
+        </div>
+      </div>
+      <div class="tv-params" aria-label="Parámetros radiométricos del archivo">
+        <div class="tv-param"><span class="tv-label">Emisividad</span><output class="tv-readonly num" data-tv-param="emisividad">—</output></div>
+        <div class="tv-param"><span class="tv-label">Temperatura de fondo</span><output class="tv-readonly num" data-tv-param="fondo">—</output></div>
+        <div class="tv-param"><span class="tv-label">Transmisión</span><output class="tv-readonly num" data-tv-param="transmision">—</output></div>
+        <p class="tv-hint">Del archivo de la cámara; sólo lectura (las temperaturas usan la conversión lineal del portal).</p>
+      </div>
+    </div>
+
+    <div class="tv-pane" id="<%= uid %>-ana" role="tabpanel" aria-labelledby="<%= uid %>-tab-ana" data-tv-pane="ana" hidden>
+      <dl class="tv-readout">
+        <div><dt>Punto</dt><dd class="num" data-tv-read="spot">—</dd></div>
+        <div><dt>Cursor</dt><dd class="num" data-tv-read="cursor">—</dd></div>
+        <div><dt>Máx. de la imagen</dt><dd class="num" data-tv-read="max">—</dd></div>
+        <div><dt>Mín. de la imagen</dt><dd class="num" data-tv-read="min">—</dd></div>
+        <div data-tv-read-alarm hidden><dt>En alarma</dt><dd class="num" data-tv-read="alarm">—</dd></div>
+      </dl>
+      <p class="tv-hint">Hacé clic en la imagen para fijar el punto.</p>
+      <% if (!M) { %>
+      <div class="tv-box">
+        <button type="button" class="btn btn--ghost btn--sm" data-tv-box-tool aria-pressed="false"><%- svg(I.box) %>Caja: arrastrá sobre la imagen</button>
+        <dl class="tv-readout tv-readout--box" data-tv-box-read hidden>
+          <div><dt>Máx.</dt><dd class="num" data-tv-box="max">—</dd></div>
+          <div><dt>Mín.</dt><dd class="num" data-tv-box="min">—</dd></div>
+          <div><dt>Promedio</dt><dd class="num" data-tv-box="avg">—</dd></div>
+          <div><dt>Píxeles</dt><dd class="num" data-tv-box="n">—</dd></div>
+        </dl>
+      </div>
+      <% } %>
+    </div>
+
+    <div class="tv-pane" id="<%= uid %>-inf" role="tabpanel" aria-labelledby="<%= uid %>-tab-inf" data-tv-pane="inf" hidden>
+      <dl class="tv-info" data-tv-info></dl>
+    </div>
+  </div>
+
+  <!-- Nivel y rango (−30 a 90 °C) -->
+  <div class="tv-span" data-tv-span>
+    <span class="tv-span__end num">90 °C</span>
+    <div class="tv-span__body">
+      <div class="tv-span__inputs">
+        <input class="tv-spin num" type="number" step="0.1" data-tv-spin="hi" aria-label="Máximo de la escala (°C)">
+        <input class="tv-spin num" type="number" step="0.1" data-tv-spin="mid" aria-label="Nivel: centro de la escala (°C)">
+        <input class="tv-spin num" type="number" step="0.1" data-tv-spin="lo" aria-label="Mínimo de la escala (°C)">
+      </div>
+      <div class="tv-span__track" data-tv-span-track>
+        <span class="tv-span__fill" data-tv-span-fill></span>
+        <button type="button" class="tv-span__handle" data-tv-handle="hi" aria-label="Arrastrar el máximo"></button>
+        <button type="button" class="tv-span__handle tv-span__handle--mid" data-tv-handle="mid" aria-label="Arrastrar el nivel"></button>
+        <button type="button" class="tv-span__handle" data-tv-handle="lo" aria-label="Arrastrar el mínimo"></button>
+      </div>
+    </div>
+    <span class="tv-span__end num">−30 °C</span>
+    <label class="tv-check"><input type="checkbox" data-tv-auto checked><span>Escala automática</span></label>
+  </div>
+
+  <!-- Imagen -->
+  <div class="tv-main">
+    <div class="tv-frame">
+      <div class="tv-canvas<%= M ? ' mask-stage__canvas' : '' %>" data-tv-stage<%= M ? ' data-stage' : '' %>>
+        <canvas class="tv-canvas__img" data-tv-canvas role="img" aria-label="Termograma: fusión de foto e infrarrojo"></canvas>
+        <% if (M) { %>
+        <canvas width="320" height="240" data-overlay aria-label="Máscara editable: arrastrá para pintar o borrar"></canvas>
+        <span class="mask-cursor" data-cursor aria-hidden="true"></span>
+        <% } %>
+        <p class="tv-canvas__status" data-tv-status role="status" aria-live="polite">Cargando termograma…</p>
+      </div>
+      <div class="tv-cbar" aria-hidden="true">
+        <div class="tv-cbar__track">
+          <canvas class="tv-cbar__bar" width="1" height="256" data-tv-bar></canvas>
+          <span class="tv-cbar__mark" data-tv-mark="lo" hidden></span>
+          <span class="tv-cbar__mark" data-tv-mark="hi" hidden></span>
+        </div>
+        <div class="tv-cbar__ticks num" data-tv-ticks></div>
+        <span class="tv-cbar__unit">°C</span>
+      </div>
+    </div>
+    <% if (!M) { %>
+    <div class="tv-toolbar" role="toolbar" aria-label="Vista de la imagen">
+      <div class="tv-toolbar__group">
+        <button type="button" class="tv-icon-btn" data-tv-zoom="-1" aria-label="Alejar"><%- svg(I.zoomOut) %></button>
+        <label class="tv-zoom"><span class="sr-only">Zoom</span>
+          <select class="tv-select tv-select--sm" data-tv-zoom-sel>
+            <option value="1">Zoom: 1x</option><option value="1.5">Zoom: 1,5x</option><option value="2">Zoom: 2x</option><option value="3">Zoom: 3x</option><option value="4">Zoom: 4x</option>
+          </select>
+        </label>
+        <button type="button" class="tv-icon-btn" data-tv-zoom="1" aria-label="Acercar"><%- svg(I.zoomIn) %></button>
+      </div>
+      <div class="tv-toolbar__group">
+        <button type="button" class="tv-icon-btn" data-tv-rot="-1" aria-label="Girar a la izquierda"><%- svg(I.rotL) %></button>
+        <button type="button" class="tv-icon-btn" data-tv-rot="1" aria-label="Girar a la derecha"><%- svg(I.rotR) %></button>
+      </div>
+      <div class="tv-pan" aria-label="Desplazar">
+        <button type="button" class="tv-icon-btn tv-pan__up" data-tv-pan="0,-1" aria-label="Arriba"><%- svg(I.up) %></button>
+        <button type="button" class="tv-icon-btn tv-pan__left" data-tv-pan="-1,0" aria-label="Izquierda"><%- svg(I.left) %></button>
+        <button type="button" class="tv-icon-btn tv-pan__center" data-tv-pan="0,0" aria-label="Centrar"><%- svg(I.center) %></button>
+        <button type="button" class="tv-icon-btn tv-pan__right" data-tv-pan="1,0" aria-label="Derecha"><%- svg(I.right) %></button>
+        <button type="button" class="tv-icon-btn tv-pan__down" data-tv-pan="0,1" aria-label="Abajo"><%- svg(I.down) %></button>
+      </div>
+    </div>
+    <% } %>
+    <div class="tv-fusion">
+      <div class="tv-fusion__head">
+        <label class="tv-label" for="<%= uid %>-blend">Fusión IR <span class="tv-fusion__val num" data-tv-blend-out></span></label>
+        <% if (!M) { %><label class="tv-check" data-tv-pip-label><input type="checkbox" data-tv-pip checked><span>PIP</span></label><% } %>
+      </div>
+      <div class="tv-fusion__row">
+        <span class="tv-fusion__end">Infrarrojo completo</span>
+        <input id="<%= uid %>-blend" class="tv-range tv-range--fusion" type="range" min="0" max="100" step="1" value="<%= M ? 100 : 35 %>" data-tv-blend aria-describedby="<%= uid %>-blend-hint">
+        <span class="tv-fusion__end">Visible completo</span>
+      </div>
+      <p class="tv-hint" id="<%= uid %>-blend-hint" data-tv-nofoto hidden>Sin foto visible: el extremo «Visible» muestra la térmica en escala de grises.</p>
+    </div>
+  </div>
+</div>
+<script src="/js/thermo-viewer.js" defer></script>

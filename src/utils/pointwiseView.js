@@ -9,6 +9,7 @@ const { shiftGrid, fueraDeProtocolo, AJUSTE_AMBIENTE } = require('../imaging/amb
 const { zonasTexto, ZONA_NOMBRES } = require('../services/predictors/pointwiseAnalysis');
 const thermal = require('./thermal');
 const { fmt } = require('./format');
+const { flagLabels } = require('../imaging/photoQuality');
 
 /** LUT High Contrast reducida a 64 colores (para el navegador). */
 const LUT = (() => {
@@ -189,6 +190,25 @@ function noAnalizadoTexto(t) {
   return `no se ${zs.length > 1 || zs[0] === 'dedos' ? 'analizaron' : 'analizó'} ${txt}`;
 }
 
+/**
+ * Aviso de calidad baja de las fotos de una toma (banderas automáticas del
+ * precálculo): null si alguna réplica está limpia o no hay datos.
+ * @returns {null|{texto: string, avisos: string[], replicas: number}}
+ */
+function calidadFotosAviso(t) {
+  const q = t?.calidadFotos;
+  if (!q || !q.baja) return null;
+  const avisos = flagLabels(q.banderas)
+    .filter((f) => f.grave)
+    .map((f) => f.label);
+  const n = q.replicas || 0;
+  return {
+    avisos,
+    replicas: n,
+    texto: `ninguna de las ${n} foto${n === 1 ? '' : 's'} está libre de problemas; se usó la menos afectada (${avisos.join(', ').toLowerCase()})`,
+  };
+}
+
 /** Cambio del área con diferencia entre la toma 1 y la toma 2 (puntos porcentuales). */
 function cambioArea(a) {
   const m1 = a?.puntualToma?.(1)?.metricas;
@@ -299,6 +319,7 @@ module.exports = {
   hotspotTexto,
   lecturaToma,
   noAnalizadoTexto,
+  calidadFotosAviso,
   cambioArea,
   ZONA_NOMBRES,
   ZONA_CON_ARTICULO,

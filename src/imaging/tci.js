@@ -43,7 +43,6 @@
  *    mediana de cada pie y no depende del nivel.
  */
 const fs = require('node:fs');
-const path = require('node:path');
 const { GRID } = require('./pointwise');
 
 /** Angiosomas aproximados: [clave, desde, hasta (fracción del largo), lado]. */
@@ -97,7 +96,7 @@ const ATLAS_KEYS = [null, 'MPA', 'LPA', 'MCA', 'LCA'];
 const ATLAS_PATH =
   process.env.ANGIOSOME_ATLAS !== undefined
     ? process.env.ANGIOSOME_ATLAS
-    : path.join(__dirname, '..', '..', 'data-local', 'models', 'angiosome-atlas.json');
+    : require('../config/localData').localDataPath('models', 'angiosome-atlas.json');
 
 /** Tabla celda → angiosoma desde el atlas (o null si no está o es inválido). */
 function loadAtlas(file = ATLAS_PATH) {

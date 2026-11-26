@@ -15,6 +15,8 @@
   const SCALE = { min: -30, max: 90 };
   // Registro IR → foto visible de la TiS75 (src/imaging/is2.js#FUSION).
   const FUSION = { W: 640, H: 480, x: 80, y: 60, w: 480, h: 360 };
+  // Escala por defecto: la configurada en la cámara de la cohorte.
+  const FIXED = { lo: 24, hi: 35 };
   const nf1 = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const nf2 = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtC = (v) => (Number.isFinite(v) ? `${nf1.format(v)} °C` : '—');
@@ -86,12 +88,15 @@
       palette: 'alto_contraste',
       sat: 'estandar',
       alarm: { mode: 'none', a: null, b: null },
-      lo: 24,
-      hi: 35,
-      auto: true,
+      // Escala fija de la cámara (24–35 °C) por defecto, como las miniaturas;
+      // la herramienta de máscaras sigue con la escala automática.
+      lo: FIXED.lo,
+      hi: FIXED.hi,
+      auto: mask,
       blend: Number($('[data-tv-blend]').value),
       pip: !mask,
-      view: { zoom: 1, rot: 0, px: 0, py: 0 },
+      // crop: encuadre de los pies; straight: giro sugerido para enderezar (sólo vista).
+      view: { zoom: 1, rot: 0, px: 0, py: 0, crop: !mask, straight: false },
       spot: null,
       hover: null,
       box: null,
@@ -178,10 +183,19 @@
 
     /* ---------- Composición de la escena (640 × 480) ---------- */
 
+    /**
+     * Campo IR dentro de la foto: el registro fijo de la cámara más el
+     * desplazamiento medido para esta réplica (sólo si el precálculo lo aplicó).
+     */
+    function fusionField() {
+      const al = st.rep && st.rep.alineacion;
+      const dx = al ? clamp(al.dx, -FUSION.x, FUSION.W - FUSION.w - FUSION.x) : 0;
+      const dy = al ? clamp(al.dy, -FUSION.y, FUSION.H - FUSION.h - FUSION.y) : 0;
+      return { x: FUSION.x + dx, y: FUSION.y + dy, w: FUSION.w, h: FUSION.h };
+    }
+
     function irRect() {
-      return st.pip && st.photo
-        ? { x: FUSION.x, y: FUSION.y, w: FUSION.w, h: FUSION.h }
-        : { x: 0, y: 0, w: FUSION.W, h: FUSION.H };
+      return st.pip && st.photo ? fusionField() : { x: 0, y: 0, w: FUSION.W, h: FUSION.H };
     }
 
     function composeScene() {
@@ -192,28 +206,43 @@
       sctx.fillRect(0, 0, FUSION.W, FUSION.H);
       if (!st.T) return;
       if (st.photo) {
+        const f = fusionField();
         if (st.pip) sctx.drawImage(st.photo, 0, 0, FUSION.W, FUSION.H);
-        else sctx.drawImage(st.photo, FUSION.x, FUSION.y, FUSION.w, FUSION.h, 0, 0, FUSION.W, FUSION.H);
+        else sctx.drawImage(st.photo, f.x, f.y, f.w, f.h, 0, 0, FUSION.W, FUSION.H);
       } else sctx.drawImage(grayC, 0, 0, FUSION.W, FUSION.H);
       const r = irRect();
       sctx.drawImage(irC, r.x, r.y, r.w, r.h);
     }
 
-    /* ---------- Vista (zoom, giro, desplazamiento) ---------- */
+    /* ---------- Vista (zoom, giro, encuadre, desplazamiento) ---------- */
+
+    /** Recuadro de la escena que se ajusta al lienzo: los pies (encuadre) o la escena completa. */
+    function viewRect() {
+      const e = st.view.crop && st.rep && st.rep.encuadre;
+      if (!e || !st.T) return { x: 0, y: 0, w: FUSION.W, h: FUSION.H };
+      const a = irToScene(e[0], e[1]);
+      const b = irToScene(e[2], e[3]);
+      return { x: a.x, y: a.y, w: Math.max(8, b.x - a.x), h: Math.max(8, b.y - a.y) };
+    }
+    const straightAngle = () => (st.view.straight && st.rep && st.rep.giro ? st.rep.giro : 0);
 
     let dpr = 1;
     function viewMatrix() {
       const DW = canvas.width;
       const DH = canvas.height;
       const rot = ((st.view.rot % 4) + 4) % 4;
-      const RW = rot % 2 ? FUSION.H : FUSION.W;
-      const RH = rot % 2 ? FUSION.W : FUSION.H;
+      const ang = rot * 90 + straightAngle();
+      const v = viewRect();
+      const c = Math.abs(Math.cos((ang * Math.PI) / 180));
+      const s = Math.abs(Math.sin((ang * Math.PI) / 180));
+      const RW = c * v.w + s * v.h;
+      const RH = s * v.w + c * v.h;
       const fit = Math.min(DW / RW, DH / RH) * st.view.zoom;
       return new DOMMatrix()
         .translate(DW / 2 + st.view.px * DW, DH / 2 + st.view.py * DH)
-        .rotate(rot * 90)
+        .rotate(ang)
         .scale(fit)
-        .translate(-FUSION.W / 2, -FUSION.H / 2);
+        .translate(-(v.x + v.w / 2), -(v.y + v.h / 2));
     }
     const sceneToIr = (sx, sy) => {
       const r = irRect();
@@ -515,6 +544,8 @@
         }
       }),
     );
+    const fixedBtn = $('[data-tv-fixed]');
+    if (fixedBtn) fixedBtn.addEventListener('click', () => setRange(FIXED.lo, FIXED.hi));
     $('[data-tv-auto]').addEventListener('change', (ev) => {
       if (ev.target.checked) autoRange();
       else st.auto = false;
@@ -677,6 +708,20 @@
           invalidate(VIEW);
         }),
       );
+      // Encuadre de los pies y enderezado: sólo cambian la vista, nunca los datos.
+      for (const [sel, key] of [
+        ['[data-tv-crop]', 'crop'],
+        ['[data-tv-straight]', 'straight'],
+      ]) {
+        const b = $(sel);
+        if (!b) continue;
+        b.addEventListener('click', () => {
+          st.view[key] = !st.view[key];
+          st.view.px = st.view.py = 0;
+          syncViewButtons();
+          invalidate(VIEW);
+        });
+      }
       $$('[data-tv-pan]').forEach((b) =>
         b.addEventListener('click', () => {
           const [dx, dy] = b.dataset.tvPan.split(',').map(Number);
@@ -689,6 +734,22 @@
           invalidate(VIEW);
         }),
       );
+    }
+    function syncViewButtons() {
+      const crop = $('[data-tv-crop]');
+      const straight = $('[data-tv-straight]');
+      if (crop) {
+        crop.disabled = !(st.rep && st.rep.encuadre);
+        crop.setAttribute('aria-pressed', String(Boolean(st.view.crop && !crop.disabled)));
+      }
+      if (straight) {
+        const g = st.rep && st.rep.giro ? st.rep.giro : 0;
+        straight.disabled = !g;
+        straight.setAttribute('aria-pressed', String(Boolean(st.view.straight && g)));
+        straight.title = g
+          ? `Girar la vista ${Math.abs(g)}° para enderezar los pies (sólo vista; los datos no cambian)`
+          : 'Los pies ya están derechos';
+      }
     }
 
     /* ---------- Puntero: lectura, punto y caja ---------- */
@@ -827,7 +888,17 @@
         ['Origen', origen],
         ['Infrarrojo', st.T ? `${st.T.w} × ${st.T.h} px` : '—'],
         ['Foto visible', st.photo ? '640 × 480 px (privada)' : 'No disponible en este entorno'],
-        ...(st.photo ? [['Registro IR → foto', 'escala 1,5× desde (80, 60) px']] : []),
+        ...(st.photo
+          ? [
+              [
+                'Registro IR → foto',
+                rep.alineacion
+                  ? `escala 1,5× desde (${nf1.format(FUSION.x + rep.alineacion.dx)}, ${nf1.format(FUSION.y + rep.alineacion.dy)}) px (ajustado en esta réplica; la cámara indica (80, 60))`
+                  : 'escala 1,5× desde (80, 60) px',
+              ],
+            ]
+          : []),
+        ...(rep.giro ? [['Giro sugerido para la vista', `${Math.abs(rep.giro)}° (sólo vista)`]] : []),
         ['Emisividad', Number.isFinite(emis) ? nf2.format(emis) : '—'],
         ['Temperatura de fondo', Number.isFinite(info.fondoC) ? `${nf2.format(info.fondoC)} °C` : '—'],
         ['Transmisión', Number.isFinite(info.transmision) ? `${info.transmision} %` : '—'],
@@ -847,6 +918,27 @@
       }
     }
 
+    /** Avisos automáticos de la réplica (chips) y nota de calidad baja de la toma. */
+    function fillQuality() {
+      const box = $('[data-tv-quality]');
+      if (!box) return;
+      const src = sources.find((s) => s.toma === st.toma);
+      const rep = st.rep;
+      box.hidden = !rep.evaluada;
+      if (!rep.evaluada) return;
+      const ul = $('[data-tv-flags]');
+      ul.innerHTML = '';
+      const avisos = rep.avisos || [];
+      const items = avisos.length ? avisos : [{ label: 'Sin avisos', ok: true }];
+      for (const a of items) {
+        const li = document.createElement('li');
+        li.className = `badge ${a.ok ? 'badge--ok' : a.grave ? 'badge--warn' : 'badge--muted'}`;
+        li.textContent = a.label;
+        ul.appendChild(li);
+      }
+      $('[data-tv-lowq]').hidden = !(src.calidadBaja && rep.mejor);
+    }
+
     /* ---------- Fuente: toma y réplica ---------- */
 
     const repSel = $('[data-tv-rep]');
@@ -862,6 +954,8 @@
         if (r.calidad !== null && r.calidad !== undefined) parts.push(`calidad ${nf2.format(r.calidad)}`);
         if (r.mejor) parts.push('mejor');
         if (r.noValido) parts.push('no válida');
+        const graves = (r.avisos || []).filter((a) => a.grave).length;
+        if (graves) parts.push(`${graves} aviso${graves === 1 ? '' : 's'}`);
         o.textContent = parts.join(' · ');
         repSel.appendChild(o);
       });
@@ -926,6 +1020,9 @@
         const r = $('[data-tv-box-read]');
         if (r) r.hidden = true;
         fillInfo();
+        fillQuality();
+        syncViewButtons();
+        st.view.px = st.view.py = 0;
         status.hidden = true;
         invalidate(COLOR);
       } catch {

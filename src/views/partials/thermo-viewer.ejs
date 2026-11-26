@@ -6,12 +6,19 @@
   const sources = visor.map((v) => ({
     toma: v.toma,
     origen: v.origen,
+    calidadBaja: Boolean(v.calidadBaja),
     reps: v.reps.map((r) => ({
       rep: r.rep,
       calidad: r.calidad,
       mejor: r.mejor,
       noValido: r.noValido,
       info: r.info || null,
+      // Calidad automática (precálculo): banderas, foto realineada, encuadre y giro sugerido.
+      evaluada: Boolean(r.evaluada),
+      avisos: r.avisos || [],
+      alineacion: r.alineacion || null,
+      encuadre: r.encuadre || null,
+      giro: r.giro || 0,
       termica: `/medico/estudios/${study.id}/visor/${v.toma}/${r.rep}/termica.bin`,
       foto: r.foto ? `/medico/estudios/${study.id}/visor/${v.toma}/${r.rep}/foto.jpg` : null,
     })),

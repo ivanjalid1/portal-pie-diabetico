@@ -123,6 +123,13 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
         : config.localTools && !config.isTest && config.seed === 'real'
           ? config.privateDataDir
           : null,
+    // Calidad automática por réplica del precálculo (data-local/real/fotos.json).
+    fotosDir:
+      overrides.viewerFotosDir !== undefined
+        ? overrides.viewerFotosDir
+        : config.seed === 'real' && !config.isTest
+          ? config.realDataDir
+          : null,
   });
 
   // Desenlaces reales registrados en el portal: con el driver memory y datos

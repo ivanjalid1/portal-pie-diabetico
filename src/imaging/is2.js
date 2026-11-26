@@ -48,12 +48,11 @@ const FUSION = Object.freeze({ vlWidth: 640, vlHeight: 480, x: 80, y: 60, scale:
 const VISIBLE_RE = /(^|\/)Images\/Main\/028001E0\.jpe?g$/i;
 
 /**
- * Foto visible completa (640 × 480, JPEG re-codificado: sin EXIF ni otros
- * metadatos). El campo IR ocupa el rectángulo `FUSION` dentro de ella.
- * Devuelve null si el archivo no trae foto o tiene otro tamaño.
- * @returns {{ jpeg: Buffer, width: number, height: number }|null}
+ * Píxeles de la foto visible (RGBA 640 × 480), sólo en memoria; null si el
+ * archivo no trae foto o tiene otro tamaño.
+ * @returns {{ width: number, height: number, data: Uint8Array }|null}
  */
-function extractVisible(buffer, { quality = 84 } = {}) {
+function decodeVisible(buffer) {
   const jpeg = require('jpeg-js');
   const zip = readZip(buffer);
   const key = [...zip.keys()].find((k) => VISIBLE_RE.test(k));
@@ -66,6 +65,20 @@ function extractVisible(buffer, { quality = 84 } = {}) {
   }
   if (img.width !== FUSION.vlWidth || img.height < FUSION.vlHeight) return null;
   const { vlWidth: w, vlHeight: h } = FUSION;
+  return { width: w, height: h, data: img.data.subarray(0, w * h * 4) };
+}
+
+/**
+ * Foto visible completa (640 × 480, JPEG re-codificado: sin EXIF ni otros
+ * metadatos). El campo IR ocupa el rectángulo `FUSION` dentro de ella.
+ * Devuelve null si el archivo no trae foto o tiene otro tamaño.
+ * @returns {{ jpeg: Buffer, width: number, height: number }|null}
+ */
+function extractVisible(buffer, { quality = 84 } = {}) {
+  const jpeg = require('jpeg-js');
+  const img = decodeVisible(buffer);
+  if (!img) return null;
+  const { width: w, height: h } = img;
   const data = Buffer.from(img.data.buffer, img.data.byteOffset, w * h * 4);
   return { jpeg: Buffer.from(jpeg.encode({ data, width: w, height: h }, quality).data), width: w, height: h };
 }
@@ -163,4 +176,15 @@ function percentile(values, p) {
   return sorted[idx];
 }
 
-module.exports = { decodeIs2, extractVisible, hasVisible, is2Info, parseGpb, percentile, FUSION, WIDTH, HEIGHT };
+module.exports = {
+  decodeIs2,
+  decodeVisible,
+  extractVisible,
+  hasVisible,
+  is2Info,
+  parseGpb,
+  percentile,
+  FUSION,
+  WIDTH,
+  HEIGHT,
+};

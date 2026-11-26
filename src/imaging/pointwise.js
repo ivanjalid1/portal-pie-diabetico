@@ -239,9 +239,19 @@ function canonicalFeet(img, opts = {}) {
     : segmentFeetPointwise(T, img, opts);
   if (!seg.ok) return { ok: false, reason: seg.reason };
   const segmentacion = externas ? opts.masksSource || 'externa' : 'clasica';
+  // Limpieza opcional por forma (fugas de talón, puentes, pies que se tocan):
+  // sólo cambia qué píxeles son pie; las temperaturas no se tocan.
+  let pies = [seg.feet[0].mask, seg.feet[1].mask];
+  let limpieza = null;
+  if (opts.limpiar) {
+    const { cleanFeetMasks } = require('./maskCleanup');
+    const c = cleanFeetMasks(pies, w, h);
+    pies = c.masks;
+    limpieza = c.info;
+  }
   // Pie izquierdo del paciente = izquierda de la imagen; el derecho se espeja.
-  const maskI = seg.feet[0].mask;
-  const maskD = flipX(seg.feet[1].mask, w, h);
+  const maskI = pies[0];
+  const maskD = flipX(pies[1], w, h);
   const TD = flipX(T, w, h);
   const [fi, fd] = lengthFrames(footFrame(maskI, w, h), footFrame(maskD, w, h));
   // El borde del pie mezcla piel y fondo: se descarta un píxel de contorno.
@@ -255,7 +265,17 @@ function canonicalFeet(img, opts = {}) {
     cortado: f.cortado,
     recortes: f.recortes,
   });
-  return { ok: true, izq, der, marco: { izq: frame(fi), der: frame(fd) }, umbralFondo: seg.threshold, segmentacion };
+  return {
+    ok: true,
+    izq,
+    der,
+    marco: { izq: frame(fi), der: frame(fd) },
+    umbralFondo: seg.threshold,
+    segmentacion,
+    ...(opts.limpiar ? { limpieza } : {}),
+    // Máscaras usadas, en coordenadas de la imagen (sólo si se piden).
+    ...(opts.conMascaras ? { mascaras: pies, temperatura: T } : {}),
+  };
 }
 
 /** Área mínima (px) de cada pie para aceptar una máscara externa. */

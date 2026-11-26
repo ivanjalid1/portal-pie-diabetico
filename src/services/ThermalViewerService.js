@@ -9,6 +9,7 @@ const { is2CaptureDate } = require('../imaging/pointwise');
 const { decodePng } = require('../imaging/png');
 const { toCelsius } = require('../imaging/thermogram');
 const { encodeThermal, grayToCelsius } = require('../imaging/thermalArray');
+const { flagLabels } = require('../imaging/photoQuality');
 const { NotFoundError } = require('../utils/errors');
 
 const IS2_MIME = 'application/x-fluke-is2';
@@ -54,14 +55,58 @@ const is2Key = (root, file) =>
  * y nunca se escribe en disco.
  */
 class ThermalViewerService {
-  constructor({ files = null, maskService = null, demoDir = null, demoManifest = null, privateDir = null } = {}) {
+  constructor({
+    files = null,
+    maskService = null,
+    demoDir = null,
+    demoManifest = null,
+    privateDir = null,
+    fotosDir = null,
+  } = {}) {
     this.files = files;
     this.maskService = maskService;
     this.demoDir = demoDir;
     this.demoManifest = demoManifest;
     this.privateDir = privateDir && fs.existsSync(privateDir) ? privateDir : null;
+    // Calidad automática por réplica (scripts/precompute-real.js → fotos.json).
+    this.fotosDir = fotosDir;
+    this._fotos = undefined;
     this._paths = null;
     this._cache = new Map();
+  }
+
+  /** Calidad automática por réplica (banderas, alineación, encuadre) o null. */
+  fotos() {
+    if (this._fotos === undefined) {
+      this._fotos = null;
+      const file = this.fotosDir ? path.join(this.fotosDir, 'fotos.json') : null;
+      if (file && fs.existsSync(file)) {
+        try {
+          const f = JSON.parse(fs.readFileSync(file, 'utf8'));
+          if (f && f.replicas) this._fotos = f;
+        } catch {
+          // archivo ilegible: sin calidad automática
+        }
+      }
+    }
+    return this._fotos;
+  }
+
+  /**
+   * Campos de calidad automática de una réplica para el visor: banderas en
+   * lenguaje simple, desplazamiento de la foto (px de la foto, sólo si se
+   * aplicó), encuadre de los pies (px IR) y giro sugerido para mostrar.
+   */
+  static viewerQuality(q) {
+    if (!q) return { evaluada: false, avisos: [], alineacion: null, encuadre: null, giro: 0 };
+    const al = q.alineacion;
+    return {
+      evaluada: true,
+      avisos: flagLabels(q.banderas),
+      alineacion: al && al.aplicada ? { dx: al.dxFoto, dy: al.dyFoto } : null,
+      encuadre: Array.isArray(q.encuadre) && q.encuadre.length === 4 ? q.encuadre : null,
+      giro: Number.isFinite(q.giro) ? q.giro : 0,
+    };
   }
 
   /** ¿Se pueden mostrar fotos visibles? (sólo local con datos reales) */
@@ -195,6 +240,7 @@ class ThermalViewerService {
         out.push({
           toma,
           origen: 'real',
+          calidadBaja: Boolean(remota.calidadBaja),
           reps: remota.reps.map((r) => ({
             rep: r.rep,
             calidad: r.calidad ?? null,
@@ -202,21 +248,35 @@ class ThermalViewerService {
             noValido: Boolean(r.noValido),
             foto: Boolean(r.foto),
             info: r.info || null,
+            // El manifiesto guarda los campos ya resueltos (scripts/upload-visor-real.js).
+            evaluada: Boolean(r.evaluada),
+            avisos: Array.isArray(r.avisos) ? r.avisos : [],
+            alineacion: r.alineacion || null,
+            encuadre: Array.isArray(r.encuadre) ? r.encuadre : null,
+            giro: Number.isFinite(r.giro) ? r.giro : 0,
           })),
         });
       } else if (real.length) {
+        const fotos = this.fotos();
+        const q = (e) => fotos?.replicas?.[e.key] || null;
         const validas = real.filter((e) => !e.noValido);
-        const best = (validas.length ? validas : real).reduce((a, b) => ((b.calidad ?? 0) > (a.calidad ?? 0) ? b : a));
+        // Con la calidad automática, la mejor es la elegida por el precálculo.
+        const elegida = real.find((e) => q(e)?.elegida);
+        const best =
+          elegida || (validas.length ? validas : real).reduce((a, b) => ((b.calidad ?? 0) > (a.calidad ?? 0) ? b : a));
+        const tq = fotos?.tomas?.[patient?.codigo]?.[toma] || null;
         out.push({
           toma,
           origen: 'real',
+          calidadBaja: Boolean(tq?.baja),
           reps: real.map((e) => ({
             rep: e.rep + 1,
-            calidad: e.calidad ?? null,
+            calidad: q(e)?.calidad ?? e.calidad ?? null,
             mejor: e === best,
             noValido: Boolean(e.noValido),
             foto: this.hasVisibleKey(e.key),
             info: this.infoByKey(e.key),
+            ...ThermalViewerService.viewerQuality(q(e)),
           })),
         });
       } else if (image.mime === IS2_MIME && image.storagePath) {

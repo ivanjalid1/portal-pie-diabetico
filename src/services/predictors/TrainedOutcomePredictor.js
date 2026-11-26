@@ -1,7 +1,6 @@
 'use strict';
 
 const fs = require('node:fs');
-const path = require('node:path');
 const LiteratureRiskPredictor = require('./LiteratureRiskPredictor');
 const { decodeGrid } = require('../../imaging/pointwise');
 const { patternFeatures } = require('../../imaging/thermalPattern');
@@ -13,7 +12,7 @@ const { categoryFor } = require('../../config/domain');
  * data-local/models/ (ignorada por git y Vercel). OUTCOME_MODEL cambia la ruta.
  */
 const OUTCOME_MODEL_PATH =
-  process.env.OUTCOME_MODEL || path.join(__dirname, '..', '..', '..', 'data-local', 'models', 'outcome-logreg.json');
+  process.env.OUTCOME_MODEL || require('../../config/localData').localDataPath('models', 'outcome-logreg.json');
 
 /** Requisitos para reemplazar al riesgo bibliográfico. */
 const REQUISITOS = Object.freeze({ positivos: 10, negativos: 10, aucMinima: 0.7 });

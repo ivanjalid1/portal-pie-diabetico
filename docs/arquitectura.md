@@ -370,7 +370,7 @@ flowchart LR
   S --> A[Portal en localhost]
 ```
 
-- `scripts/precompute-real.js` procesa todas las réplicas `.IS2` de cada toma y elige la de mejor calidad: solapamiento y simetría de las máscaras, penalizando los cortes. Renderiza esa toma con High Contrast y guarda sus grillas en `data-local/real/`. No imprime nombres, DNI ni teléfonos.
+- `scripts/precompute-real.js` procesa todas las réplicas `.IS2` de cada toma y elige la de mejor calidad: solapamiento y simetría de las máscaras, penalizando los cortes. Desde §8.13 la elección también penaliza las banderas automáticas de calidad (talón cortado, cámara lejos, pies juntos, poco contraste…) y, entre réplicas equivalentes, prefiere la primera captura. Renderiza esa toma con High Contrast y guarda sus grillas en `data-local/real/`. No imprime nombres, DNI ni teléfonos.
 - Los pacientes cuya fila de la planilla tiene la marca de que **no dieron su consentimiento** («sin consentimiento», «no firmó el consentimiento», incluso con errores de tipeo; regla genérica en `src/utils/consent.js`) se **excluyen por completo**: no se procesan sus tomas ni se generan imágenes, no entran al dataset ni al entrenamiento, y el cargador los vuelve a descartar por si acaso.
 - Con `SEED=real` y esa carpeta presente, el contenedor carga los pacientes reales en el driver `memory`. Se conservan las cuentas del personal de demostración y se quitan los pacientes `DEMO-…`. Las imágenes se leen del disco al pedirlas (montaje de sólo lectura en el `FileStorage`), sin cargarlas en memoria.
 - Sin la carpeta (CI, Vercel, pruebas), el portal usa la semilla de demostración. Sus grillas punto a punto están en `src/seed/demoPointwise.json`: termogramas ya anonimizados, sin datos de identidad.
@@ -1007,3 +1007,25 @@ Por centro: Córdoba está por debajo de 21 °C en un tercio de las tomas. Ferre
 - El encabezado del estudio muestra las condiciones por toma, por ejemplo «Sala 22,1 °C · HR 55 % (medida)» o «Sala ≈21,5 °C (estimada)». Marca **fuera de protocolo** con los rangos vigentes de Configuración.
 - El visor de termogramas muestra la temperatura cruda de la cámara.
 - En Supabase, `node scripts/seed-supabase-real.js --ambiente` completa el ambiente de los estudios ya cargados y recalcula su análisis con la configuración vigente.
+
+### 8.13 Corrección automática de fotos (réplicas, máscaras, foto visible y vista)
+
+Sin IA generativa y **sin tocar temperaturas**: sólo se elige otra réplica, se decide qué píxeles son pie, se alinea la foto visible para mostrarla y se marca lo que no se puede arreglar. `npm run precompute:real` lo hace por defecto; `CORRECCION_FOTOS=0` vuelve al criterio anterior. `REAL_DATA_DIR` y `LOCAL_DATA_DIR` permiten generar otra versión (por ejemplo `data-local/real-v2`) sin pisar la que usa el portal.
+
+| Paso | Módulo | Detalle |
+| --- | --- | --- |
+| Calidad por réplica | `src/imaging/photoQuality.js` | Criterios del relevamiento de las 606 réplicas: pie a ≤ 3 px del borde (talón, dedos o costado cortado), largo < 125 px (cámara lejos), largo / ancho del antepié < 2,2 (pie incompleto) o > 3,0 (posible tela o pierna en el talón), áreas < 0,85, pies a ≤ 3 px o tocándose, contraste pie–fondo < 4 °C, IR desenfocada (gradiente en el contorno / contraste < 0,11), foto visible borrosa (varianza del laplaciano < 8). Leves: pies girados, fondo tibio y foto desalineada sin corregir. |
+| Elección de réplica | `selectionScore` / `selectReplica` | Puntaje = calidad de registro − penalización por bandera grave (0,15–0,30) − hasta 0,05 por pie chico. Las réplicas a menos de **0,01** del mejor puntaje son equivalentes y gana la **primera captura** (`SELECCION_EMPATE` lo cambia). |
+| Limpieza de máscaras | `src/imaging/maskCleanup.js` | Sobre la U-Net (o la clásica): piezas de ≥ 30 px unidas por un cuello de < 5 px (tela entre talones) se descartan, salvo hacia los dedos; fuga más allá de 3,4 × el ancho del antepié; pies que se tocan se separan quitando la franja de 1 px de contacto. Nunca agrega píxeles (salvo huecos internos) y, si un pie perdiera más del 40 %, se conserva el original. Con 3,0 × ancho se recortaban talones reales de pies largos, por eso el corte es 3,4 y lo demás sólo se avisa. |
+| Foto visible | `src/imaging/visibleAlign.js` | Busca el desplazamiento (± 20 px IR) que mejor superpone el contorno térmico con la piel (Otsu sobre el brillo). Se aplica sólo con separación piel/fondo ≥ 0,6, superposición ≥ 0,8 y mejora ≥ 0,01; uno de más de 6 px necesita otra réplica de la toma con un desplazamiento parecido. Si no, queda el registro fijo de la cámara. |
+| Salida | `data-local/real/fotos.json` | Por réplica (clave = hash): calidad, puntaje, banderas, medidas, limpieza, alineación, encuadre y giro sugerido. Por toma: réplica elegida y **calidad baja** si ninguna réplica está libre de banderas graves. El `dataset.json` lleva en cada toma `replica`, `clave` y `calidadFotos`; las máscaras modificadas quedan en `mascaras/<clave>.npy`. |
+
+**Visor.** Arranca con la **escala fija 24–35 °C** de la cámara (botón «24–35 °C» para volver; «Escala automática» sigue disponible) y, bajo el mínimo, el fondo velado como en la miniatura de la cámara. «Encuadrar pies» (activo) ajusta la vista al recuadro de los pies; «Enderezar» gira la vista según el ángulo común de los dos pies. Ambos son **sólo de vista**. La foto se coloca con el desplazamiento de su réplica cuando se aplicó, y la pestaña Información lo indica. Junto a la réplica se muestran los avisos automáticos en lenguaje simple («Talón cortado», «Cámara lejos», «Pies juntos», «Poco contraste», «Desenfocada», «Foto visible borrosa»…), separados de la revisión manual. El estudio agrega el aviso «calidad baja de la foto» cuando la toma no tiene ninguna réplica limpia.
+
+**Resultado en la cohorte** (178 tomas, 606 réplicas, contra `data-local/real`):
+
+- cambiaron de réplica 103 tomas: 12 pasan de una réplica con banderas graves a una limpia, 8 mejoran en parte, 80 eligen otra réplica equivalente (la primera captura, como las 4 tomas de referencia) y 3 difieren sólo en avisos leves;
+- se modificaron 19 máscaras (4 de réplicas elegidas): 16 por pies que se tocaban, 3 por puentes de tela y 1 fuga larga en el talón;
+- se realinearon 351 fotos visibles (89 de más de 4 px); 78 quedan con el registro de la cámara por separación piel/fondo poco clara y 4 desplazamientos grandes sin respaldo se descartaron;
+- **54 tomas quedan con calidad baja**: no tienen ninguna réplica limpia y no se pueden arreglar sin inventar datos;
+- la categoría de riesgo cambió en 1 de 105 estudios. Los cambios de métricas entre réplicas equivalentes muestran la **variabilidad entre capturas** de la misma toma.

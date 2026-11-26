@@ -23,6 +23,7 @@ const EVENTS = Object.freeze({
   STUDY_CREATED: 'study.created',
   ANALYSIS_COMPLETED: 'analysis.completed',
   STUDY_NOTES_UPDATED: 'study.notes_updated',
+  IMAGE_REVIEWED: 'image.reviewed',
   RESULT_PUBLISHED: 'result.published',
   RESULT_UNPUBLISHED: 'result.unpublished',
   OUTCOME_RECORDED: 'outcome.recorded',

@@ -78,6 +78,9 @@
       <% } %>
       <span class="badge badge--muted"><%= t2 ? 'Toma 1 y toma 2' : 'Sólo toma 1' %></span>
       <span class="badge badge--outline"><%= s.publicado ? 'Visible para el paciente' : 'No visible para el paciente' %></span>
+      <% if (typeof revision !== 'undefined' && revision && revision.resumen.total) { const RS = revision.resumen; %>
+      <a class="badge badge--<%= RS.rechazado ? 'danger' : RS.pendiente ? 'muted' : 'ok' %> ir-count" href="#revision" data-ir-count title="Revisión manual de las fotos del visor">Fotos: <span data-ir-count-text><%= resumenTexto(RS) %></span></a>
+      <% } %>
     </div>
   </div>
   <div class="page-header__actions">
@@ -166,7 +169,7 @@
 <% if (PW) { %><%- include('../partials/pointwise-study', { analysis: a, study: s, forecast: FC, etiqueta: settings.pronosticoEtiqueta }) %><% } %>
 <% if (FC && FC.disponible) { %><%- include('../partials/forecast-zones', { forecast: FC, etiqueta: settings.pronosticoEtiqueta, umbral: FC.umbralPixel ?? PW.umbralPixel }) %><% } %>
 <% const hayVisor = typeof visor !== 'undefined' && visor && visor.length; %>
-<% if (hayVisor) { %><%- include('../partials/thermo-viewer', { study: s, visor, fecha: fechaToma, activa: PW ? PW.tomaActual : (t2 ? 2 : 1) }) %><% } %>
+<% if (hayVisor) { %><%- include('../partials/thermo-viewer', { study: s, visor, revision: typeof revision !== 'undefined' ? revision : null, fecha: fechaToma, activa: PW ? PW.tomaActual : (t2 ? 2 : 1) }) %><% } %>
 
 <details class="disclosure disclosure--card sr-tech" id="detalle">
   <summary>Detalle técnico</summary>

@@ -16,6 +16,8 @@ erDiagram
   PROFILES ||--o{ STUDIES : "realiza"
   STUDIES ||--o{ STUDY_IMAGES : "2 imágenes"
   STUDIES ||--o{ ANALYSIS_RESULTS : "resultado"
+  STUDIES ||--o{ STUDY_IMAGE_REVIEWS : "revisión por foto"
+  PROFILES |o--o{ STUDY_IMAGE_REVIEWS : "revisa"
   ANALYSIS_RESULTS ||--|{ ROI_MEDICIONES : "7 ROIs"
   PATIENTS ||--o{ APPOINTMENTS : "controles"
   STUDIES |o--o{ APPOINTMENTS : "origina"
@@ -192,6 +194,16 @@ Historial de firmas y revocaciones (`version`, `fecha_firma`, `registrado_por`, 
 ### `study_images`
 
 Una fila por imagen (`slot` = `toma1` / `toma2`, ambas termografías), con `storage_path` (bucket `estudios`, ruta `<patient_id>/<study_id>/<slot>.<ext>`) o `public_url` (sólo imágenes demo), `mime`, `size_bytes`, `original_name`.
+
+### `study_image_reviews`
+
+Revisión manual de cada foto del visor (migración `20260101001000_revision_imagenes.sql`). Hay una fila por `(study_id, toma, replica)`, que es una clave única. Columnas:
+
+- `estado`: `pendiente` (por defecto, «Falta revisar»), `aprobado` o `rechazado`;
+- `comentario`: hasta 1000 caracteres;
+- `revisado_por` → `profiles` y `revisado_at`.
+
+RLS: el médico tratante y el administrador leen y escriben; el paciente no tiene acceso. Es sólo una etiqueta: no modifica `analysis_results` ni excluye fotos del análisis.
 
 ### `analysis_results` y `roi_mediciones`
 

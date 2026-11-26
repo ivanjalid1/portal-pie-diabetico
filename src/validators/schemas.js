@@ -11,6 +11,7 @@ const {
   CODIGO_REGEX,
   VIBRATORIA_MAX,
 } = require('../config/domain');
+const ImageReview = require('../models/ImageReview');
 
 /* ---------- Autenticación ---------- */
 
@@ -201,6 +202,16 @@ const notesSchema = z.object({ notasMedico: z.string().trim().max(4000, 'Máximo
 
 const publishSchema = z.object({ publicado: f.checkbox() });
 
+/** Revisión manual de una foto del estudio (la toma y la réplica van en la URL). */
+const imageReviewSchema = z.object({
+  estado: z.enum(ImageReview.ESTADOS, { error: 'Elegí Aprobada, Rechazada o Falta revisar.' }),
+  comentario: z
+    .string()
+    .trim()
+    .max(ImageReview.COMENTARIO_MAX, `Máximo ${ImageReview.COMENTARIO_MAX} caracteres.`)
+    .default(''),
+});
+
 const outcomeSchema = z
   .object({
     generoLesion: z.enum(['si', 'no'], { error: 'Indicá si generó lesión.' }).transform((v) => v === 'si'),
@@ -283,6 +294,7 @@ module.exports = {
   studySchema,
   notesSchema,
   publishSchema,
+  imageReviewSchema,
   outcomeSchema,
   consentSchema,
   revokeConsentSchema,

@@ -10,7 +10,9 @@
  * defensa en profundidad para cualquier acceso directo con la anon key.
  */
 const contracts = require('../contracts');
-const { User, Patient, Study, AnalysisResult, Appointment, AuditEntry, Consent } = require('../../models');
+const { User, Patient, Study, AnalysisResult, Appointment, AuditEntry, Consent, ImageReview } = require(
+  '../../models',
+);
 const { toRow, fromRow } = require('./mappers');
 
 /** Lanza un error legible si la respuesta de PostgREST trae error. */
@@ -400,6 +402,38 @@ class SupabaseAuditRepository extends contracts.AuditRepository {
   }
 }
 
+/* ---------- Revisión manual de las fotos ---------- */
+class SupabaseImageReviewRepository extends contracts.ImageReviewRepository {
+  constructor(db) {
+    super();
+    this.b = new SupabaseBase(db, 'study_image_reviews', ImageReview);
+  }
+  async listByStudy(studyId) {
+    const { data, error } = await this.b.db
+      .from('study_image_reviews')
+      .select('*')
+      .eq('study_id', studyId)
+      .order('toma', { ascending: true })
+      .order('replica', { ascending: true });
+    // Sin la migración aplicada, todas las fotos quedan «Falta revisar».
+    if (missingTable(error)) return [];
+    return check({ data, error }, 'study_image_reviews.list').map((r) => this.b.entity(r));
+  }
+  async upsert(review) {
+    const { id: _id, createdAt: _c, ...fields } = review;
+    const row = { ...toRow('study_image_reviews', fields), updated_at: new Date().toISOString() };
+    const data = check(
+      await this.b.db
+        .from('study_image_reviews')
+        .upsert(row, { onConflict: 'study_id,toma,replica' })
+        .select()
+        .single(),
+      'study_image_reviews.upsert',
+    );
+    return this.b.entity(data);
+  }
+}
+
 /* ---------- Almacenamiento de imágenes ---------- */
 class SupabaseFileStorage extends contracts.FileStorage {
   constructor(db, { bucket, signedUrlTtlSeconds }) {
@@ -440,6 +474,7 @@ function createSupabaseRepositories(db, config) {
     appointments: new SupabaseAppointmentRepository(db),
     consents: new SupabaseConsentRepository(db),
     audit: new SupabaseAuditRepository(db),
+    imageReviews: new SupabaseImageReviewRepository(db),
     files: new SupabaseFileStorage(db, config.supabase),
   };
 }
@@ -454,5 +489,6 @@ module.exports = {
   SupabaseAppointmentRepository,
   SupabaseConsentRepository,
   SupabaseAuditRepository,
+  SupabaseImageReviewRepository,
   SupabaseFileStorage,
 };

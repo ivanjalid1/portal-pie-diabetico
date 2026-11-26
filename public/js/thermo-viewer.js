@@ -896,6 +896,9 @@
     async function load(rep) {
       const seq = ++st.loadSeq;
       st.rep = rep;
+      // Avisa qué foto se muestra (la revisión de fotos la resalta).
+      root.dataset.tvFoto = `${st.toma}-${rep.rep}`;
+      root.dispatchEvent(new CustomEvent('tv:foto', { detail: { toma: st.toma, rep: rep.rep } }));
       status.hidden = false;
       status.textContent = 'Cargando termograma…';
       try {

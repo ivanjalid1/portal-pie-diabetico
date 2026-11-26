@@ -139,6 +139,18 @@ const COLUMNS = {
     'motivoAusencia',
     'createdAt',
   ],
+  study_image_reviews: [
+    'id',
+    'studyId',
+    'toma',
+    'replica',
+    'estado',
+    'comentario',
+    'revisadoPor',
+    'revisadoAt',
+    'createdAt',
+    'updatedAt',
+  ],
   audit_log: ['id', 'actorId', 'actorEmail', 'action', 'entity', 'entityId', 'detail', 'ip', 'createdAt'],
 };
 

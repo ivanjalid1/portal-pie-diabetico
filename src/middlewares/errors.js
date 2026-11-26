@@ -36,8 +36,16 @@ function errorHandler(err, req, res, _next) {
     error = new ValidationError(msg, {});
   }
 
+  // Peticiones fetch con cuerpo JSON o que piden JSON (mejora progresiva de formularios).
+  const wantsJson = Boolean(req.is('application/json')) || req.accepts(['html', 'json']) === 'json';
+
   // Errores de formulario: volver al formulario con mensaje y datos cargados.
-  if (error instanceof AppError && (error.status === 422 || error.status === 409) && req.method !== 'GET') {
+  if (
+    !wantsJson &&
+    error instanceof AppError &&
+    (error.status === 422 || error.status === 409) &&
+    req.method !== 'GET'
+  ) {
     if (req.flash) {
       req.flash('error', error.message);
       req.flashForm(req.body, error.fields || {});
@@ -48,11 +56,12 @@ function errorHandler(err, req, res, _next) {
   const status = error instanceof AppError ? error.status : 500;
   if (status >= 500) console.error('[error]', err);
 
-  // Peticiones fetch con cuerpo JSON (p. ej. la corrección de máscaras): respuesta JSON.
-  if (req.is('application/json')) {
-    return res
-      .status(status)
-      .json({ error: status >= 500 ? 'Ocurrió un error inesperado. Probá de nuevo.' : error.message });
+  // Peticiones fetch (p. ej. la corrección de máscaras o la revisión de fotos): respuesta JSON.
+  if (wantsJson) {
+    return res.status(status).json({
+      error: status >= 500 ? 'Ocurrió un error inesperado. Probá de nuevo.' : error.message,
+      ...(error.fields && Object.keys(error.fields).length ? { fields: error.fields } : {}),
+    });
   }
 
   const titles = { 401: 'Sesión vencida', 403: 'Acceso denegado', 404: 'Página no encontrada' };

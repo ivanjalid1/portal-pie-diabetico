@@ -266,7 +266,17 @@ La tarjeta **«Termografía (visor)»** del estudio y la herramienta `/mascaras`
 
 El registro es fijo: el píxel IR (x, y) cae en (80 + 1,5·x, 60 + 1,5·y) de la foto, es decir, el recorte central de 480 × 360. No hay corrección de paralaje por archivo. El contorno de los pies coincide con un desvío de 2–4 px visibles, y las máscaras de la U-Net calzan sobre la foto. `IRImageInfo.gpbenc` guarda la emisividad (campo 10), el fondo (11), la transmisión (12) y la escala de la paleta en °C (14.6–14.7). `CalibrationData.gpbenc` trae 7 tramos radiométricos, que no se usan.
 
-**Privacidad.** La foto visible puede mostrar caras, el entorno o documentos. Sólo se sirve en **local con `SEED=real`**: el contenedor define la carpeta privada (`PRIVATE_DATA_DIR`, por defecto `tesis-2026info/`) únicamente fuera de producción, de Vercel y de las pruebas. Se lee del IS2 en cada pedido, se re-codifica sin metadatos y nunca se escribe en disco ni en `public/`. La sirven rutas autenticadas: `/medico/estudios/:id/visor/:toma/:rep/foto.jpg` (sólo el médico tratante) y `/mascaras/:clave/foto.jpg` (médico/a y administrador/a). En demo y en producción no hay fotos y esas rutas dan 404. El extremo «Visible» de la fusión muestra entonces la **térmica en escala de grises**, y el PIP queda deshabilitado. Para los pares demo, la matriz se reconstruye de la variante en grises pública (`public/demo/*-grises.png`) con la escala en °C de cada imagen (`src/seed/demoImages.json`, campo `escala`).
+**Privacidad.** La foto visible puede mostrar caras, el entorno o documentos. Por decisión del equipo se usa en local y en producción, siempre **privada** y sólo para el personal autenticado.
+
+- **Local (`SEED=real`):** el contenedor define la carpeta privada (`PRIVATE_DATA_DIR`, por defecto `tesis-2026info/`) sólo fuera de producción, de Vercel y de las pruebas. La foto se lee del IS2 en cada pedido, se re-codifica sin metadatos y nunca se escribe en disco ni en `public/`.
+- **Producción (Supabase):** `scripts/upload-visor-real.js` sube, por estudio y réplica, al bucket privado `estudios`:
+  - `termica/<paciente>/<estudio>/toma<k>-r<n>.tpv`: matriz TPV1 con gzip, ≈ 83 KB;
+  - `visible/<paciente>/<estudio>/toma<k>-r<n>.jpg`: JPEG re-codificado sin EXIF, ≈ 34 KB, máximo 44 KB;
+  - un manifiesto `termica/<paciente>/<estudio>/visor.json`: réplicas, calidad y metadatos de captura sin número de serie.
+
+  En total son 606 réplicas, unos 50 MB de matrices y 21 MB de fotos. Las rutas no empiezan con el id del paciente, así que las políticas de Storage del cliente (`is_my_patient(carpeta)`) no les dan acceso. Sólo las lee el servidor con el rol de servicio, después de verificar que el estudio es del médico tratante.
+- **Rutas:** `/medico/estudios/:id/visor/:toma/:rep/foto.jpg` y `termica.bin` (médico tratante); `/mascaras/:clave/foto.jpg` (médico/a y administrador/a, sólo en local). Sin sesión redirigen al login.
+- **Demo:** no hay fotos y la ruta da 404. El extremo «Visible» de la fusión muestra la **térmica en escala de grises**, y el PIP queda deshabilitado. Para los pares demo, la matriz se reconstruye de la variante en grises pública (`public/demo/*-grises.png`) con la escala en °C de cada imagen (`src/seed/demoImages.json`, campo `escala`).
 
 ### Identidad
 
@@ -950,3 +960,50 @@ Se conservan el área esperada con su rango del 80 % y la probabilidad de zona c
 - El modelo es casi la persistencia encogida hacia la media de la cohorte. Mejora el MAE un 5 % en área y un 13 % en ΔT, y la probabilidad de zona caliente no discrimina mejor que el área actual sola (AUC 0,75 vs 0,74). Anticipar que una zona **empeora** no funciona (AUC 0,64).
 - 16 de 73 fechas de toma son estimadas. En la sensibilidad sin fechas estimadas ni pacientes «no válidos» (36 pacientes), r(t1, t2) = 0,24 y el AUC de persistencia es 0,66.
 - Valen las limitaciones del análisis punto a punto: la conversión a °C es aproximada (§8) y las zonas son fracciones fijas del largo del pie, no la anatomía de cada paciente.
+
+### 8.12 Condiciones de la sala (temperatura y humedad) por toma
+
+**Fuentes.** El análisis está en `scripts/precompute-ambiente.js` y genera `data-local/real/ambiente.json`, sólo con códigos.
+
+- **Toma 1:** está escrita a mano en los bloques de la hoja «Contactos» de la planilla clínica «(3)», en la columna de la fecha («23,5°» y la humedad como fracción). Da **50 de 105** tomas medidas.
+- **Toma 2:** sale de «Planillas clinicas temperatura segunda toma.xlsx», hoja «Hoja 3», que no se versiona. Tiene tres grupos (Córdoba, Reina Fabiola, Ferreyra) con nombre, t máx., t mín., humedad y fecha. Se asocia por nombre con la misma regla que el inventario: 57 tomas. Otras 4 se asocian por similitud dentro del centro (≥ 2 palabras parecidas o 1 con la fecha de la cámara ±3 días). Sala = (máx. + mín.) / 2. Resultado: **61 de 73** medidas.
+- **Sin dato medido, se estima** con el fondo del termograma: mediana de los píxeles a más de 20 px de la máscara de los pies y más fríos que la mediana del pie − 3 °C, mediana entre réplicas.
+  - Calibración contra las 107 tomas medidas: **sala ≈ 0,99 · fondo − 1,55**.
+  - Error LOO de 0,74 °C, contra 1,17 °C de predecir la media; r = 0,77.
+  - Es una marca gruesa: dentro de un hospital, r baja a 0,34.
+  - Quedan **estimadas 55 tomas 1 y 12 tomas 2**.
+- El IS2 no trae sensores de ambiente: la «temperatura de fondo» del archivo es un ajuste fijo de la cámara (22 °C).
+
+**Protocolo** (Configuración: 21–24 °C y 40–70 % HR):
+
+| Toma | Medidas fuera | Estimadas fuera | Total fuera |
+| --- | --- | --- | --- |
+| 1 | 14 de 50 | 16 de 55 | 30 de 105 |
+| 2 | 21 de 61 (6 también por humedad) | 3 de 12 | 24 de 73 |
+
+Por centro: Córdoba está por debajo de 21 °C en un tercio de las tomas. Ferreyra supera los 24 °C en todas las tomas 2 (25,4–27,4 °C).
+
+**Influencia** (n = 69 tomas con ambiente medido, efectos fijos de hospital y toma):
+
+- **Se ajustan:**
+  - la mediana plantar sube **+0,45 ± 0,14 °C por °C** de sala (toma 1: 0,65; toma 2: 0,44);
+  - el TCI absoluto sube **+0,42 ± 0,13** por °C.
+- **No dependen del ambiente**, así que no se ajustan:
+  - |ΔT| medio: +0,01 por °C;
+  - p95 |ΔT|: −0,01 ± 0,04;
+  - área caliente > 1 °C: +0,7 ± 1,6 pp;
+  - TCI de patrón: +0,03 ± 0,02.
+- La humedad no muestra un efecto claro.
+- El cambio de la sala entre tomas no explica el cambio del pie ni el residuo del pronóstico (ΔR² 0,006).
+- El ambiente explica buena parte de la diferencia entre hospitales: Ferreyra en la toma 2 pasa de +1,62 a −0,52 °C.
+
+**Uso en el portal** (`src/imaging/ambient.js`):
+
+- El estudio guarda sólo el ambiente **medido**. El análisis de cada toma lleva `ambiente` (temperatura, humedad, origen «medida»/«estimada» y corrección), `absoluta` (mediana plantar cruda y ajustada) y, si hay referencia, `tci.valorAjustado`.
+- Sólo se ajustan las temperaturas absolutas y el TCI absoluto: **T − 0,45 · (T_sala − 22 °C)**. No se usa «pie − sala» porque la pendiente no es 1.
+  - Los mapas de temperatura de cada planta se muestran ajustados, con la corrección indicada.
+  - La mediana plantar va en el Detalle técnico y el TCI ajustado en la pestaña TCI.
+  - ΔT, área caliente, alertas, riesgo y pronóstico quedan sin ajustar.
+- El encabezado del estudio muestra las condiciones por toma, por ejemplo «Sala 22,1 °C · HR 55 % (medida)» o «Sala ≈21,5 °C (estimada)». Marca **fuera de protocolo** con los rangos vigentes de Configuración.
+- El visor de termogramas muestra la temperatura cruda de la cámara.
+- En Supabase, `node scripts/seed-supabase-real.js --ambiente` completa el ambiente de los estudios ya cargados y recalcula su análisis con la configuración vigente.

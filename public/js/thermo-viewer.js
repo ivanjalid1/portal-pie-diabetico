@@ -826,7 +826,7 @@
         ['Toma', `Toma ${st.toma}`],
         ['Origen', origen],
         ['Infrarrojo', st.T ? `${st.T.w} × ${st.T.h} px` : '—'],
-        ['Foto visible', st.photo ? '640 × 480 px (sólo en este equipo)' : 'No disponible en este entorno'],
+        ['Foto visible', st.photo ? '640 × 480 px (privada)' : 'No disponible en este entorno'],
         ...(st.photo ? [['Registro IR → foto', 'escala 1,5× desde (80, 60) px']] : []),
         ['Emisividad', Number.isFinite(emis) ? nf2.format(emis) : '—'],
         ['Temperatura de fondo', Number.isFinite(info.fondoC) ? `${nf2.format(info.fondoC)} °C` : '—'],

@@ -184,10 +184,7 @@ function createMedicoController({
       const selectedId = typeof req.query.paciente === 'string' ? req.query.paciente : res.locals.old.patientId || '';
       const selectedRow = rows.find((r) => r.patient.id === selectedId) || null;
       // Tomas 1 reutilizables por paciente (para elegir en lugar de volver a subirla).
-      const toma1Options = {};
-      for (const r of rows) {
-        if (r.estudios) toma1Options[r.patient.id] = await studyService.toma1Options(r.patient.id, req.user.id);
-      }
+      const toma1Options = await studyService.toma1OptionsByPatient(req.user.id);
       res.render('medico/study-wizard', {
         title: 'Nuevo estudio termográfico',
         rows,

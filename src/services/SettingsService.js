@@ -127,6 +127,7 @@ class SettingsService {
     let puntuales = 0;
     const riesgo = { sin_riesgo: 0, moderado: 0, alto: 0 };
     const params = analysisParams(v);
+    const patientOf = await this.#patientLookup();
     for (const a of list) {
       const g = thermalGroup(a.rois, v.umbralAsimetria, v.corteSimetria);
       if (g.grupo === 'P') conAsimetria += 1;
@@ -143,7 +144,7 @@ class SettingsService {
         if (a.puntual.tomas.at(-1)?.conAsimetria) conAsimetriaPuntualActual += 1;
         if (a.puntual.categoriaPor === 'hallazgo_termico') categoria = categoriaTermica(actual, params);
         if (a.puntual.categoriaPor === 'riesgo_bibliografia') {
-          const patient = await this.#patientOf(a.studyId);
+          const patient = patientOf(a.studyId);
           // La probabilidad de neuropatía de la CNN (§8.10) no depende de los parámetros: se reutiliza.
           const pn = a.puntual.factorRiesgo?.probabilidad;
           const rp = Number.isFinite(pn) ? { ...params, probNeuropatia: pn / 100 } : params;
@@ -164,10 +165,13 @@ class SettingsService {
     };
   }
 
-  async #patientOf(studyId) {
-    if (!this.studies || !this.patients) return null;
-    const study = await this.studies.findById(studyId);
-    return study ? this.patients.findById(study.patientId) : null;
+  /** Estudio → paciente con dos consultas en total (no una por estudio: en Vercel cada una es un viaje a Supabase). */
+  async #patientLookup() {
+    if (!this.studies || !this.patients) return () => null;
+    const [studies, patients] = await Promise.all([this.studies.listAll(), this.patients.listAll()]);
+    const byId = new Map(patients.map((p) => [p.id, p]));
+    const byStudy = new Map(studies.map((st) => [st.id, byId.get(st.patientId) || null]));
+    return (studyId) => byStudy.get(studyId) || null;
   }
 
   /** Validación tolerante para la vista previa: ignora los campos inválidos. */

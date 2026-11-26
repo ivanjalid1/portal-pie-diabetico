@@ -116,6 +116,16 @@ class StudyService {
   }
 
   /** Tomas 1 disponibles para reutilizar (estudios previos del paciente). */
+  /** Tomas 1 reutilizables de todos los pacientes del médico, con una sola consulta. */
+  async toma1OptionsByPatient(medicoId) {
+    const out = {};
+    for (const s of await this.studies.listByMedico(medicoId)) {
+      if (!s.image('toma1')) continue;
+      (out[s.patientId] ||= []).push({ studyId: s.id, fecha: s.fechaToma1 || s.fechaHora });
+    }
+    return out;
+  }
+
   async toma1Options(patientId, medicoId) {
     const list = await this.studies.listByPatient(patientId);
     return list

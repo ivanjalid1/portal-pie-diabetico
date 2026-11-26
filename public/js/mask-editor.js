@@ -233,17 +233,8 @@
     else if (ev.key.toLowerCase() === 'h') toggle();
   });
 
-  /* ---------- Paleta de la imagen (grises: el contorno de color se ve mejor) ---------- */
-  const thermo = root.querySelector('[data-thermo]');
-  $$('[data-paleta]').forEach((b) =>
-    b.addEventListener('click', () => {
-      thermo.src = `${thermo.dataset.srcBase}?paleta=${b.dataset.paleta}`;
-      $$('[data-paleta]').forEach((x) => {
-        x.classList.toggle('is-active', x === b);
-        x.setAttribute('aria-pressed', String(x === b));
-      });
-    }),
-  );
+  /* La imagen de fondo (fusión, paleta, rango, alarma) la maneja el visor de
+     termogramas (public/js/thermo-viewer.js); esta capa sólo dibuja la máscara. */
 
   /* ---------- Guardado ---------- */
   async function save(goNext) {

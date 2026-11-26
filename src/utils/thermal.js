@@ -105,7 +105,18 @@ const PALETTE_CSS = Object.freeze(
   Object.fromEntries(Object.values(PALETTES).map((p) => [p.key, cssGradient(p.stops, 0, 1)])),
 );
 
+/**
+ * LUT de 256 colores de cada paleta, aplanadas (r, g, b, r, g, b, …), para el
+ * visor de termogramas en el navegador (public/js/thermo-viewer.js).
+ */
+const VIEWER_LUTS = Object.freeze(
+  Object.fromEntries(
+    Object.values(PALETTES).map((p) => [p.key, Array.from({ length: 256 }, (_, i) => p.fn(i / 255)).flat()]),
+  ),
+);
+
 module.exports = {
+  VIEWER_LUTS,
   ironbow,
   highContrast,
   grays,

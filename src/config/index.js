@@ -52,6 +52,9 @@ function build(env = process.env) {
     // Carpeta local de trabajo (ignorada por git y Vercel): desenlaces registrados,
     // máscaras corregidas, datos de ML.
     localDataDir: env.LOCAL_DATA_DIR || require('node:path').join(__dirname, '..', '..', 'data-local'),
+    // Carpeta privada con los IS2 originales (no versionada). Sólo se lee en local con
+    // SEED=real, para la foto visible del visor de termogramas (nunca en producción).
+    privateDataDir: env.PRIVATE_DATA_DIR || require('node:path').join(__dirname, '..', '..', 'tesis-2026info'),
     // Herramientas sólo locales (corrección de máscaras): nunca en producción ni en Vercel.
     localTools: !isProd && !env.VERCEL && bool(env.LOCAL_TOOLS, true),
     session: Object.freeze({

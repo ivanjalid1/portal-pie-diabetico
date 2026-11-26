@@ -151,6 +151,8 @@
 
 <% if (PW) { %><%- include('../partials/pointwise-study', { analysis: a, study: s, forecast: FC, etiqueta: settings.pronosticoEtiqueta }) %><% } %>
 <% if (FC && FC.disponible) { %><%- include('../partials/forecast-zones', { forecast: FC, etiqueta: settings.pronosticoEtiqueta, umbral: FC.umbralPixel ?? PW.umbralPixel }) %><% } %>
+<% const hayVisor = typeof visor !== 'undefined' && visor && visor.length; %>
+<% if (hayVisor) { %><%- include('../partials/thermo-viewer', { study: s, visor, fecha: fechaToma, activa: PW ? PW.tomaActual : (t2 ? 2 : 1) }) %><% } %>
 
 <details class="disclosure disclosure--card sr-tech" id="detalle">
   <summary>Detalle técnico</summary>
@@ -335,7 +337,10 @@
     <% } %>
 
     <section class="sr-tech__block" aria-labelledby="tech-acq">
-      <h3 id="tech-acq" class="card__subtitle">Termografías originales y adquisición</h3>
+      <h3 id="tech-acq" class="card__subtitle"><%= hayVisor ? 'Adquisición' : 'Termografías originales y adquisición' %></h3>
+      <% if (hayVisor) { %>
+      <p class="muted small">Las termografías originales se ven en el <a href="#visor">visor</a>, con fusión, alarma de color y lectura de temperatura.</p>
+      <% } else { %>
       <div class="image-pair">
         <% imageSlots.forEach((sl) => { if (sl.toma === 2 && !s.image('toma2')) { %>
         <figure class="image-tile"><div class="image-tile__file image-tile__file--empty"><%- include('../partials/icon', { name: 'calendar', size: 24 }) %><span>Sin toma 2</span></div><figcaption><%= slotTitulo(sl) %></figcaption></figure>
@@ -343,6 +348,7 @@
         <%- include('../partials/thermo-tile', { study: s, sl, sub: fmt.date(fechaToma(sl.toma)) + (sl.toma === 1 && s.toma1OrigenStudyId ? ' · reutilizada' : '') }) %>
         <% } }) %>
       </div>
+      <% } %>
       <% const amb = (t, h) => (t === null && h === null ? 'Sin registro' : `${fmt.num(t, 1)} °C, HR ${fmt.num(h, 0)} %`); %>
       <dl class="kv kv--compact kv--2col">
         <div><dt>Ambiente toma 1</dt><dd class="num"><%= amb(s.tempAmbienteToma1, s.humedadRelativaToma1) %></dd></div>

@@ -27,6 +27,7 @@ function createMedicoController({
   studyService,
   appointmentService,
   forecastService = null,
+  viewerService = null,
   events,
   config,
 }) {
@@ -209,14 +210,34 @@ function createMedicoController({
 
     async studyDetail(req, res) {
       const data = await studyService.getForMedico(req.params.id, req.user.id);
+      const visor = viewerService ? await viewerService.sources(data.study, data.patient).catch(() => []) : [];
       res.render('medico/study-result', {
         title: `Estudio ${data.patient.codigo}`,
         ...data,
+        visor,
         proximo: data.appointments.find((a) => a.estado === 'pendiente') || null,
         defaultControl: AppointmentService.defaultDate(data.study.fechaHora, req.settings?.diasControl),
         imageSlots: IMAGE_SLOTS,
         predictorInfo: studyService.analysisService.predictorInfo,
       });
+    },
+
+    /** Visor: matriz de temperaturas compacta (TPV1) de una toma/réplica. */
+    async viewerThermal(req, res) {
+      const { study, patient } = await studyService.getForMedico(req.params.id, req.user.id);
+      const buf = await viewerService.thermal(study, patient, req.params.toma, req.params.rep);
+      res.set('Cache-Control', 'private, max-age=600');
+      res.set('X-Content-Type-Options', 'nosniff');
+      res.type('application/octet-stream').send(buf);
+    },
+
+    /** Visor: foto visible del IS2 (sólo local con datos reales; si no, 404). */
+    async viewerPhoto(req, res) {
+      const { study, patient } = await studyService.getForMedico(req.params.id, req.user.id);
+      const jpeg = await viewerService.visible(study, patient, req.params.toma, req.params.rep);
+      res.set('Cache-Control', 'private, no-store');
+      res.set('X-Content-Type-Options', 'nosniff');
+      res.type('image/jpeg').send(jpeg);
     },
 
     /** Vista previa PNG de un archivo IS2 (el navegador no puede mostrarlo). */

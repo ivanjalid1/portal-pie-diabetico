@@ -143,6 +143,8 @@ function buildRoutes(container) {
   );
   m.get('/estudios/:id', medico.studyDetail);
   m.get('/estudios/:id/informe', medico.report);
+  m.get('/estudios/:id/visor/:toma/:rep/termica.bin', medico.viewerThermal);
+  m.get('/estudios/:id/visor/:toma/:rep/foto.jpg', medico.viewerPhoto);
   m.post('/estudios/:id/notas', validate(schemas.notesSchema), medico.saveNotes);
   m.post('/estudios/:id/publicacion', validate(schemas.publishSchema), medico.publish);
   m.post(
@@ -170,6 +172,8 @@ function buildRoutes(container) {
   k.get('/', masks.list);
   k.get('/:key', masks.editor);
   k.get('/:key/imagen.png', masks.image);
+  k.get('/:key/termica.bin', masks.thermal);
+  k.get('/:key/foto.jpg', masks.photo);
   k.get('/:key/mascaras.json', masks.masks);
   k.post('/:key', masks.save);
   router.use('/mascaras', k);

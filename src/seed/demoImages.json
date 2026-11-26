@@ -5,6 +5,10 @@
       "par": 1,
       "toma1": {
         "file": "par-01-toma1.png",
+        "escala": {
+          "min": 21.395,
+          "max": 33.192
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -80,6 +84,10 @@
       },
       "toma2": {
         "file": "par-01-toma2.png",
+        "escala": {
+          "min": 29.506,
+          "max": 33.594
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -158,6 +166,10 @@
       "par": 2,
       "toma1": {
         "file": "par-02-toma1.png",
+        "escala": {
+          "min": 23.069,
+          "max": 34.477
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -233,6 +245,10 @@
       },
       "toma2": {
         "file": "par-02-toma2.png",
+        "escala": {
+          "min": 25.457,
+          "max": 30.83
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -311,6 +327,10 @@
       "par": 3,
       "toma1": {
         "file": "par-03-toma1.png",
+        "escala": {
+          "min": 25.496,
+          "max": 30.882
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -386,6 +406,10 @@
       },
       "toma2": {
         "file": "par-03-toma2.png",
+        "escala": {
+          "min": 25.742,
+          "max": 32.634
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -464,6 +488,10 @@
       "par": 4,
       "toma1": {
         "file": "par-04-toma1.png",
+        "escala": {
+          "min": 25.055,
+          "max": 29.402
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -539,6 +567,10 @@
       },
       "toma2": {
         "file": "par-04-toma2.png",
+        "escala": {
+          "min": 26.275,
+          "max": 30.402
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -617,6 +649,10 @@
       "par": 5,
       "toma1": {
         "file": "par-05-toma1.png",
+        "escala": {
+          "min": 26.106,
+          "max": 30.376
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -692,6 +728,10 @@
       },
       "toma2": {
         "file": "par-05-toma2.png",
+        "escala": {
+          "min": 22.783,
+          "max": 34.412
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -770,6 +810,10 @@
       "par": 6,
       "toma1": {
         "file": "par-06-toma1.png",
+        "escala": {
+          "min": 24.782,
+          "max": 29.649
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -845,6 +889,10 @@
       },
       "toma2": {
         "file": "par-06-toma2.png",
+        "escala": {
+          "min": 29.195,
+          "max": 33.62
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -923,6 +971,10 @@
       "par": 7,
       "toma1": {
         "file": "par-07-toma1.png",
+        "escala": {
+          "min": 15.049,
+          "max": 39.032
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -998,6 +1050,10 @@
       },
       "toma2": {
         "file": "par-07-toma2.png",
+        "escala": {
+          "min": 25.094,
+          "max": 31.141
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -1076,6 +1132,10 @@
       "par": 8,
       "toma1": {
         "file": "par-08-toma1.png",
+        "escala": {
+          "min": 27.352,
+          "max": 33.036
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -1151,6 +1211,10 @@
       },
       "toma2": {
         "file": "par-08-toma2.png",
+        "escala": {
+          "min": 22.615,
+          "max": 33.244
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -1229,6 +1293,10 @@
       "par": 9,
       "toma1": {
         "file": "par-09-toma1.png",
+        "escala": {
+          "min": 17.021,
+          "max": 40.109
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -1304,6 +1372,10 @@
       },
       "toma2": {
         "file": "par-09-toma2.png",
+        "escala": {
+          "min": 26.43,
+          "max": 33.374
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -1382,6 +1454,10 @@
       "par": 10,
       "toma1": {
         "file": "par-10-toma1.png",
+        "escala": {
+          "min": 25.613,
+          "max": 29.221
+        },
         "rois": [
           {
             "roi": "dedo_mayor",
@@ -1457,6 +1533,10 @@
       },
       "toma2": {
         "file": "par-10-toma2.png",
+        "escala": {
+          "min": 24.769,
+          "max": 31.232
+        },
         "rois": [
           {
             "roi": "dedo_mayor",

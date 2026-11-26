@@ -237,7 +237,36 @@ Los gráficos del análisis punto a punto se dibujan en **canvas** en el navegad
 
 ### Paleta térmica Fluke High Contrast
 
-La paleta por defecto reproduce la «High Contrast» de la cámara Fluke. La LUT de 256 colores (`src/config/palettes/high-contrast.json`) se **derivó empíricamente** de la barra de color que la cámara incrusta en la miniatura JPEG de cada `.IS2` (columna x 313–317, de y = 26 a y = 181): mediana de 52 miniaturas, mediana móvil de 5 filas y suavizado gaussiano. Se validó con ΔE76 contra la propia imagen de la miniatura, modelando la fusión IR-visible de la cámara (α ≈ 0,75; mediana ≈ 10). El rango de cada imagen se calibra contra su miniatura (`src/imaging/flukeCalibration.js`) con un percentil como respaldo. Las miniaturas nunca se publican. El visor permite alternar **High Contrast / Ironbow / Grises** (variantes pre-renderizadas para las imágenes demo; render al vuelo para IS2) y muestra la escala en °C.
+La paleta por defecto reproduce la «High Contrast» de la cámara Fluke. La LUT de 256 colores (`src/config/palettes/high-contrast.json`) se **derivó empíricamente** de la barra de color que la cámara incrusta en la miniatura JPEG de cada `.IS2` (columna x 313–317, de y = 26 a y = 181): mediana de 52 miniaturas, mediana móvil de 5 filas y suavizado gaussiano. Se validó con ΔE76 contra la propia imagen de la miniatura, modelando la fusión IR-visible de la cámara (α ≈ 0,75; mediana ≈ 10). El rango de cada imagen se calibra contra su miniatura (`src/imaging/flukeCalibration.js`) con un percentil como respaldo. Las miniaturas nunca se publican. El visor de termogramas (abajo) permite elegir **High Contrast / Ironbow / Grises** sobre la matriz de temperaturas y muestra la escala en °C.
+
+### Visor de termogramas (estilo Fluke SmartView)
+
+La tarjeta **«Termografía (visor)»** del estudio y la herramienta `/mascaras` usan el mismo componente (`src/views/partials/thermo-viewer-core.ejs` + `public/js/thermo-viewer.js`). Reemplaza a las «termografías originales» del Detalle técnico. Todo se renderiza en canvas, en el navegador, desde una **matriz de temperaturas compacta** «TPV1» (`src/imaging/thermalArray.js`): uint16 con paso de 0,01 °C, unos 153 KB por imagen de 320 × 240. El recoloreo con la LUT recorre 76 800 píxeles por cambio, así que arrastrar los controles es fluido.
+
+- **Optimizar:**
+  - réplica (con datos reales hay una opción por archivo IS2 de la toma);
+  - paleta (High Contrast, Ironbow, Grises);
+  - saturación: «Estándar», donde bajo el mínimo no se colorea y se ve el fondo velado, como en la cámara, o «Paleta completa»;
+  - **alarma de color** «por encima de», «por debajo de» o «entre». Los píxeles en alarma van en color y el resto muestra la foto o la térmica en grises;
+  - emisividad, temperatura de fondo y transmisión del archivo, **sólo lectura** (las temperaturas usan la conversión lineal del portal, §8).
+- **Nivel y rango:** barra vertical de −30 a 90 °C con tres asas (máximo, nivel y mínimo), cajas numéricas y «Escala automática» (percentiles 1–99,5).
+- **Imagen:**
+  - la foto visible ocupa el cuadro y el IR va en **PIP**, alineado con el registro de la cámara;
+  - barra de color vertical con la marca de la alarma;
+  - lectura bajo el cursor y punto fijo con un clic;
+  - zoom, giro y desplazamiento;
+  - deslizador **«Fusión IR»** entre «Infrarrojo completo» y «Visible completo».
+- **Analizar:** punto, cursor, máximo y mínimo de la imagen, % en alarma y caja (máx., mín., promedio).
+- **Información:** cámara (sin número de serie), fecha de captura, resoluciones, registro, parámetros radiométricos y escala configurada en la cámara.
+
+**Foto visible e IR-Fusion en el IS2.** El `.IS2` de la TiS75 trae:
+
+- `Images/Main/028001E0.jpg`: la foto visible de 640 × 480 (el nombre codifica ancho y alto en hexadecimal). `028001E1.jpg` es la misma foto con una fila más.
+- `Images/Main/VLImageInfo.gpbenc`: protobuf **idéntico en todos los archivos** del estudio. Ubica el campo IR en (160, 120) con tamaño 960 × 720 sobre el sensor visible de 1280 × 960.
+
+El registro es fijo: el píxel IR (x, y) cae en (80 + 1,5·x, 60 + 1,5·y) de la foto, es decir, el recorte central de 480 × 360. No hay corrección de paralaje por archivo. El contorno de los pies coincide con un desvío de 2–4 px visibles, y las máscaras de la U-Net calzan sobre la foto. `IRImageInfo.gpbenc` guarda la emisividad (campo 10), el fondo (11), la transmisión (12) y la escala de la paleta en °C (14.6–14.7). `CalibrationData.gpbenc` trae 7 tramos radiométricos, que no se usan.
+
+**Privacidad.** La foto visible puede mostrar caras, el entorno o documentos. Sólo se sirve en **local con `SEED=real`**: el contenedor define la carpeta privada (`PRIVATE_DATA_DIR`, por defecto `tesis-2026info/`) únicamente fuera de producción, de Vercel y de las pruebas. Se lee del IS2 en cada pedido, se re-codifica sin metadatos y nunca se escribe en disco ni en `public/`. La sirven rutas autenticadas: `/medico/estudios/:id/visor/:toma/:rep/foto.jpg` (sólo el médico tratante) y `/mascaras/:clave/foto.jpg` (médico/a y administrador/a). En demo y en producción no hay fotos y esas rutas dan 404. El extremo «Visible» de la fusión muestra entonces la **térmica en escala de grises**, y el PIP queda deshabilitado. Para los pares demo, la matriz se reconstruye de la variante en grises pública (`public/demo/*-grises.png`) con la escala en °C de cada imagen (`src/seed/demoImages.json`, campo `escala`).
 
 ### Identidad
 

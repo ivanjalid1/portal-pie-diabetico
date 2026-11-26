@@ -25,6 +25,7 @@ const SettingsService = require('./services/SettingsService');
 const OutcomeLog = require('./services/OutcomeLog');
 const ThermalForecastService = require('./services/ThermalForecastService');
 const { MaskService } = require('./services/MaskService');
+const { ThermalViewerService } = require('./services/ThermalViewerService');
 const { seedDemoData, DEMO_PASSWORD } = require('./seed');
 const { loadRealDataset, seedRealData } = require('./seed/realData');
 
@@ -108,6 +109,22 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
           : null,
   });
 
+  // Visor de termogramas (estilo Fluke SmartView). La foto visible del IS2 sólo
+  // se sirve en local con SEED=real (nunca en producción, Vercel ni pruebas).
+  const path = require('node:path');
+  const viewerService = new ThermalViewerService({
+    files: repos.files,
+    maskService,
+    demoDir: path.join(__dirname, '..', 'public', 'demo'),
+    demoManifest: require('./seed/demoImages.json'),
+    privateDir:
+      overrides.viewerPrivateDir !== undefined
+        ? overrides.viewerPrivateDir
+        : config.localTools && !config.isTest && config.seed === 'real'
+          ? config.privateDataDir
+          : null,
+  });
+
   // Desenlaces reales registrados en el portal: con el driver memory y datos
   // reales se guardan también en data-local/outcomes/ (persisten al reiniciar y
   // alimentan scripts/ml/train-outcome.py). En pruebas sólo si se pide.
@@ -139,6 +156,7 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
       dashboardService,
       settingsService,
       maskService,
+      viewerService,
       forecastService,
     },
     outcomeLog,

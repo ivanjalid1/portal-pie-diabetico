@@ -35,6 +35,27 @@ function summarize(rois, umbral, corteSimetria) {
 }
 
 /**
+ * Completa el ambiente de cada toma con lo registrado en el estudio (medido)
+ * cuando las grillas no lo traen (estudios cargados en el portal, demo).
+ */
+function withStudyAmbient(grids, study) {
+  if (!study) return grids;
+  const out = { ...grids };
+  const campos = {
+    toma1: [study.tempAmbienteToma1, study.humedadRelativaToma1],
+    toma2: [study.tempAmbiente, study.humedadRelativa],
+  };
+  for (const k of ['toma1', 'toma2']) {
+    if (!out[k] || out[k].ambiente !== undefined) continue;
+    const [tempC, humedad] = campos[k];
+    if ((tempC ?? null) !== null || (humedad ?? null) !== null) {
+      out[k] = { ...out[k], ambiente: { tempC: tempC ?? null, humedad: humedad ?? null, origen: 'medida' } };
+    }
+  }
+  return out;
+}
+
+/**
  * Estrategia por defecto (`puntual-v1`): análisis PUNTO A PUNTO de cada toma
  * y modelo logístico PRELIMINAR sobre sus features.
  *
@@ -131,6 +152,7 @@ class PointwisePredictor extends UlcerPredictor {
       return { ...out, puntual: null };
     }
 
+    grids = withStudyAmbient(grids, study);
     const tciReference = referenceFor(this.tciStore, patient?.codigo ?? null);
     const { rois: roisPorToma, ...puntual } = analyzePointwise(grids, p, { tciReference });
     const actual = puntual.tomas.at(-1);

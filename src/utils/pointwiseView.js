@@ -4,7 +4,8 @@
  * Ayudas de presentación del análisis punto a punto (las usan las vistas):
  * arma el JSON que dibuja public/js/pointwise.js y textos en lenguaje simple.
  */
-const { decodeGrid, zonaDeFila, GRID } = require('../imaging/pointwise');
+const { decodeGrid, encodeGrid, zonaDeFila, GRID } = require('../imaging/pointwise');
+const { shiftGrid, fueraDeProtocolo, AJUSTE_AMBIENTE } = require('../imaging/ambient');
 const { zonasTexto, ZONA_NOMBRES } = require('../services/predictors/pointwiseAnalysis');
 const thermal = require('./thermal');
 const { fmt } = require('./format');
@@ -26,17 +27,32 @@ function rangeOf(tomas) {
   return { lo: Math.round(q(0.02) * 10) / 10, hi: Math.round(q(0.98) * 10) / 10 };
 }
 
+/**
+ * Grillas de una toma con las temperaturas absolutas ajustadas por el ambiente
+ * de la sala (src/imaging/ambient.js). Las diferencias izq. − der. y el cambio
+ * respecto de la mediana de cada pie no se alteran: el ajuste es una constante.
+ */
+function gridsAjustadas(t) {
+  const d = t.ambiente?.ajusteC;
+  if (!d) return { izq: t.izq, der: t.der };
+  return { izq: encodeGrid(shiftGrid(decodeGrid(t.izq), d)), der: encodeGrid(shiftGrid(decodeGrid(t.der), d)) };
+}
+
+/** ¿Alguna toma con temperaturas absolutas ajustadas por ambiente? */
+const conAjusteAmbiente = (a) => Boolean(a?.puntual?.tomas?.some((t) => t.ambiente?.ajusteC));
+
 /** Datos mínimos para dibujar los mapas (grillas, zonas excluidas, métricas, umbrales, LUT). */
 function payload(a) {
   const p = a?.puntual;
   if (!p) return null;
+  const tomas = p.tomas.map((t) => ({ ...t, ...gridsAjustadas(t) }));
   return {
     grilla: p.grilla,
     umbralPixel: p.umbralPixel,
     umbralCambio: p.umbralCambio,
-    rango: rangeOf(p.tomas),
+    rango: rangeOf(tomas),
     lut: LUT,
-    tomas: p.tomas.map((t) => ({
+    tomas: tomas.map((t) => ({
       toma: t.toma,
       izq: t.izq,
       der: t.der,
@@ -45,6 +61,48 @@ function payload(a) {
       tci: t.tci?.mapas ? { mapas: t.tci.mapas } : null,
     })),
   };
+}
+
+/**
+ * Condiciones de la sala de una toma, para mostrar:
+ * «Sala 22,1 °C · HR 55 % (medida)» o «Sala ≈21,5 °C (estimada)».
+ * `rangos` = protocolo vigente (Configuración).
+ */
+function ambienteToma(amb, rangos = null) {
+  if (!amb || (amb.tempC === null && amb.humedad === null)) {
+    return { texto: 'Sin registro de la sala', origen: null, fuera: { temp: false, hum: false, alguno: false } };
+  }
+  const est = amb.origen === 'estimada';
+  const partes = [];
+  if (amb.tempC !== null) partes.push(`Sala ${est ? '≈' : ''}${fmt.num(amb.tempC, 1)} °C`);
+  if (amb.humedad !== null) partes.push(`HR ${fmt.num(amb.humedad, 0)} %`);
+  return {
+    texto: partes.join(' · '),
+    origen: est ? 'estimada' : 'medida',
+    detalle: est
+      ? `Estimada por el fondo del termograma (±${fmt.num(amb.errorC ?? 0.7, 1)} °C); no se registró en la planilla.`
+      : 'Registrada en la planilla del equipo.',
+    ajusteC: amb.ajusteC ?? null,
+    fuera: fueraDeProtocolo(amb, rangos),
+  };
+}
+
+/**
+ * Ambiente de cada toma de un estudio: el del análisis (medido o estimado) o,
+ * si no lo trae, el registrado en el estudio.
+ */
+function ambientesDe(a, study) {
+  const out = {};
+  for (const k of [1, 2]) {
+    const t = a?.puntual?.tomas?.find((x) => x.toma === k);
+    if (t?.ambiente) out[k] = t.ambiente;
+    else if (study) {
+      const tempC = k === 1 ? study.tempAmbienteToma1 : study.tempAmbiente;
+      const humedad = k === 1 ? study.humedadRelativaToma1 : study.humedadRelativa;
+      if (tempC !== null || humedad !== null) out[k] = { tempC, humedad, origen: 'medida', ajusteC: null };
+    }
+  }
+  return out;
 }
 
 /** JSON seguro para incrustar en <script type="application/json">. */
@@ -233,6 +291,10 @@ module.exports = {
   TOOLTIP_RIESGO,
   payload,
   json,
+  ambienteToma,
+  ambientesDe,
+  conAjusteAmbiente,
+  AJUSTE_AMBIENTE,
   zonasTexto,
   hotspotTexto,
   lecturaToma,

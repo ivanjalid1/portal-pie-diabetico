@@ -32,7 +32,11 @@ function loadRealDataset(dir) {
   if (!dir || !fs.existsSync(file)) return null;
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-    return Array.isArray(data.pacientes) ? data : null;
+    if (!Array.isArray(data.pacientes)) return null;
+    // Ambiente por toma (scripts/precompute-ambiente.js): medido o estimado por el fondo.
+    const amb = path.join(dir, 'ambiente.json');
+    data.ambiente = fs.existsSync(amb) ? JSON.parse(fs.readFileSync(amb, 'utf8')).pacientes || {} : {};
+    return data;
   } catch {
     return null;
   }
@@ -109,6 +113,25 @@ const imagen = (t, slot) => ({
   size: 0,
   originalName: `${slot.toUpperCase()}.png`,
 });
+
+/** Ambiente de cada toma del paciente (`{1: {...}, 2: {...}}`), si se precalculó. */
+const ambienteDe = (dataset, codigo) => dataset.ambiente?.[codigo] || {};
+
+/**
+ * Campos de ambiente del estudio: sólo los MEDIDOS (los estimados por el fondo
+ * del termograma viajan con el análisis de cada toma, marcados «estimada»).
+ */
+function camposAmbiente(amb, conToma2) {
+  const medido = (a) => (a && a.origen === 'medida' ? a : null);
+  const a1 = medido(amb[1]);
+  const a2 = conToma2 ? medido(amb[2]) : null;
+  return {
+    tempAmbienteToma1: a1?.tempC ?? null,
+    humedadRelativaToma1: a1?.humedad ?? null,
+    tempAmbiente: a2?.tempC ?? null,
+    humedadRelativa: a2?.humedad ?? null,
+  };
+}
 
 /** Correo de la cuenta de portal de un paciente real (driver memory). */
 const correoLocal = (codigo) => `${codigo.replace('.', '').toLowerCase()}@pacientes.local`;
@@ -196,6 +219,7 @@ async function seedRealData(
     const t1 = p.tomas.find((t) => t.toma === 1 && t.ok);
     const t2 = p.tomas.find((t) => t.toma === 2 && t.ok) || null;
     const { f1, f2, estimada } = fechasDe(p, t1 || { fecha: null }, t2);
+    const amb = ambienteDe(dataset, p.codigo);
     const alta = new Date(new Date(f1).getTime() - 3600000).toISOString();
 
     let patient = skipExisting ? await repos.patients.findByCodigo(p.codigo) : null;
@@ -263,6 +287,7 @@ async function seedRealData(
         emisividad: ACQUISITION.emisividad,
         rangoMin: ACQUISITION.rango.min,
         rangoMax: ACQUISITION.rango.max,
+        ...camposAmbiente(amb, Boolean(t2)),
         paleta: 'High Contrast',
         valida: !noValido,
         motivoInvalidez: noValido
@@ -284,7 +309,12 @@ async function seedRealData(
         patient,
         study,
         images: [],
-        hints: { puntual: { toma1: { ...t1, fecha: f1 }, ...(t2 ? { toma2: { ...t2, fecha: f2 } } : {}) } },
+        hints: {
+          puntual: {
+            toma1: { ...t1, fecha: f1, ambiente: amb[1] || null },
+            ...(t2 ? { toma2: { ...t2, fecha: f2, ambiente: amb[2] || null } } : {}),
+          },
+        },
       });
       analysis = await repos.analyses.create({ ...output, studyId: study.id, createdAt: fecha });
     }
@@ -298,4 +328,4 @@ async function seedRealData(
   return { staff, resumen };
 }
 
-module.exports = { loadRealDataset, seedRealData, sinConsentimiento, correoLocal, DEMO_PASSWORD };
+module.exports = { loadRealDataset, seedRealData, sinConsentimiento, correoLocal, camposAmbiente, DEMO_PASSWORD };

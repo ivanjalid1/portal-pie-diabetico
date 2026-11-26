@@ -25,6 +25,8 @@
  *   node scripts/seed-supabase-real.js --rotate-staff=<archivo>
  *        (contraseñas nuevas para medico@ y admin@; se escriben SÓLO en <archivo>)
  *   node scripts/seed-supabase-real.js --models          (sube los modelos de data-local al bucket `modelos`)
+ *   node scripts/seed-supabase-real.js --ambiente        (estudios ya cargados: completa el ambiente de
+ *        cada toma —data-local/real/ambiente.json— y recalcula su análisis con la configuración vigente)
  */
 require('dotenv').config({ quiet: true });
 const crypto = require('node:crypto');
@@ -63,6 +65,7 @@ function parseArgs(argv) {
     rotateStaff: typeof get('rotate-staff') === 'string' ? get('rotate-staff') : null,
     models: Boolean(get('models')),
     skipPatients: Boolean(get('skip-patients')),
+    ambiente: Boolean(get('ambiente')),
   };
 }
 
@@ -159,6 +162,45 @@ async function uploadModels(admin, localDataDir, log, dryRun) {
   return total;
 }
 
+/**
+ * Estudios reales ya cargados: guarda el ambiente MEDIDO en el estudio y
+ * recalcula el análisis con el ambiente de cada toma (medido o estimado), con
+ * la configuración vigente. Sólo cambian las temperaturas absolutas ajustadas y
+ * el TCI ajustado: ΔT, área caliente, alertas y pronóstico no dependen del ambiente.
+ */
+async function updateAmbient({ repos, predictor, dataset, dryRun, log }) {
+  const { camposAmbiente } = require('../src/seed/realData');
+  const SettingsService = require('../src/services/SettingsService');
+  const settings = new SettingsService({ settings: repos.settings, analyses: repos.analyses, events: null });
+  const params = await settings.params();
+  const tot = { estudios: 0, sinCambios: 0, cambiaronCategoria: 0, faltan: 0 };
+  for (const p of dataset.pacientes) {
+    const patient = await repos.patients.findByCodigo(p.codigo);
+    const study = patient ? (await repos.studies.listByPatient(patient.id))[0] : null;
+    const a = study ? await repos.analyses.findByStudyId(study.id) : null;
+    if (!a?.puntual) {
+      tot.faltan += 1;
+      continue;
+    }
+    const amb = dataset.ambiente?.[p.codigo] || {};
+    const campos = camposAmbiente(amb, Boolean(study.image('toma2')));
+    const hints = {
+      puntual: Object.fromEntries(
+        a.puntual.tomas.map((t) => [`toma${t.toma}`, { ...t, ambiente: amb[t.toma] || null }]),
+      ),
+    };
+    const out = await predictor.predict({ patient, study: { ...study, ...campos }, hints, params });
+    const { rois: _r, roisToma1: _r1, ...fields } = out;
+    if (fields.categoria !== a.categoria) tot.cambiaronCategoria += 1;
+    if (!dryRun) {
+      await repos.studies.update(study.id, campos);
+      await repos.analyses.update(a.id, fields);
+    }
+    tot.estudios += 1;
+  }
+  log(`ambiente: ${JSON.stringify(tot)}`);
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const { buildConfig } = require('../src/config');
@@ -184,6 +226,21 @@ async function main() {
     log(`contraseñas del personal renovadas (ver ${path.resolve(args.rotateStaff)})`);
   }
   if (args.skipPatients) return;
+
+  if (args.ambiente) {
+    const predictorA = createPredictor(config.predictor, {
+      realDataDir: config.realDataDir,
+      riesgoModelo: config.riesgoModelo,
+    });
+    await updateAmbient({
+      repos: createDataLayer(config).repos,
+      predictor: predictorA,
+      dataset,
+      dryRun: args.dryRun,
+      log,
+    });
+    return;
+  }
 
   // Mismo predictor que la carga local SEED=real (referencia del TCI y modelos de data-local).
   const predictor = createPredictor(config.predictor, {

@@ -18,6 +18,17 @@ const {
   encodeGrid,
 } = require('../../imaging/pointwise');
 const { computeTci } = require('../../imaging/tci');
+const { ambienteDeToma, shiftGrid } = require('../../imaging/ambient');
+
+/** Mediana de las celdas válidas de ambos pies (°C absolutos). */
+function medianaPies(izq, der) {
+  const v = [];
+  for (const g of [izq, der]) for (const x of g) if (!Number.isNaN(x)) v.push(x);
+  if (!v.length) return null;
+  v.sort((a, b) => a - b);
+  const m = v.length >> 1;
+  return Math.round((v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2) * 100) / 100;
+}
 
 /** Cobertura mínima (fracción) para considerar analizada una zona. */
 const COBERTURA_MINIMA = 0.5;
@@ -58,12 +69,26 @@ function analyzePointwise(grids, p, { tciReference = null } = {}) {
     const metricas = asymmetryMetrics(izq, der, { umbralPixel, zonasExcluidas: excluidas });
     let tci = g.tci ?? null;
     if (!tci && tciReference) tci = serializeTci(computeTci(izq, der, tciReference));
+    // Ambiente de la sala: sólo corrige temperaturas absolutas y el TCI absoluto
+    // (src/imaging/ambient.js); ΔT, área caliente, alertas y pronóstico quedan crudos.
+    const ambiente = ambienteDeToma(g.ambiente);
+    const mediana = medianaPies(izq, der);
+    const absoluta = mediana === null ? null : { medianaC: mediana, medianaAjustadaC: null };
+    if (ambiente?.ajusteC !== null && ambiente?.ajusteC !== undefined) {
+      if (absoluta) absoluta.medianaAjustadaC = Math.round((mediana + ambiente.ajusteC) * 100) / 100;
+      if (tci && tciReference) {
+        const adj = computeTci(shiftGrid(izq, ambiente.ajusteC), shiftGrid(der, ambiente.ajusteC), tciReference);
+        tci = { ...tci, valorAjustado: adj?.valor ?? null, claseAjustada: adj?.clase ?? null };
+      }
+    }
     tomas.push({
       toma: k,
       izq: g.izq,
       der: g.der,
       segmentacion: g.segmentacion ?? 'clasica',
       tci,
+      ambiente,
+      absoluta,
       calidad: g.calidad ?? null,
       marco: g.marco ?? null,
       fecha: g.fecha ?? null,

@@ -58,7 +58,7 @@
           </figure>
         </div>
         <%- include('scale', { gradient: thermal.PALETTE_CSS.alto_contraste, ticks: tempTicks, label: `Escala de temperatura de ${fmt.num(rango.lo, 1)} a ${fmt.num(rango.hi, 1)} °C` }) %>
-        <p class="sr-caption">Temperatura de cada planta, con la misma escala para los dos pies.</p>
+        <p class="sr-caption">Temperatura de cada planta, con la misma escala para los dos pies.<% if (t.ambiente && t.ambiente.ajusteC) { %> Ajustada a una sala de 22 °C (<span class="num"><%= fmt.signed(t.ambiente.ajusteC, 2) %> °C</span>; sala <%= t.ambiente.origen === 'estimada' ? '≈' : '' %><span class="num"><%= fmt.num(t.ambiente.tempC, 1) %> °C</span>, <%= t.ambiente.origen %>).<% } %></p>
       </div>
       <div class="sr-maps__group sr-maps__group--dt">
         <figure class="pw-map pw-map--dt">
@@ -128,7 +128,7 @@
         <ul class="sr-keys">
           <li><span class="sr-key sr-key--hatch" aria-hidden="true"></span>Sin dato en el pie o en la referencia</li>
         </ul>
-        <p class="sr-panel__reading"><span><strong>TCI <span class="num"><%= fmt.num(T.valor, 2) %> °C</span></strong> (clase <%= T.clase %> de 5). Desvío medio por punto <span class="num"><%= fmt.signed(T.desvioMedio, 1) %> °C</span>. Referencia: <%= ref.fuente === 'cohorte' ? `${ref.miembros} pacientes simétricos de la cohorte${ref.looExcluido ? ', sin este paciente' : ''}` : 'pares de demostración' %>.</span></p>
+        <p class="sr-panel__reading"><span><strong>TCI <span class="num"><%= fmt.num(T.valor, 2) %> °C</span></strong> (clase <%= T.clase %> de 5)<% if (T.valorAjustado !== undefined && T.valorAjustado !== null) { %>; ajustado por ambiente (sala de 22 °C): <strong class="num"><%= fmt.num(T.valorAjustado, 2) %> °C</strong>, clase <%= T.claseAjustada %><% } %>. Desvío medio por punto <span class="num"><%= fmt.signed(T.desvioMedio, 1) %> °C</span>. Referencia: <%= ref.fuente === 'cohorte' ? `${ref.miembros} pacientes simétricos de la cohorte${ref.looExcluido ? ', sin este paciente' : ''}` : 'pares de demostración' %>.</span></p>
       </div>
     </div>
   </div>

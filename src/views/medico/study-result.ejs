@@ -38,7 +38,12 @@
     });
   }
   if (estimadas) avisos.push({ tono: 'info', texto: `<strong>Fecha estimada${estimadas.includes('y') ? 's' : ''}:</strong> toma ${estimadas}. El reloj de la cámara no estaba configurado.` });
-  if (t2 && s.tempAmbiente !== null && !C.ok) avisos.push({ tono: 'warn', texto: `<strong>Toma 2 fuera del protocolo de ambiente</strong> (${fmt.num(C.temp.min, 1)}–${fmt.num(C.temp.max, 1)} °C, ${C.hum.min}–${C.hum.max} % HR). Interpretá el resultado con cautela.` });
+  // Condiciones de la sala por toma (medidas o estimadas), contra el protocolo de Configuración.
+  const PR = protocolo();
+  const AMB = pw.ambientesDe(a, s);
+  const tomasAmb = (t2 ? [1, 2] : [1]).map((k) => ({ k, ...pw.ambienteToma(AMB[k] || null, PR) }));
+  const fueraAmb = tomasAmb.filter((x) => x.fuera.alguno);
+  if (fueraAmb.length) avisos.push({ tono: 'warn', texto: `<strong>${fueraAmb.map((x) => `Toma ${x.k}`).join(' y ')} fuera del protocolo de ambiente</strong> (${fmt.num(PR.tempAmbiente.min, 0)}–${fmt.num(PR.tempAmbiente.max, 0)} °C, ${PR.humedadRelativa.min}–${PR.humedadRelativa.max} % HR)${fueraAmb.some((x) => x.origen === 'estimada') ? ', con la temperatura estimada en alguna toma' : ''}. Las temperaturas absolutas se muestran ajustadas a una sala de 22 °C; la asimetría (ΔT) no depende del ambiente.` });
   const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   if (!s.valida) avisos.push({ tono: 'warn', texto: `<strong>Imágenes marcadas como no válidas.</strong>${s.motivoInvalidez ? ` Motivo: ${esc(s.motivoInvalidez)}` : ''}` });
   const avisoWarn = avisos.some((x) => x.tono === 'warn');
@@ -53,6 +58,15 @@
       <% if (t2) { %><span>Toma 2 <strong class="num"><%= fmt.date(s.fechaHora) %></strong><% if (s.diasEntreTomas !== null) { %> <span class="muted">(<%= s.diasEntreTomas %> días)</span><% } %></span><% } %>
       <% if (s.centro) { %><span class="muted"><%= s.centro %></span><% } %>
     </p>
+    <ul class="sr-amb" aria-label="Condiciones de la sala">
+      <% tomasAmb.forEach((x) => { %>
+      <li class="sr-amb__item<%= x.fuera.alguno ? ' sr-amb__item--warn' : '' %>" title="<%= x.detalle || '' %>">
+        <span class="toma-dot toma-dot--<%= x.k %>"></span><span class="sr-amb__toma">Toma <%= x.k %></span>
+        <span class="num"><%= x.texto %></span><% if (x.origen) { %> <span class="sr-amb__origen">(<%= x.origen %>)</span><% } %>
+        <% if (x.fuera.alguno) { %><span class="badge badge--warn sr-amb__badge">fuera de protocolo</span><% } %>
+      </li>
+      <% }) %>
+    </ul>
     <div class="sr-chips">
       <% if (mA) { %>
       <span class="badge badge--<%= tA.conAsimetria ? 'danger' : 'ok' %>"><span class="dot" aria-hidden="true"></span><%= tA.conAsimetria ? 'Asimetría térmica' : 'Sin asimetría relevante' %></span>
@@ -163,7 +177,7 @@
       <div class="table-wrap">
         <table class="table table--num table--dense">
           <caption class="sr-only">Métricas de la diferencia izquierdo − derecho por toma</caption>
-          <thead><tr><th scope="col">Toma</th><th scope="col">Área &gt; umbral</th><th scope="col">|ΔT| medio</th><th scope="col">|ΔT| p95</th><th scope="col">|ΔT| máx.</th><th scope="col">Media con signo</th><th scope="col">Puntos</th><th scope="col">Calidad de registro</th></tr></thead>
+          <thead><tr><th scope="col">Toma</th><th scope="col">Área &gt; umbral</th><th scope="col">|ΔT| medio</th><th scope="col">|ΔT| p95</th><th scope="col">|ΔT| máx.</th><th scope="col">Media con signo</th><th scope="col">Puntos</th><th scope="col">Mediana plantar</th><th scope="col">Calidad de registro</th></tr></thead>
           <tbody>
             <% PW.tomas.forEach((t) => { const m = t.metricas; %>
             <tr>
@@ -174,13 +188,14 @@
               <td><%= m ? fmt.num(m.maxAbs, 2) : '—' %></td>
               <td><%= m ? fmt.signed(m.mediaConSigno, 2) : '—' %></td>
               <td><%= m ? m.celdas : '—' %></td>
+              <td><%= t.absoluta ? (t.absoluta.medianaAjustadaC !== null ? `${fmt.num(t.absoluta.medianaAjustadaC, 1)} (cruda ${fmt.num(t.absoluta.medianaC, 1)})` : fmt.num(t.absoluta.medianaC, 1)) : '—' %></td>
               <td><%= t.calidad !== null ? fmt.num(t.calidad, 2) : '—' %></td>
             </tr>
             <% }) %>
           </tbody>
         </table>
       </div>
-      <p class="muted small">Valores en °C. ΔT = izquierdo − derecho espejado. <% PW.tomas.forEach((t) => { if (t.metricas) { %>Toma <%= t.toma %>: mayor diferencia en <%= pw.hotspotTexto(t.metricas) %> (<span class="num"><%= fmt.signed(t.metricas.hotspot.deltaT, 1) %> °C</span>). <% } }) %></p>
+      <p class="muted small">Valores en °C. ΔT = izquierdo − derecho espejado. La mediana plantar se ajusta a una sala de 22 °C (−<%= fmt.num(pw.AJUSTE_AMBIENTE.pendiente, 2) %> °C por °C de sala); las métricas de ΔT no se ajustan. <% PW.tomas.forEach((t) => { if (t.metricas) { %>Toma <%= t.toma %>: mayor diferencia en <%= pw.hotspotTexto(t.metricas) %> (<span class="num"><%= fmt.signed(t.metricas.hotspot.deltaT, 1) %> °C</span>). <% } }) %></p>
     </section>
 
     <section class="sr-tech__block" aria-labelledby="tech-hist">
@@ -222,7 +237,7 @@
         <div><dt>Cambio local</dt><dd>&gt; <span class="num"><%= fmt.num(PW.umbralCambio, 1) %> °C</span> respecto del cambio mediano del pie</dd></div>
         <div><dt>Segmentación</dt><dd><%= PW.tomas.map((t) => `Toma ${t.toma}: ${t.segmentacion === 'unet' ? 'U-Net' : 'clásica'}`).join(' · ') %><span class="muted"> · U-Net entrenada con etiquetas débiles; sin máscara U-Net, la clásica (umbral y crecimiento de regiones)</span></dd></div>
         <% const tciT = PW.tomas.filter((t) => t.tci); if (tciT.length) { const r0 = tciT[0].tci.referencia || {}; %>
-        <div><dt>TCI</dt><dd><%= tciT.map((t) => `Toma ${t.toma}: ${fmt.num(t.tci.valor, 2)} °C (clase ${t.tci.clase}; izq. ${fmt.num(t.tci.izq, 2)}, der. ${fmt.num(t.tci.der, 2)}; puntual ${fmt.num(t.tci.puntual, 2)})`).join(' · ') %>. Índice de cambio térmico (Hernández-Contreras et al., 2017): promedio de |T(angiosoma) − T(referencia)| en 4 angiosomas (<%= predictorInfo.tci ? predictorInfo.tci.angiosomas : 'aproximados' %>). Referencia: <%= r0.fuente === 'hernandez2019' ? `grupo control de la base pública 2019 (${r0.miembros} sujetos sin diabetes; otra cámara: el valor absoluto arrastra la diferencia de escala, el de patrón no)` : r0.fuente === 'cohorte' ? `${r0.miembros} pacientes simétricos de la cohorte${r0.looExcluido ? ' (sin este paciente)' : ''}` : 'pares de demostración' %>. De patrón: <%= tciT.map((t) => fmt.num(t.tci.patron, 2)).join(' / ') %> °C.</dd></div>
+        <div><dt>TCI</dt><dd><%= tciT.map((t) => `Toma ${t.toma}: ${fmt.num(t.tci.valor, 2)} °C (clase ${t.tci.clase}${t.tci.valorAjustado != null ? `; ajustado por ambiente ${fmt.num(t.tci.valorAjustado, 2)} °C, clase ${t.tci.claseAjustada}` : ''}; izq. ${fmt.num(t.tci.izq, 2)}, der. ${fmt.num(t.tci.der, 2)}; puntual ${fmt.num(t.tci.puntual, 2)})`).join(' · ') %>. Índice de cambio térmico (Hernández-Contreras et al., 2017): promedio de |T(angiosoma) − T(referencia)| en 4 angiosomas (<%= predictorInfo.tci ? predictorInfo.tci.angiosomas : 'aproximados' %>). Referencia: <%= r0.fuente === 'hernandez2019' ? `grupo control de la base pública 2019 (${r0.miembros} sujetos sin diabetes; otra cámara: el valor absoluto arrastra la diferencia de escala, el de patrón no)` : r0.fuente === 'cohorte' ? `${r0.miembros} pacientes simétricos de la cohorte${r0.looExcluido ? ' (sin este paciente)' : ''}` : 'pares de demostración' %>. De patrón: <%= tciT.map((t) => fmt.num(t.tci.patron, 2)).join(' / ') %> °C.</dd></div>
         <% } %>
         <div><dt>Análisis</dt><dd><code><%= a.predictorVersion %></code> <%= predictorInfo.nombre %></dd></div>
       </dl>
@@ -349,10 +364,11 @@
         <% } }) %>
       </div>
       <% } %>
-      <% const amb = (t, h) => (t === null && h === null ? 'Sin registro' : `${fmt.num(t, 1)} °C, HR ${fmt.num(h, 0)} %`); %>
       <dl class="kv kv--compact kv--2col">
-        <div><dt>Ambiente toma 1</dt><dd class="num"><%= amb(s.tempAmbienteToma1, s.humedadRelativaToma1) %></dd></div>
-        <div><dt>Ambiente toma 2</dt><dd class="num"><%= t2 ? amb(s.tempAmbiente, s.humedadRelativa) : 'Sin toma 2' %></dd></div>
+        <% tomasAmb.forEach((x) => { %>
+        <div><dt>Ambiente toma <%= x.k %></dt><dd class="num"><%= x.texto %><%= x.origen ? ` (${x.origen})` : '' %><%= x.fuera.alguno ? ' · fuera de protocolo' : '' %><%= x.ajusteC ? ` · ajuste de temperaturas absolutas ${fmt.signed(x.ajusteC, 2)} °C` : '' %></dd></div>
+        <% }) %>
+        <% if (!t2) { %><div><dt>Ambiente toma 2</dt><dd>Sin toma 2</dd></div><% } %>
         <div><dt>Distancia</dt><dd class="num"><%= s.distanciaCm %> cm</dd></div>
         <div><dt>Emisividad</dt><dd class="num"><%= fmt.num(s.emisividad, 2) %></dd></div>
         <div><dt>Rango</dt><dd class="num"><%= s.rangoMin %>–<%= s.rangoMax %> °C</dd></div>

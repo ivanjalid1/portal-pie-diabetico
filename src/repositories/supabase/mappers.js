@@ -43,6 +43,7 @@ const COLUMNS = {
     'hba1cNota',
     'tabaquismo',
     'neuropatia',
+    'neuropatiaSinDato',
     'neuropatiaPuntaje',
     'vibratoriaDer',
     'vibratoriaDerMas50',

@@ -124,3 +124,33 @@ Cuando se suben archivos **IS2**, la estrategia por defecto `puntual-v1` los ana
 - Nunca exponer `SUPABASE_SERVICE_ROLE_KEY` al navegador ni subir `.env` al repositorio (está en `.gitignore`).
 - Rotar `SESSION_SECRET` invalida todas las sesiones.
 - Con datos reales: `SHOW_DEMO_ACCOUNTS=false`, eliminar los usuarios demo (Authentication → Users en el panel de Supabase; las fichas asociadas deben borrarse antes por la restricción de clave foránea del médico) y definir las políticas de retención.
+
+## 8. Datos reales en producción
+
+La producción (Vercel + Supabase) tiene los mismos pacientes reales que la carga local `SEED=real`; sólo la usa el equipo. Los datos reales **nunca** pasan por git ni por el paquete de Vercel: van del disco local (`data-local/`) directo a Postgres y a Storage privado.
+
+1. Respaldo previo: exportación JSON de todas las tablas y de los usuarios de Auth con la service role, en `data-local/backups/`.
+2. Migración `20260101000900_datos_reales.sql` (`supabase db push`): admite datos clínicos y de ambiente faltantes (no se inventan), guarda «neuropatía sin dato», admite estudios con una sola toma y crea el bucket privado `modelos`.
+3. Carga (idempotente; primero `--dry-run`, que simula todo en memoria e informa tamaños):
+
+   ```bash
+   node scripts/seed-supabase-real.js --dry-run --models
+   node scripts/seed-supabase-real.js --models --purge-demo --rotate-staff=.credenciales-produccion.local
+   ```
+
+   - `--models`: sube los modelos de `data-local/` al bucket `modelos` (pronóstico por zona, CNN de neuropatía, atlas de angiosomas, referencia del TCI y, si existe, el modelo de desenlace).
+   - `--purge-demo`: borra los pacientes `DEMO-…`, sus imágenes y las cuentas demo de pacientes y de `medico2@demo.com`.
+   - `--rotate-staff=<archivo>`: contraseñas aleatorias nuevas para `medico@demo.com` y `admin@demo.com`, escritas sólo en ese archivo (ignorado por git y por Vercel).
+   - Pacientes: fichas, estudios y análisis punto a punto (segmentación U-Net precalculada, TCI, riesgo a 12 meses, alertas) calculados con el mismo predictor que la carga local. Imágenes en `estudios/<patient_id>/<study_id>/<toma>.png`, servidas sólo con URLs firmadas a través de `/media`.
+   - Los pacientes **no** tienen acceso al portal: el perfil (necesario para que el equipo vea nombre y teléfono) usa un correo no entregable `<código>@sin-acceso.invalid`, una contraseña aleatoria que no se guarda, la identidad de Auth bloqueada y el perfil desactivado.
+   - Excluye a los pacientes sin consentimiento (`src/utils/consent.js`).
+4. Modelos en el arranque en frío: con `DATA_DRIVER=supabase`, `api/index.js` descarga el bucket `modelos` a `/tmp` y define `PRONOSTICO_MODELO`, `RIESGO_FACTOR_MODELO`, `ANGIOSOME_ATLAS`, `OUTCOME_MODEL` y `TCI_REFERENCE_DIR` antes de cargar la app (`src/config/remoteModels.js`). `MODELS_BUCKET=none` lo desactiva.
+5. Variables de Vercel: además de las de Supabase, `SHOW_DEMO_ACCOUNTS=false` (no mostrar las cuentas demo en el ingreso).
+
+Qué queda distinto de local:
+
+- La herramienta de corrección de máscaras (`/mascaras`) está deshabilitada: depende de las matrices de `data-local/ml/` (cientos de MB) y sólo tiene sentido en local.
+- Los desenlaces registrados se guardan en la ficha del paciente en Postgres (no en `data-local/outcomes/`).
+- Los estudios nuevos usan la segmentación clásica, igual que en local; la U-Net sólo está precalculada para la cohorte.
+- Prefijo reservado `visible/` del bucket `estudios` para las fotos visibles de la cámara (visor tipo Fluke); por ahora no se suben porque la extracción no está implementada.
+

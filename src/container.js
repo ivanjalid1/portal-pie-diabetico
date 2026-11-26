@@ -35,7 +35,7 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
   const predictor =
     overrides.predictor ||
     createPredictor(config.predictor, {
-      realDataDir: config.seed === 'real' ? config.realDataDir : null,
+      realDataDir: config.seed === 'real' ? config.realDataDir : config.tciReferenceDir,
       riesgoModelo: config.riesgoModelo,
     });
 

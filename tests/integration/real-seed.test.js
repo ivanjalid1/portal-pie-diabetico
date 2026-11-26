@@ -88,4 +88,51 @@ describe('SEED=real (datos locales precalculados)', () => {
     expect(img.status).toBe(200);
     expect(img.headers['content-type']).toBe('image/png');
   });
+
+  it('con opciones de Supabase: personal existente, pacientes sin acceso, imágenes propias e idempotencia', async () => {
+    const { buildConfig } = require('../../src/config');
+    const { createDataLayer } = require('../../src/repositories/RepositoryFactory');
+    const { createPredictor } = require('../../src/services/predictors/PredictorFactory');
+    const { seedRealData, loadRealDataset } = require('../../src/seed/realData');
+    const { patientEmail } = require('../../scripts/seed-supabase-real');
+    const { repos } = createDataLayer(buildConfig({ NODE_ENV: 'test', DATA_DRIVER: 'memory' }));
+    const predictor = createPredictor('riesgo-bibliografia', { riesgoModelo: 'bibliografia' });
+    const medico = await repos.users.create({ id: 'm-1', email: 'medico@demo.com', role: 'medico', nombre: 'M' });
+    const saved = [];
+    const identities = [];
+    const options = {
+      dataset: loadRealDataset(tmp),
+      dir: tmp,
+      staff: { medico },
+      createIdentity: async (email) => {
+        identities.push(email);
+        return `id-${identities.length}`;
+      },
+      patientAccount: { email: patientEmail, activo: false },
+      saveImage: async ({ patient, studyId, slot }) => {
+        saved.push(slot);
+        return { slot, storagePath: `${patient.id}/${studyId}/${slot}.png`, mime: 'image/png', size: 1 };
+      },
+      skipExisting: true,
+    };
+    const first = await seedRealData({ repos, predictor }, options);
+    expect(first.resumen).toMatchObject({ pacientes: 2, estudios: 2, excluidos: 1, existentes: 0, imagenes: 3 });
+    expect(saved).toEqual(['toma1', 'toma1', 'toma2']);
+    // Sin cuentas demo ni correos locales: el perfil del paciente existe pero está desactivado.
+    expect(identities).toEqual(['phc901@sin-acceso.invalid', 'phc902@sin-acceso.invalid']);
+    expect(await repos.users.findByEmail('phc901@pacientes.local')).toBeFalsy();
+    expect(await repos.users.findByEmail('paciente@demo.com')).toBeFalsy();
+    const perfil = await repos.users.findByEmail('phc901@sin-acceso.invalid');
+    expect(perfil.activo).toBe(false);
+    const p1 = await repos.patients.findByCodigo('P.HC901');
+    expect(p1.medicoId).toBe('m-1');
+    const [s1] = await repos.studies.listByPatient(p1.id);
+    expect(s1.image('toma1').storagePath).toBe(`${p1.id}/${s1.id}/toma1.png`);
+
+    // Segunda corrida: no duplica nada.
+    const second = await seedRealData({ repos, predictor }, options);
+    expect(second.resumen).toMatchObject({ pacientes: 2, estudios: 2, existentes: 2, imagenes: 0 });
+    expect(identities).toHaveLength(2);
+    expect(await repos.studies.listByPatient(p1.id)).toHaveLength(1);
+  });
 });

@@ -47,6 +47,8 @@ function build(env = process.env) {
     // SEED=real carga los pacientes reales precalculados en data-local/ (sólo local).
     seed: (env.SEED || 'demo').toLowerCase(),
     realDataDir: env.REAL_DATA_DIR || require('node:path').join(__dirname, '..', '..', 'data-local', 'real'),
+    // Carpeta con tci-reference.json fuera de SEED=real (producción: descargada del bucket `modelos`).
+    tciReferenceDir: env.TCI_REFERENCE_DIR || null,
     // Carpeta local de trabajo (ignorada por git y Vercel): desenlaces registrados,
     // máscaras corregidas, datos de ML.
     localDataDir: env.LOCAL_DATA_DIR || require('node:path').join(__dirname, '..', '..', 'data-local'),

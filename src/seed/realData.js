@@ -110,32 +110,81 @@ const imagen = (t, slot) => ({
   originalName: `${slot.toUpperCase()}.png`,
 });
 
+/** Correo de la cuenta de portal de un paciente real (driver memory). */
+const correoLocal = (codigo) => `${codigo.replace('.', '').toLowerCase()}@pacientes.local`;
+
+/** Imagen precalculada servida desde el montaje local `real/` (driver memory). */
+const imagenLocal = async ({ toma, slot }) => imagen(toma, slot);
+
 /**
- * @param {object} deps  `{ repos, predictor }` del driver memory
- * @param {object} options `{ dataset, dir, passwordHash, log }`
+ * Carga los pacientes reales usando sólo los contratos de repositorio: sirve
+ * para el driver memory (arranque local con SEED=real) y para Supabase
+ * (scripts/seed-supabase-real.js).
+ *
+ * @param {object} deps  `{ repos, predictor }` del driver activo
+ * @param {object} options
+ * @param {object}   options.dataset   resultado de scripts/precompute-real.js
+ * @param {string}   [options.dir]     carpeta data-local/real (montaje de imágenes del driver memory)
+ * @param {string}   [options.passwordHash] hash bcrypt de las cuentas (driver memory)
+ * @param {object}   [options.staff]   cuentas del personal ya existentes `{ medico, ... }`;
+ *   si falta se crean las de demostración (driver memory)
+ * @param {(email: string, perfil: object) => Promise<string>} [options.createIdentity]
+ *   crea la identidad de una cuenta y devuelve su id (por defecto: credencial local)
+ * @param {{email?: (codigo: string) => string, activo?: boolean}} [options.patientAccount]
+ *   correo y estado de la cuenta de portal de cada paciente
+ * @param {(args: {patient, studyId, slot, toma, dir}) => Promise<object>} [options.saveImage]
+ *   guarda la imagen de la toma y devuelve su registro (por defecto: montaje local)
+ * @param {boolean} [options.skipExisting] idempotencia: no duplica pacientes, estudios ni análisis
  */
-async function seedRealData({ repos, predictor }, { dataset, dir, passwordHash, log = () => {} }) {
-  if (repos.files.mount) repos.files.mount('real/', dir);
-  const staff = {};
-  const identity = () => {
+async function seedRealData(
+  { repos, predictor },
+  {
+    dataset,
+    dir,
+    passwordHash,
+    staff: existingStaff = null,
+    createIdentity = null,
+    patientAccount = {},
+    saveImage = imagenLocal,
+    skipExisting = false,
+    log = () => {},
+  },
+) {
+  if (dir && repos.files.mount) repos.files.mount('real/', dir);
+  const identity = async (email, perfil) => {
+    if (createIdentity) return createIdentity(email, perfil);
     const id = uuid();
     repos.credentials.set(id, passwordHash);
     return id;
   };
   const now = new Date();
-  for (const s of STAFF) {
-    const { key, ...profile } = s;
-    staff[key] = await repos.users.create({
-      ...profile,
-      id: identity(),
-      activo: true,
-      mustChangePassword: false,
-      createdAt: new Date(now.getTime() - 200 * DAY).toISOString(),
-    });
+  let staff = existingStaff;
+  if (!staff) {
+    staff = {};
+    for (const s of STAFF) {
+      const { key, ...profile } = s;
+      staff[key] = await repos.users.create({
+        ...profile,
+        id: await identity(s.email, profile),
+        activo: true,
+        mustChangePassword: false,
+        createdAt: new Date(now.getTime() - 200 * DAY).toISOString(),
+      });
+    }
   }
+  const correo = patientAccount.email || correoLocal;
+  const activo = patientAccount.activo !== false;
   // Todos los pacientes reales quedan a cargo de la cuenta médica principal.
   const medico = staff.medico;
-  const resumen = { pacientes: 0, estudios: 0, sinToma2: 0, conZonasFaltantes: 0, excluidos: 0 };
+  const resumen = {
+    pacientes: 0,
+    estudios: 0,
+    sinToma2: 0,
+    conZonasFaltantes: 0,
+    excluidos: 0,
+    existentes: 0,
+    imagenes: 0,
+  };
 
   for (const p of dataset.pacientes) {
     // Defensa en profundidad: aunque el precálculo ya los excluye, un paciente
@@ -148,78 +197,100 @@ async function seedRealData({ repos, predictor }, { dataset, dir, passwordHash, 
     const t2 = p.tomas.find((t) => t.toma === 2 && t.ok) || null;
     const { f1, f2, estimada } = fechasDe(p, t1 || { fecha: null }, t2);
     const alta = new Date(new Date(f1).getTime() - 3600000).toISOString();
-    const { nombre, apellido } = splitNombre(p.identidad?.nombre);
-    const user = await repos.users.create({
-      id: identity(),
-      email: `${p.codigo.replace('.', '').toLowerCase()}@pacientes.local`,
-      role: 'paciente',
-      nombre: nombre || p.codigo,
-      apellido,
-      telefono: p.identidad?.telefono || null,
-      institucion: p.centro,
-      activo: true,
-      mustChangePassword: false,
-      createdAt: alta,
-    });
-    const patient = await repos.patients.create({
-      ...clinicalFields(p.clinica, f1),
-      codigo: p.codigo,
-      dni: p.identidad?.dni || null,
-      centro: p.centro,
-      userId: user.id,
-      medicoId: medico.id,
-      consentimientoFirmado: true,
-      consentimientoFecha: f1.slice(0, 10),
-      createdAt: alta,
-    });
-    await repos.consents.create({
-      patientId: patient.id,
-      version: CONSENT_VERSION,
-      fechaFirma: f1.slice(0, 10),
-      registradoPor: medico.id,
-      notas: 'Participante del estudio (planilla clínica del equipo).',
-      createdAt: alta,
-    });
+
+    let patient = skipExisting ? await repos.patients.findByCodigo(p.codigo) : null;
+    if (patient) {
+      resumen.existentes += 1;
+    } else {
+      const { nombre, apellido } = splitNombre(p.identidad?.nombre);
+      const email = correo(p.codigo);
+      const perfil = {
+        email,
+        role: 'paciente',
+        nombre: nombre || p.codigo,
+        apellido,
+        telefono: p.identidad?.telefono || null,
+        institucion: p.centro,
+        activo,
+        mustChangePassword: false,
+        createdAt: alta,
+      };
+      const user =
+        (skipExisting && (await repos.users.findByEmail(email))) ||
+        (await repos.users.create({ ...perfil, id: await identity(email, perfil) }));
+      patient = await repos.patients.create({
+        ...clinicalFields(p.clinica, f1),
+        codigo: p.codigo,
+        dni: p.identidad?.dni || null,
+        centro: p.centro,
+        userId: user.id,
+        medicoId: medico.id,
+        consentimientoFirmado: true,
+        consentimientoFecha: f1.slice(0, 10),
+        createdAt: alta,
+      });
+      await repos.consents.create({
+        patientId: patient.id,
+        version: CONSENT_VERSION,
+        fechaFirma: f1.slice(0, 10),
+        registradoPor: medico.id,
+        notas: 'Participante del estudio (planilla clínica del equipo).',
+        createdAt: alta,
+      });
+    }
     resumen.pacientes += 1;
     if (!t1) continue;
 
-    const noValido = Boolean(p.clinica?.noValido);
+    // Un estudio por paciente real; si ya está cargado sólo se completa el análisis.
+    let study = skipExisting ? (await repos.studies.listByPatient(patient.id))[0] || null : null;
     const fecha = t2 ? f2 : f1;
-    const study = await repos.studies.create({
-      id: uuid(),
-      patientId: patient.id,
-      medicoId: medico.id,
-      fechaHora: fecha,
-      fechaToma1: f1,
-      centro: p.centro,
-      distanciaCm: ACQUISITION.distanciaCm,
-      emisividad: ACQUISITION.emisividad,
-      rangoMin: ACQUISITION.rango.min,
-      rangoMax: ACQUISITION.rango.max,
-      paleta: 'High Contrast',
-      valida: !noValido,
-      motivoInvalidez: noValido
-        ? 'Marcado en la planilla clínica como «no válido» por la imagen (excluido en la Parte 1).'
-        : null,
-      images: [imagen(t1, 'toma1'), ...(t2 ? [imagen(t2, 'toma2')] : [])],
-      estado: 'analizado',
-      notasMedico: estimada.length
-        ? `Fecha de la toma ${estimada.join(' y ')} estimada: el reloj de la cámara no estaba configurado.`
-        : '',
-      publicado: true,
-      publicadoAt: fecha,
-      createdAt: fecha,
-    });
-    const output = await predictor.predict({
-      patient,
-      study,
-      images: [],
-      hints: { puntual: { toma1: { ...t1, fecha: f1 }, ...(t2 ? { toma2: { ...t2, fecha: f2 } } : {}) } },
-    });
-    await repos.analyses.create({ ...output, studyId: study.id, createdAt: fecha });
+    if (!study) {
+      const noValido = Boolean(p.clinica?.noValido);
+      const studyId = uuid();
+      const images = [];
+      for (const [toma, slot] of [[t1, 'toma1'], ...(t2 ? [[t2, 'toma2']] : [])]) {
+        images.push(await saveImage({ patient, studyId, slot, toma, dir }));
+        resumen.imagenes += 1;
+      }
+      study = await repos.studies.create({
+        id: studyId,
+        patientId: patient.id,
+        medicoId: medico.id,
+        fechaHora: fecha,
+        fechaToma1: f1,
+        centro: p.centro,
+        distanciaCm: ACQUISITION.distanciaCm,
+        emisividad: ACQUISITION.emisividad,
+        rangoMin: ACQUISITION.rango.min,
+        rangoMax: ACQUISITION.rango.max,
+        paleta: 'High Contrast',
+        valida: !noValido,
+        motivoInvalidez: noValido
+          ? 'Marcado en la planilla clínica como «no válido» por la imagen (excluido en la Parte 1).'
+          : null,
+        images,
+        estado: 'analizado',
+        notasMedico: estimada.length
+          ? `Fecha de la toma ${estimada.join(' y ')} estimada: el reloj de la cámara no estaba configurado.`
+          : '',
+        publicado: true,
+        publicadoAt: fecha,
+        createdAt: fecha,
+      });
+    }
+    let analysis = skipExisting ? await repos.analyses.findByStudyId(study.id) : null;
+    if (!analysis) {
+      const output = await predictor.predict({
+        patient,
+        study,
+        images: [],
+        hints: { puntual: { toma1: { ...t1, fecha: f1 }, ...(t2 ? { toma2: { ...t2, fecha: f2 } } : {}) } },
+      });
+      analysis = await repos.analyses.create({ ...output, studyId: study.id, createdAt: fecha });
+    }
     resumen.estudios += 1;
     if (!t2) resumen.sinToma2 += 1;
-    if (output.puntual?.tomas.some((t) => t.zonasNoAnalizadas.length)) resumen.conZonasFaltantes += 1;
+    if (analysis.puntual?.tomas?.some((t) => t.zonasNoAnalizadas?.length)) resumen.conZonasFaltantes += 1;
   }
   log(
     `datos reales: ${resumen.pacientes} pacientes, ${resumen.estudios} estudios, ${resumen.sinToma2} sin toma 2, ${resumen.conZonasFaltantes} con zonas no analizadas, ${resumen.excluidos} excluidos sin consentimiento`,
@@ -227,4 +298,4 @@ async function seedRealData({ repos, predictor }, { dataset, dir, passwordHash, 
   return { staff, resumen };
 }
 
-module.exports = { loadRealDataset, seedRealData, sinConsentimiento, DEMO_PASSWORD };
+module.exports = { loadRealDataset, seedRealData, sinConsentimiento, correoLocal, DEMO_PASSWORD };

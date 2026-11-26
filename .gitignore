@@ -28,3 +28,6 @@ scripts/*.local.json
 
 # Caché de Python (scripts/ml)
 __pycache__/
+
+# Credenciales privadas de producción (nunca se versionan ni se despliegan)
+.credenciales-produccion.local

@@ -145,6 +145,8 @@ Detalle en [docs/arquitectura.md §8.3–8.11](docs/arquitectura.md). Los pesos,
 | Paciente | `paciente@demo.com` (y 11 pacientes `*.demo@gmail.com`, p. ej. `maria.gomez.demo@gmail.com`) |
 | Administrador/a | `admin@demo.com` |
 
+Estas cuentas son sólo para la ejecución local. La producción usa credenciales privadas: las contraseñas demo no funcionan allí.
+
 Los pacientes y datos clínicos de demostración son **ficticios**. Las termografías demo son **termogramas reales anonimizados** del estudio (usados con autorización del equipo): sólo la matriz infrarroja de las plantas, renderizada con la paleta **Fluke High Contrast** derivada empíricamente de la cámara (y variantes Ironbow y Grises), sin fotos visibles, texto ni metadatos (ver `scripts/generate-demo-images.js`).
 
 El tema por defecto es **claro**; el oscuro se activa con el botón ☀/☾ y se recuerda en el navegador.

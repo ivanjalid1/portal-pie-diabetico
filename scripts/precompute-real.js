@@ -37,7 +37,10 @@ const { decodeGrid } = require('../src/imaging/pointwise');
 const Q = require('../src/imaging/photoQuality');
 const { alignVisible, reconcileShifts, visibleSharpness } = require('../src/imaging/visibleAlign');
 const { computeTci } = require('../src/imaging/tci');
-const { serializeTci } = require('../src/services/predictors/pointwiseAnalysis');
+const { serializeTci, zonasDeToma } = require('../src/services/predictors/pointwiseAnalysis');
+const { promediarToma, pasaCriterios } = require('../src/imaging/replicaAverage');
+const { asymmetryMetrics, zoneCoverage } = require('../src/imaging/pointwise');
+const { exclusionTesis } = require('../src/utils/tesisExclusion');
 const {
   REFERENCE_FILE,
   CRITERIO_COHORTE,
@@ -68,6 +71,18 @@ const USE_UNET = process.env.SEGMENTACION !== 'clasica';
  * Nunca se modifican temperaturas.
  */
 const CORRECCION = process.env.CORRECCION_FOTOS !== '0';
+/**
+ * Promedio de réplicas (por defecto activo, requiere la corrección): el
+ * resultado de cada toma usa la media píxel a píxel de las grillas de todas
+ * las réplicas sin banderas graves (src/imaging/replicaAverage.js).
+ * PROMEDIO_REPLICAS=0 vuelve a usar sólo la réplica elegida.
+ */
+const PROMEDIO = CORRECCION && process.env.PROMEDIO_REPLICAS !== '0';
+/** Métricas de asimetría de una réplica (umbral por píxel por defecto), para la estabilidad. */
+function metricasReplica(izq, der) {
+  const { excluidas } = zonasDeToma(zoneCoverage(izq, der));
+  return asymmetryMetrics(izq, der, { umbralPixel: 1, zonasExcluidas: excluidas });
+}
 /** Réplicas a menos de esta diferencia de puntaje se consideran equivalentes (gana la primera captura). */
 const EMPATE =
   Number.isFinite(Number(process.env.SELECCION_EMPATE)) && process.env.SELECCION_EMPATE !== undefined
@@ -141,6 +156,8 @@ function readClinical(sheets) {
       textos: r.filter((v) => typeof v === 'string'),
       observaciones: obs,
       noValido: obs ? /NO VALIDO/i.test(obs) : false,
+      // Motivo de la exclusión en la Parte 1 de la tesis ('imagen' | 'peso'), sólo como dato histórico.
+      exclusionTesis: exclusionTesis(obs),
       generoLesion: siNo(r[2]),
       edad: numOr(r[3]),
       sexo: typeof r[4] === 'string' ? r[4].trim().toUpperCase().slice(0, 1) : null,
@@ -329,14 +346,23 @@ function processToma(files, codigo, toma) {
   }
   const validas = cands.length;
   // Sin corrección: la de mayor calidad (la primera si empatan), como antes.
+  // Con el promedio, la foto que representa la toma sale de las réplicas que pasan los criterios.
+  const limpias = PROMEDIO ? cands.filter(pasaCriterios) : [];
   const best = CORRECCION
-    ? Q.selectReplica(cands, { empate: EMPATE })
+    ? Q.selectReplica(limpias.length ? limpias : cands, { empate: EMPATE })
     : cands.reduce((a, b) => (!a || b.calidad > a.calidad ? b : a), null);
   if (!best) return { toma, replicas: files.length, validas: 0, ok: false };
   let calidadFotos = null;
+  let grillas = { izq: best.cf.izq, der: best.cf.der };
   if (CORRECCION) {
     const tq = Q.tomaQuality(cands, best);
     calidadFotos = { ...tq, rep: best.rep + 1 };
+    if (PROMEDIO) {
+      const pr = promediarToma(cands, best, { metricas: metricasReplica });
+      grillas = { izq: pr.izq, der: pr.der };
+      calidadFotos.promedio = pr.info;
+      for (const c of cands) c.enPromedio = pr.info.promedio && pr.info.reps.includes(c.rep + 1);
+    }
     (fotos.tomas[codigo] ||= {})[toma] = { elegida: best.key, ...calidadFotos };
     for (const c of cands) {
       const m = c.metricas;
@@ -347,6 +373,7 @@ function processToma(files, codigo, toma) {
         calidad: c.calidad,
         puntaje: c.puntaje,
         elegida: c === best,
+        enPromedio: Boolean(c.enPromedio),
         banderas: c.banderas,
         segmentacion: c.cf.segmentacion,
         limpieza: c.cf.limpieza,
@@ -377,8 +404,8 @@ function processToma(files, codigo, toma) {
       }
     }
   }
-  const izq = encodeGrid(best.cf.izq);
-  const der = encodeGrid(best.cf.der);
+  const izq = encodeGrid(grillas.izq);
+  const der = encodeGrid(grillas.der);
   best.izq = izq;
   best.der = der;
   best.segmentacion = best.cf.segmentacion;
@@ -512,7 +539,10 @@ function main() {
     console.log(
       `Fotos: ${reps.length} réplicas · máscaras limpiadas ${reps.filter((r) => r.limpieza?.cambiados).length} · ` +
         `fotos realineadas ${reps.filter((r) => r.alineacion?.aplicada).length} · ` +
-        `tomas con calidad baja ${tomasQ.filter((t) => t.baja).length} de ${tomasQ.length}`,
+        `tomas con calidad baja ${tomasQ.filter((t) => t.baja).length} de ${tomasQ.length}` +
+        (PROMEDIO
+          ? ` · tomas promediadas (≥ 2 réplicas) ${tomasQ.filter((t) => t.promedio?.n >= 2).length}`
+          : ''),
     );
   }
   const conT1 = pacientes.filter((p) => p.tomas.some((t) => t.toma === 1 && t.ok)).length;

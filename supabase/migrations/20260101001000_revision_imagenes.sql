@@ -2,7 +2,6 @@
 -- Revisión manual de cada foto del visor (réplica de termograma de una toma):
 -- aprobada, rechazada o pendiente («Falta revisar»), con un comentario, quién
 -- la revisó y cuándo. Es sólo una etiqueta: no cambia temperaturas ni análisis.
--- (Pendiente de aplicar: no se ejecutó contra el proyecto de producción.)
 -- =========================================================================
 
 create table if not exists public.study_image_reviews (

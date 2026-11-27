@@ -152,5 +152,22 @@ Qué queda distinto de local:
 - La herramienta de corrección de máscaras (`/mascaras`) está deshabilitada: depende de las matrices de `data-local/ml/` (cientos de MB) y sólo tiene sentido en local.
 - Los desenlaces registrados se guardan en la ficha del paciente en Postgres (no en `data-local/outcomes/`).
 - Los estudios nuevos usan la segmentación clásica, igual que en local; la U-Net sólo está precalculada para la cohorte.
-- Prefijo reservado `visible/` del bucket `estudios` para las fotos visibles de la cámara (visor tipo Fluke); por ahora no se suben porque la extracción no está implementada.
+- Visor: `scripts/upload-visor-real.js` sube al bucket privado `estudios` las matrices de cada réplica (`termica/…`), las fotos visibles re-codificadas sin metadatos (`visible/…`) y el manifiesto `visor.json` con la calidad automática de cada réplica (incluida la marca «en el promedio»). Se sirven sólo por las rutas autenticadas del visor.
+
+### Actualizar los datos ya cargados (p. ej. promedio de réplicas)
+
+Cuando cambia el precálculo (`data-local/real-v3`: promedio de réplicas, §8.14 de arquitectura; etiqueta de los «NO VALIDO», §8.15):
+
+1. Respaldo de todas las tablas y usuarios en `data-local/backups/`.
+2. Migraciones pendientes (`supabase db push`; p. ej. `20260101001000_revision_imagenes.sql`, revisión manual de las fotos).
+3. Recalcular los estudios existentes con las grillas nuevas (idempotente; primero `--dry-run`, que lee la base pero no escribe):
+
+   ```bash
+   REAL_DATA_DIR=data-local/real-v3 node scripts/seed-supabase-real.js --actualizar --dry-run
+   REAL_DATA_DIR=data-local/real-v3 node scripts/seed-supabase-real.js --actualizar
+   REAL_DATA_DIR=data-local/real-v3 node scripts/upload-visor-real.js --dry-run
+   REAL_DATA_DIR=data-local/real-v3 node scripts/upload-visor-real.js
+   ```
+
+   `--actualizar` reemplaza el análisis de cada estudio (configuración vigente), vuelve a subir la imagen de cada toma y quita la marca automática «no válido» que la carga anterior ponía a los marcados en la planilla; no toca fichas, consentimientos, revisiones de fotos ni invalidaciones cargadas a mano.
 

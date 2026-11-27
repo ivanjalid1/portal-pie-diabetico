@@ -98,10 +98,12 @@ class ThermalViewerService {
    * aplicó), encuadre de los pies (px IR) y giro sugerido para mostrar.
    */
   static viewerQuality(q) {
-    if (!q) return { evaluada: false, avisos: [], alineacion: null, encuadre: null, giro: 0 };
+    if (!q) return { evaluada: false, enPromedio: false, avisos: [], alineacion: null, encuadre: null, giro: 0 };
     const al = q.alineacion;
     return {
       evaluada: true,
+      // Réplica incluida en el promedio de la toma (src/imaging/replicaAverage.js).
+      enPromedio: Boolean(q.enPromedio),
       avisos: flagLabels(q.banderas),
       alineacion: al && al.aplicada ? { dx: al.dxFoto, dy: al.dyFoto } : null,
       encuadre: Array.isArray(q.encuadre) && q.encuadre.length === 4 ? q.encuadre : null,
@@ -250,6 +252,7 @@ class ThermalViewerService {
             info: r.info || null,
             // El manifiesto guarda los campos ya resueltos (scripts/upload-visor-real.js).
             evaluada: Boolean(r.evaluada),
+            enPromedio: Boolean(r.enPromedio),
             avisos: Array.isArray(r.avisos) ? r.avisos : [],
             alineacion: r.alineacion || null,
             encuadre: Array.isArray(r.encuadre) ? r.encuadre : null,

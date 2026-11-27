@@ -27,6 +27,10 @@
  *   node scripts/seed-supabase-real.js --models          (sube los modelos de data-local al bucket `modelos`)
  *   node scripts/seed-supabase-real.js --ambiente        (estudios ya cargados: completa el ambiente de
  *        cada toma —data-local/real/ambiente.json— y recalcula su análisis con la configuración vigente)
+ *   node scripts/seed-supabase-real.js --actualizar      (estudios ya cargados: reemplaza las grillas de
+ *        cada toma por las del dataset —p. ej. el promedio de réplicas—, vuelve a subir la imagen de cada
+ *        toma, recalcula el análisis con la configuración vigente y quita la marca automática «no válido»
+ *        de la Parte 1; los pacientes nuevos se cargan como siempre)
  */
 require('dotenv').config({ quiet: true });
 const crypto = require('node:crypto');
@@ -66,6 +70,7 @@ function parseArgs(argv) {
     models: Boolean(get('models')),
     skipPatients: Boolean(get('skip-patients')),
     ambiente: Boolean(get('ambiente')),
+    actualizar: Boolean(get('actualizar')),
   };
 }
 
@@ -201,6 +206,79 @@ async function updateAmbient({ repos, predictor, dataset, dryRun, log }) {
   log(`ambiente: ${JSON.stringify(tot)}`);
 }
 
+/** Motivo que la carga anterior ponía a los marcados «NO VALIDO» (ahora sólo etiqueta histórica). */
+const MOTIVO_NO_VALIDO_ANTERIOR = 'Marcado en la planilla clínica como «no válido» por la imagen (excluido en la Parte 1).';
+
+/**
+ * Estudios reales ya cargados: grillas nuevas del dataset (promedio de
+ * réplicas), imagen de cada toma, análisis recalculado con la configuración
+ * vigente y sin la marca automática «no válido» de la Parte 1. No toca las
+ * fichas, los consentimientos, las revisiones de fotos ni lo que haya marcado
+ * a mano el equipo (otro motivo de invalidez se respeta).
+ */
+async function refreshExisting({ repos, admin, bucket, predictor, dataset, dir, dryRun, log }) {
+  const { camposAmbiente, sinConsentimiento } = require('../src/seed/realData');
+  const SettingsService = require('../src/services/SettingsService');
+  const settings = new SettingsService({ settings: repos.settings, analyses: repos.analyses, events: null });
+  const params = await settings.params();
+  const tot = { estudios: 0, imagenes: 0, cambiaronCategoria: 0, validados: 0, faltan: 0, nuevos: 0 };
+  const cambios = [];
+  for (const p of dataset.pacientes) {
+    if (sinConsentimiento(p)) continue;
+    const t1 = p.tomas.find((t) => t.toma === 1 && t.ok);
+    const t2 = p.tomas.find((t) => t.toma === 2 && t.ok) || null;
+    if (!t1) continue;
+    const patient = await repos.patients.findByCodigo(p.codigo);
+    if (!patient) {
+      tot.nuevos += 1;
+      continue;
+    }
+    const study = (await repos.studies.listByPatient(patient.id))[0] || null;
+    const a = study ? await repos.analyses.findByStudyId(study.id) : null;
+    if (!study || !a) {
+      tot.faltan += 1;
+      continue;
+    }
+    const amb = dataset.ambiente?.[p.codigo] || {};
+    const conT2 = Boolean(t2 && study.image('toma2'));
+    const campos = camposAmbiente(amb, conT2);
+    const hints = {
+      puntual: {
+        toma1: { ...t1, fecha: study.fechaToma1 || study.fechaHora, ambiente: amb[1] || null },
+        ...(conT2 ? { toma2: { ...t2, fecha: study.fechaHora, ambiente: amb[2] || null } } : {}),
+      },
+    };
+    const out = await predictor.predict({ patient, study: { ...study, ...campos }, hints, params });
+    const { rois: _r, roisToma1: _r1, ...fields } = out;
+    if (fields.categoria !== a.categoria) {
+      tot.cambiaronCategoria += 1;
+      cambios.push(`${p.codigo} ${a.categoria}→${fields.categoria}`);
+    }
+    const validar = !study.valida && study.motivoInvalidez === MOTIVO_NO_VALIDO_ANTERIOR;
+    if (validar) tot.validados += 1;
+    for (const [t, slot] of [[t1, 'toma1'], ...(conT2 ? [[t2, 'toma2']] : [])]) {
+      const img = study.image(slot);
+      if (!img?.storagePath || !t.imagen) continue;
+      const buffer = fs.readFileSync(path.join(dir, t.imagen));
+      if (!dryRun) {
+        const { error } = await admin.storage
+          .from(bucket)
+          .upload(img.storagePath, buffer, { contentType: 'image/png', upsert: true });
+        if (error) throw new Error(`storage.upload: ${error.message}`);
+      }
+      tot.imagenes += 1;
+    }
+    if (!dryRun) {
+      await repos.studies.update(study.id, { ...campos, ...(validar ? { valida: true, motivoInvalidez: null } : {}) });
+      await repos.analyses.update(a.id, fields);
+    }
+    tot.estudios += 1;
+  }
+  log(`actualizar: ${JSON.stringify(tot)}`);
+  if (cambios.length) log(`categoría: ${cambios.join(', ')}`);
+  return tot;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const { buildConfig } = require('../src/config');
@@ -248,6 +326,21 @@ async function main() {
     riesgoModelo: config.riesgoModelo,
   });
   log(`predictor: ${predictor.info.version}`);
+
+  if (args.actualizar) {
+    // Lecturas reales también en --dry-run (sólo se omiten las escrituras).
+    await refreshExisting({
+      repos: createDataLayer(config).repos,
+      admin,
+      bucket: config.supabase.bucket,
+      predictor,
+      dataset,
+      dir: config.realDataDir,
+      dryRun: args.dryRun,
+      log,
+    });
+    return;
+  }
 
   let repos;
   let staff;
@@ -331,4 +424,13 @@ if (require.main === module) {
   });
 }
 
-module.exports = { generatePassword, parseArgs, patientEmail, localModelFiles, PATIENT_EMAIL_DOMAIN, BAN_DURATION };
+module.exports = {
+  generatePassword,
+  parseArgs,
+  patientEmail,
+  localModelFiles,
+  refreshExisting,
+  MOTIVO_NO_VALIDO_ANTERIOR,
+  PATIENT_EMAIL_DOMAIN,
+  BAN_DURATION,
+};

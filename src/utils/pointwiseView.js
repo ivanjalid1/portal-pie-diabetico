@@ -10,6 +10,7 @@ const { zonasTexto, ZONA_NOMBRES } = require('../services/predictors/pointwiseAn
 const thermal = require('./thermal');
 const { fmt } = require('./format');
 const { flagLabels } = require('../imaging/photoQuality');
+const { etiquetaExclusionTesis } = require('./tesisExclusion');
 
 /** LUT High Contrast reducida a 64 colores (para el navegador). */
 const LUT = (() => {
@@ -209,6 +210,44 @@ function calidadFotosAviso(t) {
   };
 }
 
+const listaReps = (reps) =>
+  reps.length > 1 ? `${reps.slice(0, -1).join(', ')} y ${reps.at(-1)}` : String(reps[0] ?? '');
+
+/**
+ * Cuántas fotos (réplicas) se promediaron en el resultado de una toma
+ * (src/imaging/replicaAverage.js) y cuánto variaba el área caliente entre ellas.
+ * @returns {null|{n:number, corto:string, detalle:string}}
+ */
+function promedioFotos(t) {
+  const q = t?.calidadFotos?.promedio;
+  if (!q || !q.n) return null;
+  const reps = Array.isArray(q.reps) ? q.reps : [];
+  const e = q.estabilidad;
+  const variacion =
+    e && e.areaCalienteDe !== null && e.areaCalienteDe !== undefined
+      ? ` Entre esas fotos, el área con diferencia variaba ${numEs(e.areaCalienteMin, 0)}–${numEs(e.areaCalienteMax, 0)} % (desvío ${numEs(e.areaCalienteDe, 1)} puntos).`
+      : '';
+  if (!q.promedio) {
+    return {
+      n: 1,
+      corto: '1 foto (ninguna pasa los criterios)',
+      detalle: `Ninguna foto pasa los criterios de encuadre y segmentación: se usó sola la menos afectada (réplica ${reps[0] ?? '—'}).`,
+    };
+  }
+  if (q.n === 1) {
+    return {
+      n: 1,
+      corto: '1 foto',
+      detalle: `Sólo la réplica ${reps[0] ?? '—'} pasa los criterios de encuadre y segmentación; se usó sola.`,
+    };
+  }
+  return {
+    n: q.n,
+    corto: `Promedio de ${q.n} fotos`,
+    detalle: `Resultado con el promedio punto a punto de ${q.n} fotos (réplicas ${listaReps(reps)}) que pasan los criterios de encuadre y segmentación.${variacion}`,
+  };
+}
+
 /** Cambio del área con diferencia entre la toma 1 y la toma 2 (puntos porcentuales). */
 function cambioArea(a) {
   const m1 = a?.puntualToma?.(1)?.metricas;
@@ -320,6 +359,8 @@ module.exports = {
   lecturaToma,
   noAnalizadoTexto,
   calidadFotosAviso,
+  promedioFotos,
+  etiquetaExclusionTesis,
   cambioArea,
   ZONA_NOMBRES,
   ZONA_CON_ARTICULO,

@@ -953,7 +953,7 @@
         const parts = [`Réplica ${r.rep}`];
         if (r.calidad !== null && r.calidad !== undefined) parts.push(`calidad ${nf2.format(r.calidad)}`);
         if (r.mejor) parts.push('mejor');
-        if (r.noValido) parts.push('no válida');
+        if (r.enPromedio) parts.push('en el promedio');
         const graves = (r.avisos || []).filter((a) => a.grave).length;
         if (graves) parts.push(`${graves} aviso${graves === 1 ? '' : 's'}`);
         o.textContent = parts.join(' · ');

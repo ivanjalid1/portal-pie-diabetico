@@ -137,4 +137,4 @@ function zonasTexto(toma) {
   };
 }
 
-module.exports = { analyzePointwise, serializeTci, zonasTexto, ZONA_NOMBRES, COBERTURA_MINIMA };
+module.exports = { analyzePointwise, serializeTci, zonasTexto, zonasDeToma, ZONA_NOMBRES, COBERTURA_MINIMA };

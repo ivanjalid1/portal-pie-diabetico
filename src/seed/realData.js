@@ -269,7 +269,6 @@ async function seedRealData(
     let study = skipExisting ? (await repos.studies.listByPatient(patient.id))[0] || null : null;
     const fecha = t2 ? f2 : f1;
     if (!study) {
-      const noValido = Boolean(p.clinica?.noValido);
       const studyId = uuid();
       const images = [];
       for (const [toma, slot] of [[t1, 'toma1'], ...(t2 ? [[t2, 'toma2']] : [])]) {
@@ -289,10 +288,11 @@ async function seedRealData(
         rangoMax: ACQUISITION.rango.max,
         ...camposAmbiente(amb, Boolean(t2)),
         paleta: 'High Contrast',
-        valida: !noValido,
-        motivoInvalidez: noValido
-          ? 'Marcado en la planilla clínica como «no válido» por la imagen (excluido en la Parte 1).'
-          : null,
+        // Los marcados «NO VALIDO» en la planilla (excluidos en la Parte 1) se evalúan con los mismos
+        // criterios automáticos de calidad que el resto: la marca sólo queda como etiqueta histórica
+        // (src/utils/tesisExclusion.js, a partir de las observaciones de la ficha).
+        valida: true,
+        motivoInvalidez: null,
         images,
         estado: 'analizado',
         notasMedico: estimada.length

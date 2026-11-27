@@ -15,6 +15,7 @@ const { encodePng } = require('../../src/imaging/png');
 function syntheticDataset(dir) {
   fs.mkdirSync(path.join(dir, 'img'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'img', 'PHC901-toma1.png'), encodePng(2, 2, Buffer.alloc(12, 200)));
+  fs.writeFileSync(path.join(dir, 'img', 'PHC902-toma2.png'), encodePng(2, 2, Buffer.alloc(12, 100)));
   const g1 = analyzeIs2Pointwise(fakeIs2());
   const g2 = analyzeIs2Pointwise(fakeIs2({ asym: 200 }));
   const toma = (k, g, fecha) => ({
@@ -41,6 +42,30 @@ function syntheticDataset(dir) {
       paciente('P.HC902', [toma(1, g1, '2026-08-02T12:00:00.000Z'), toma(2, g2, '2018-11-10T12:00:00.000Z')]),
       // La planilla marca que este paciente no dio su consentimiento: nunca se carga.
       paciente('P.HC903', [toma(1, g1, '2026-08-03T12:00:00.000Z')], { observaciones: 'Paciente sin consentimiento' }),
+      // Excluido en la Parte 1 por la imagen: se carga y se evalúa como el resto (sólo etiqueta histórica).
+      paciente(
+        'P.HC904',
+        [
+          {
+            ...toma(1, g1, '2026-08-04T12:00:00.000Z'),
+            imagen: 'img/PHC901-toma1.png',
+            calidadFotos: {
+              replicas: 3,
+              limpias: 3,
+              baja: false,
+              banderas: [],
+              rep: 1,
+              promedio: {
+                n: 3,
+                promedio: true,
+                reps: [1, 2, 3],
+                estabilidad: { areaCalienteDe: 6.2, areaCalienteMin: 20, areaCalienteMax: 32, deltaMaxDe: 0.3 },
+              },
+            },
+          },
+        ],
+        { noValido: true, observaciones: 'PACIENTE NO VALIDO X IMAGEN' },
+      ),
     ],
   };
   fs.writeFileSync(path.join(dir, 'dataset.json'), JSON.stringify(dataset));
@@ -87,6 +112,19 @@ describe('SEED=real (datos locales precalculados)', () => {
     const img = await medico.get(`/media/estudios/${s1.id}/toma1`);
     expect(img.status).toBe(200);
     expect(img.headers['content-type']).toBe('image/png');
+    // «NO VALIDO» en la planilla: estudio válido, etiqueta histórica neutra y promedio de fotos.
+    const nv = await container.repos.patients.findByCodigo('P.HC904');
+    const [s4] = await container.repos.studies.listByPatient(nv.id);
+    expect(s4.valida).toBe(true);
+    expect(s4.motivoInvalidez).toBeNull();
+    const p4 = await medico.get(`/medico/estudios/${s4.id}`);
+    expect(p4.status).toBe(200);
+    expect(p4.text).toContain('Excluido en la tesis de Ana (imagen)');
+    expect(p4.text).toContain('Promedio de 3 fotos');
+    expect(p4.text).not.toContain('marcadas como no válidas');
+    const f4 = await medico.get(`/medico/pacientes/${nv.id}`);
+    expect(f4.text).toContain('Excluido en la tesis de Ana (imagen)');
+    expect(f4.text).not.toContain('Imagen no válida');
   });
 
   it('con opciones de Supabase: personal existente, pacientes sin acceso, imágenes propias e idempotencia', async () => {
@@ -116,10 +154,10 @@ describe('SEED=real (datos locales precalculados)', () => {
       skipExisting: true,
     };
     const first = await seedRealData({ repos, predictor }, options);
-    expect(first.resumen).toMatchObject({ pacientes: 2, estudios: 2, excluidos: 1, existentes: 0, imagenes: 3 });
-    expect(saved).toEqual(['toma1', 'toma1', 'toma2']);
+    expect(first.resumen).toMatchObject({ pacientes: 3, estudios: 3, excluidos: 1, existentes: 0, imagenes: 4 });
+    expect(saved).toEqual(['toma1', 'toma1', 'toma2', 'toma1']);
     // Sin cuentas demo ni correos locales: el perfil del paciente existe pero está desactivado.
-    expect(identities).toEqual(['phc901@sin-acceso.invalid', 'phc902@sin-acceso.invalid']);
+    expect(identities).toEqual(['phc901@sin-acceso.invalid', 'phc902@sin-acceso.invalid', 'phc904@sin-acceso.invalid']);
     expect(await repos.users.findByEmail('phc901@pacientes.local')).toBeFalsy();
     expect(await repos.users.findByEmail('paciente@demo.com')).toBeFalsy();
     const perfil = await repos.users.findByEmail('phc901@sin-acceso.invalid');
@@ -131,8 +169,74 @@ describe('SEED=real (datos locales precalculados)', () => {
 
     // Segunda corrida: no duplica nada.
     const second = await seedRealData({ repos, predictor }, options);
-    expect(second.resumen).toMatchObject({ pacientes: 2, estudios: 2, existentes: 2, imagenes: 0 });
-    expect(identities).toHaveLength(2);
+    expect(second.resumen).toMatchObject({ pacientes: 3, estudios: 3, existentes: 3, imagenes: 0 });
+    expect(identities).toHaveLength(3);
     expect(await repos.studies.listByPatient(p1.id)).toHaveLength(1);
+  });
+
+  it('--actualizar: grillas nuevas, imagen re-subida y sin la marca automática «no válido» de la carga anterior', async () => {
+    const { buildConfig } = require('../../src/config');
+    const { createDataLayer } = require('../../src/repositories/RepositoryFactory');
+    const { createPredictor } = require('../../src/services/predictors/PredictorFactory');
+    const { seedRealData, loadRealDataset } = require('../../src/seed/realData');
+    const { refreshExisting, MOTIVO_NO_VALIDO_ANTERIOR } = require('../../scripts/seed-supabase-real');
+    const { repos } = createDataLayer(buildConfig({ NODE_ENV: 'test', DATA_DRIVER: 'memory' }));
+    const predictor = createPredictor('riesgo-bibliografia', { riesgoModelo: 'bibliografia' });
+    const medico = await repos.users.create({ id: 'm-2', email: 'medico@demo.com', role: 'medico', nombre: 'M' });
+    const dataset = loadRealDataset(tmp);
+    let n = 0;
+    await seedRealData(
+      { repos, predictor },
+      {
+        dataset,
+        dir: tmp,
+        staff: { medico },
+        createIdentity: async () => `id-${(n += 1)}`,
+        saveImage: async ({ patient, studyId, slot }) => ({
+          slot,
+          storagePath: `${patient.id}/${studyId}/${slot}.png`,
+          mime: 'image/png',
+          size: 1,
+        }),
+        skipExisting: true,
+      },
+    );
+    // Como quedó en producción con la carga anterior.
+    const nv = await repos.patients.findByCodigo('P.HC904');
+    const [s4] = await repos.studies.listByPatient(nv.id);
+    await repos.studies.update(s4.id, { valida: false, motivoInvalidez: MOTIVO_NO_VALIDO_ANTERIOR });
+    const otro = await repos.patients.findByCodigo('P.HC901');
+    const [s1] = await repos.studies.listByPatient(otro.id);
+    await repos.studies.update(s1.id, { valida: false, motivoInvalidez: 'Movimiento (marcado a mano)' });
+    const a4 = await repos.analyses.findByStudyId(s4.id);
+    await repos.analyses.update(a4.id, { puntual: { ...a4.puntual, tomas: [] } });
+
+    const subidas = [];
+    const admin = {
+      storage: {
+        from: () => ({
+          upload: async (key) => {
+            subidas.push(key);
+            return { error: null };
+          },
+        }),
+      },
+    };
+    const args = { repos, admin, bucket: 'estudios', predictor, dataset, dir: tmp, log: () => {} };
+    const seco = await refreshExisting({ ...args, dryRun: true });
+    expect(seco).toMatchObject({ estudios: 3, validados: 1 });
+    expect(subidas).toEqual([]);
+    expect((await repos.studies.findById(s4.id)).valida).toBe(false);
+
+    const tot = await refreshExisting({ ...args, dryRun: false });
+    expect(tot).toMatchObject({ estudios: 3, imagenes: 4, validados: 1, nuevos: 0 });
+    expect(subidas).toContain(`${nv.id}/${s4.id}/toma1.png`);
+    const s4b = await repos.studies.findById(s4.id);
+    expect(s4b.valida).toBe(true);
+    expect(s4b.motivoInvalidez).toBeNull();
+    // Lo marcado a mano por el equipo no se toca.
+    expect((await repos.studies.findById(s1.id)).valida).toBe(false);
+    const a4b = await repos.analyses.findByStudyId(s4.id);
+    expect(a4b.puntual.tomas[0].calidadFotos.promedio.n).toBe(3);
   });
 });

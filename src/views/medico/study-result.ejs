@@ -79,6 +79,12 @@
       <span class="badge badge--persist" title="Más del <%= fmt.num(FC.areaMinima, 0) %> % de la zona caliente en la toma 1 y en la toma 2. La asimetría que persiste en mediciones sucesivas se considera preulcerosa (IWGDF 2023, recomendación 7; Lavery et al. 2007)."><%- include('../partials/icon', { name: 'alert', size: 14 }) %><%= nP > 1 ? 'Zonas calientes persistentes' : 'Zona caliente persistente' %>: <%= FC.persistentes.map((z) => z.texto).join(', ') %> (2 tomas)</span>
       <% } %>
       <span class="badge badge--muted"><%= t2 ? 'Toma 1 y toma 2' : 'Sólo toma 1' %></span>
+      <% if (PW) { PW.tomas.forEach((t) => { const pf = pw.promedioFotos(t); if (pf) { %>
+      <span class="badge badge--muted" data-promedio-fotos title="<%= pf.detalle %>"><%= PW.tomas.length > 1 ? `Toma ${t.toma}: ` : '' %><%= pf.corto %></span>
+      <% } }) } %>
+      <% const exTesis = pw.etiquetaExclusionTesis(p); if (exTesis) { %>
+      <span class="badge badge--outline" data-exclusion-tesis title="Marca histórica de la planilla clínica: no afecta este análisis, que usa los mismos criterios de calidad de foto que el resto. El paciente sigue fuera del entrenamiento de los modelos."><%= exTesis %></span>
+      <% } %>
       <span class="badge badge--outline"><%= s.publicado ? 'Visible para el paciente' : 'No visible para el paciente' %></span>
       <% if (typeof revision !== 'undefined' && revision && revision.resumen.total) { const RS = revision.resumen; %>
       <a class="badge badge--<%= RS.rechazado ? 'danger' : RS.pendiente ? 'muted' : 'ok' %> ir-count" href="#revision" data-ir-count title="Revisión manual de las fotos del visor">Fotos: <span data-ir-count-text><%= resumenTexto(RS) %></span></a>
@@ -182,7 +188,7 @@
       <div class="table-wrap">
         <table class="table table--num table--dense">
           <caption class="sr-only">Métricas de la diferencia izquierdo − derecho por toma</caption>
-          <thead><tr><th scope="col">Toma</th><th scope="col">Área &gt; umbral</th><th scope="col">|ΔT| medio</th><th scope="col">|ΔT| p95</th><th scope="col">|ΔT| máx.</th><th scope="col">Media con signo</th><th scope="col">Puntos</th><th scope="col">Mediana plantar</th><th scope="col">Calidad de registro</th></tr></thead>
+          <thead><tr><th scope="col">Toma</th><th scope="col">Área &gt; umbral</th><th scope="col">|ΔT| medio</th><th scope="col">|ΔT| p95</th><th scope="col">|ΔT| máx.</th><th scope="col">Media con signo</th><th scope="col">Puntos</th><th scope="col">Mediana plantar</th><th scope="col">Calidad de registro</th><th scope="col">Fotos</th></tr></thead>
           <tbody>
             <% PW.tomas.forEach((t) => { const m = t.metricas; %>
             <tr>
@@ -195,6 +201,8 @@
               <td><%= m ? m.celdas : '—' %></td>
               <td><%= t.absoluta ? (t.absoluta.medianaAjustadaC !== null ? `${fmt.num(t.absoluta.medianaAjustadaC, 1)} (cruda ${fmt.num(t.absoluta.medianaC, 1)})` : fmt.num(t.absoluta.medianaC, 1)) : '—' %></td>
               <td><%= t.calidad !== null ? fmt.num(t.calidad, 2) : '—' %></td>
+              <% const pfT = pw.promedioFotos(t); const eT = t.calidadFotos && t.calidadFotos.promedio && t.calidadFotos.promedio.estabilidad; %>
+              <td title="<%= pfT ? pfT.detalle : '' %>"><%= pfT ? pfT.corto : '—' %><% if (eT && eT.areaCalienteDe !== null) { %><span class="muted"> · área ± <%= fmt.num(eT.areaCalienteDe, 1) %> pts</span><% } %></td>
             </tr>
             <% }) %>
           </tbody>

@@ -20,6 +20,7 @@
   <span><%= p.centro %></span>
   <% if (last) { %><%- include('../partials/risk-badge', { analysis: last.analysis, showPct: true }) %><% if (last.analysis.puntualActual) { %><span class="badge badge--<%= last.analysis.puntualActual.conAsimetria ? 'danger' : 'ok' %>"><%= last.analysis.puntualActual.conAsimetria ? 'Con asimetría punto a punto' : 'Sin asimetría punto a punto' %></span><% } %><% } %>
   <% if (!p.consentimientoFirmado) { %><span class="badge badge--danger">Sin consentimiento vigente</span><% } %>
+  <% const exTesis = pw.etiquetaExclusionTesis(p); if (exTesis) { %><span class="badge badge--outline" data-exclusion-tesis title="Marca histórica de la planilla clínica. Sus estudios se evalúan con los mismos criterios de calidad de foto que el resto; sigue fuera del entrenamiento de los modelos."><%= exTesis %></span><% } %>
 </div>
 
 <div class="grid grid--main">

@@ -1043,3 +1043,31 @@ Sin IA generativa y **sin tocar temperaturas**: sólo se elige otra réplica, se
 - se realinearon 351 fotos visibles (89 de más de 4 px); 78 quedan con el registro de la cámara por separación piel/fondo poco clara y 4 desplazamientos grandes sin respaldo se descartaron;
 - **54 tomas quedan con calidad baja**: no tienen ninguna réplica limpia y no se pueden arreglar sin inventar datos;
 - la categoría de riesgo cambió en 1 de 105 estudios. Los cambios de métricas entre réplicas equivalentes muestran la **variabilidad entre capturas** de la misma toma.
+
+### 8.14 Promedio de réplicas por toma
+
+Cambiar entre réplicas **igual de buenas** de una misma toma movía mucho las métricas (por ejemplo, el área caliente de P.HC033 toma 1 pasaba de 34 % a 51 % según la foto elegida). Por eso, desde `data-local/real-v3`, el resultado punto a punto de cada toma usa la **media píxel a píxel** de las grillas canónicas por pie (40 × 100) de **todas las réplicas que pasan los criterios de encuadre y segmentación** (sin banderas graves: C1–C6, C8, C13 de §8.13). El visor sigue mostrando cada foto por separado.
+
+| Regla | Detalle |
+| --- | --- |
+| Qué se promedia | Las grillas `izq` y `der` (°C) ya registradas de cada réplica que pasa. Las banderas leves (pies girados, fondo tibio, foto visible borrosa o desalineada) no excluyen. |
+| Celdas | Cada celda se promedia **sólo entre las réplicas que la midieron**; si ninguna la midió queda sin dato. No se rellena nada. |
+| Ninguna pasa | Se usa la mejor réplica sola (`selectReplica`) y la toma sigue con **calidad baja**. |
+| Foto que representa la toma | La mejor entre las que pasan (imagen del estudio, calidad de registro, fecha, marco). |
+| Registro | `calidadFotos.promedio = { n, promedio, reps, estabilidad }` en cada toma del `dataset.json` (y en el análisis); `enPromedio` por réplica en `fotos.json`. |
+| Estabilidad | Con ≥ 2 réplicas, desvío estándar y rango del área caliente (umbral por píxel por defecto, 1 °C) y desvío del ΔT máximo entre las réplicas usadas. |
+| Desactivar | `PROMEDIO_REPLICAS=0` (o `CORRECCION_FOTOS=0`) vuelve a la réplica sola. |
+
+Módulo: `src/imaging/replicaAverage.js` (`meanGrid`, `pasaCriterios`, `promediarToma`, `estabilidad`). En la página del estudio aparece «Promedio de 3 fotos» (o «1 foto», o «1 foto (ninguna pasa los criterios)») con el detalle de las réplicas y su variación; la tabla del detalle técnico agrega la columna «Fotos». En el visor, el selector de réplica marca «en el promedio».
+
+**Resultado en la cohorte** (178 tomas; contra `data-local/real`): 114 tomas se promedian (13 con 2 réplicas, 68 con 3, 30 con 4 y 3 con 5–6), 10 usan la única réplica que pasa y 54 siguen con calidad baja. Entre las réplicas buenas de una misma toma, el área caliente tiene un desvío mediano de 1,2 puntos (p90 3,4; máx. 8,0) y un rango mediano de 2,2 puntos (p90 6,4; máx. 14,9); el ΔT máximo, 0,16 °C. Contra `data-local/real` cambió la categoría de riesgo en 5 de 105 estudios (P.HC007, P.HC024, P.HC045 y P.HC051 de sin riesgo a moderado; P.HC026 de moderado a sin riesgo) y la asimetría de la toma actual en 4 (P.HC010 pasa a con asimetría; P.HC020, P.HC070 y P.RF006 a sin asimetría, todos cerca del 10 % de área mínima). Las diferencias del área caliente por toma tienen mediana 0,7 puntos (p90 3,9).
+
+### 8.15 Pacientes marcados «NO VALIDO» en la planilla
+
+La columna OBSERVACIONES de la planilla marca 31 de los pacientes cargados como «PACIENTE NO VALIDO X IMAGEN» (excluidos en la Parte 1 de la tesis) y uno, P.HC009, como «NO VALIDO X PESO» (excluido por peso > 150 kg, no por la imagen). En el portal:
+
+- se cargan y se evalúan con **los mismos criterios automáticos de calidad de foto que el resto** (§8.13–8.14): el estudio ya no queda «no válido» por esa marca;
+- se muestra sólo una etiqueta histórica neutra: «Excluido en la tesis de Ana (imagen)» o, para P.HC009, «Excluido en la tesis de Ana (peso > 150 kg)» (`src/utils/tesisExclusion.js`, a partir de las observaciones de la ficha);
+- **siguen fuera** del entrenamiento de los modelos y de la referencia del TCI (`clinica.noValido`), como antes.
+
+Los 3 pacientes sin consentimiento siguen excluidos por completo (sin ficha, sin imágenes y sin entrenamiento).

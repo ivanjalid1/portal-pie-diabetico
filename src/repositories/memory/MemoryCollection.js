@@ -37,6 +37,10 @@ class MemoryCollection {
     return this.toEntity(this.rows.get(id));
   }
 
+  remove(id) {
+    return this.rows.delete(id);
+  }
+
   all() {
     return [...this.rows.values()].map((r) => this.toEntity(r));
   }

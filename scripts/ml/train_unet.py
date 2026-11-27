@@ -4,7 +4,14 @@
   120 × 160 (la mitad de la matriz IR de 240 × 320).
 - Salida: 3 clases (fondo, pie a la izquierda de la imagen, pie a la derecha).
 - Etiquetas: débiles (segmentación clásica refinada, build_labels.py); se
-  entrena sólo con las «limpias».
+  entrena sólo con las «limpias». Los contornos CORREGIDOS a mano
+  (data-local/ml/corrected-masks/, de la herramienta local /mascaras o de
+  «Corregir contorno» en producción vía scripts/ml/pull-corrected-masks.js)
+  son etiquetas verdaderas: reemplazan a la débil de esa réplica (aunque no
+  sea «limpia») y pesan más (UNET_PESO_CORREGIDAS, por defecto 3: la réplica
+  se repite 3 veces por época).
+- Informa además el Dice contra esos contornos manuales (todos y sólo los de
+  pacientes de validación).
 - División train/val POR PACIENTE (20 % de los pacientes a validación).
 - Aumento: espejado horizontal (intercambiando las clases 1 <-> 2), rotación
   ±10°, escala 0,9–1,1, desplazamiento ±4 %, jitter de contraste/brillo/gamma
@@ -17,6 +24,7 @@ Uso: python scripts/ml/train_unet.py [épocas]
 """
 import json
 import math
+import os
 import sys
 import time
 
@@ -33,6 +41,8 @@ np.random.seed(0)
 
 HS, WS = 120, 160
 LABELS = C.DATA / "ml" / "labels"
+CORR = C.DATA / "ml" / "corrected-masks"
+PESO_CORR = max(1, round(float(os.environ.get("UNET_PESO_CORREGIDAS", "3"))))
 LOG = C.DATA / "ml" / "train_unet.log"
 
 
@@ -88,8 +98,13 @@ def prep(key):
     return F.interpolate(t, size=(HS, WS), mode="bilinear", align_corners=False)[0]
 
 
-def prep_label(key):
-    y = torch.from_numpy(np.load(LABELS / f"{key}.npy").astype(np.int64))[None, None].float()
+def corrected_keys():
+    return {p.stem for p in CORR.glob("*.npy")} if CORR.exists() else set()
+
+
+def prep_label(key, corr=frozenset()):
+    src = CORR / f"{key}.npy" if key in corr else LABELS / f"{key}.npy"
+    y = torch.from_numpy(np.load(src).astype(np.int64))[None, None].float()
     return F.interpolate(y, size=(HS, WS), mode="nearest")[0, 0].long()
 
 
@@ -143,16 +158,20 @@ def main():
     C.MODELS.mkdir(parents=True, exist_ok=True)
     rows = json.loads((LABELS / "index.json").read_text(encoding="utf8"))
     val_codes = C.patient_split([r["codigo"] for r in rows])
-    train = [r for r in rows if r["limpia"] and r["codigo"] not in val_codes]
-    val = [r for r in rows if r["limpia"] and r["codigo"] in val_codes]
+    corr = frozenset(corrected_keys() & {r["key"] for r in rows})
+    usable = lambda r: r["limpia"] or r["key"] in corr  # noqa: E731
+    train = [r for r in rows if usable(r) and r["codigo"] not in val_codes]
+    val = [r for r in rows if usable(r) and r["codigo"] in val_codes]
+    # Las corregidas a mano pesan más: se repiten PESO_CORR veces en el entrenamiento.
+    train = [r for r in train for _ in range(PESO_CORR if r["key"] in corr else 1)]
     log(
         f"--- {time.strftime('%Y-%m-%d %H:%M')} train {len(train)} imgs / val {len(val)} imgs "
-        f"(pacientes val {len(val_codes)})"
+        f"(pacientes val {len(val_codes)}) · contornos corregidos {len(corr)} (peso {PESO_CORR})"
     )
     Xtr = torch.stack([prep(r["key"]) for r in train])
-    Ytr = torch.stack([prep_label(r["key"]) for r in train])
+    Ytr = torch.stack([prep_label(r["key"], corr) for r in train])
     Xva = torch.stack([prep(r["key"]) for r in val])
-    Yva = torch.stack([prep_label(r["key"]) for r in val])
+    Yva = torch.stack([prep_label(r["key"], corr) for r in val])
     model = UNet()
     log(f"parámetros: {sum(p.numel() for p in model.parameters())}")
     opt = torch.optim.AdamW(model.parameters(), lr=2e-3, weight_decay=1e-4)
@@ -188,6 +207,16 @@ def main():
     log(f"mejor: época {ck['epoch'] + 1} Dice {ck['dice']:.4f} IoU {ck['iou']:.4f}")
     model.load_state_dict(ck["state"])
     model.eval()
+    # Dice contra los contornos corregidos a mano (etiquetas verdaderas).
+    en_val = [r["key"] for r in rows if r["key"] in corr and r["codigo"] in val_codes]
+    for nombre, sel in (("todos", sorted(corr)), ("validación", en_val)):
+        if not sel:
+            log(f"Dice vs contornos manuales ({nombre}): sin contornos")
+            continue
+        xs = torch.stack([prep(k) for k in sel])
+        ys = torch.stack([prep_label(k, corr) for k in sel])
+        dm, jm = evaluate(model, xs, ys)
+        log(f"Dice vs contornos manuales ({nombre}, n={len(sel)}): Dice {dm:.4f} IoU {jm:.4f}")
     torch.onnx.export(
         model, torch.zeros(1, 1, HS, WS), str(C.MODELS / "unet-feet.onnx"),
         input_names=["temp"], output_names=["logits"], opset_version=17, dynamo=False,

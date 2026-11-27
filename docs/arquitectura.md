@@ -278,18 +278,27 @@ El registro es fijo: el píxel IR (x, y) cae en (80 + 1,5·x, 60 + 1,5·y) de la
 - **Rutas:** `/medico/estudios/:id/visor/:toma/:rep/foto.jpg` y `termica.bin` (médico tratante); `/mascaras/:clave/foto.jpg` (médico/a y administrador/a, sólo en local). Sin sesión redirigen al login.
 - **Demo:** no hay fotos y la ruta da 404. El extremo «Visible» de la fusión muestra la **térmica en escala de grises**, y el PIP queda deshabilitado. Para los pares demo, la matriz se reconstruye de la variante en grises pública (`public/demo/*-grises.png`) con la escala en °C de cada imagen (`src/seed/demoImages.json`, campo `escala`).
 
-### Revisión manual de las fotos
+### Revisión manual de las fotos (por toma)
 
-La revisión vive **sólo** en su propia sección, **«Revisión de fotos»** (`/revision`), en el menú del médico/a y del administrador/a. La página del estudio y el visor no tienen controles de revisión.
+**Por toma se usa una sola foto.** La revisión vive **sólo** en su propia sección, **«Revisión de fotos»** (`/revision`), en el menú del médico/a y del administrador/a. La página del estudio muestra qué foto se usa («Foto 2 de 3 · elegida por …» o «· sugerida automáticamente») pero no tiene controles de revisión.
 
-- **Grilla:** todas las fotos del visor (cada réplica de cada toma), agrupadas por paciente (sólo el código) y toma. Cada foto muestra la miniatura térmica (`miniatura.png`, escala fija 24–35 °C y High Contrast), con la opción «Mostrar la foto visible», las marcas «Mejor» y «En promedio», los avisos automáticos, los botones **Aprobado** / **Rechazado** / **Falta revisar**, el comentario (hasta 1000 caracteres), **Guardar** y la línea «Guardado por … · fecha».
-- **Progreso y filtros:** «123 de 606 revisadas», con una barra de aprobadas y rechazadas. Los filtros son Falta revisar (el predeterminado), Aprobadas, Rechazadas, Calidad baja (de la toma), Con avisos automáticos y Todas. También se puede buscar por código. Cada página junta grupos enteros hasta unas 48 fotos.
-- **Rapidez:** elegir un estado guarda al instante (AJAX). El comentario se guarda con «Guardar» o Ctrl+Enter. Atajos: A, R y P eligen el estado y pasan a la foto siguiente; J y K van a la siguiente y a la anterior; V muestra la foto visible; C va al comentario.
-- **Contexto:** un clic en la imagen abre el visor en esa réplica (`?foto=t-r`). El médico/a llega a su página del estudio; el administrador/a, que no tiene páginas de estudio, a un visor de sólo lectura (`/revision/estudios/:id`).
-- **Acceso:** `requireRole(medico, admin)`. El médico/a ve y revisa sólo las fotos de sus estudios; el administrador/a, todas (`StudyService#getForReviewer` y `#listForReviewer`). El paciente recibe 403 y un usuario anónimo va al login.
-- **Rutas:** `GET /revision`, `GET /revision/estudios/:id`, `GET /revision/estudios/:id/visor/:toma/:rep/{miniatura.png,termica.bin,foto.jpg}` y `POST …/revision` (CSRF e `imageReviewSchema`; con `Accept: application/json` responde la revisión; sin JS vuelve a la página, sólo a rutas `/revision`). La acción queda en la auditoría (`image.reviewed`).
-- **Capas:** `ImageReviewService#overview` y `#save` usan `ImageReviewRepository` (`listByStudy`, `listByStudyIds`, `upsert`), con drivers memory y Supabase (tabla `study_image_reviews`, migración `20260101001000_revision_imagenes.sql`; sus políticas RLS ya permiten al médico tratante y al administrador). La clave es única por estudio, toma y réplica.
-- **Alcance:** es sólo una etiqueta. No cambia temperaturas ni análisis, y una foto rechazada **no** se excluye del análisis.
+- **Tarjetas por toma** (178 en la cohorte): todas las fotos (réplicas) de la toma lado a lado, con la miniatura térmica (escala fija 24–35 °C, High Contrast), la opción «Mostrar la foto visible», los avisos automáticos, la marca **«Sugerida»** (la elegida por los criterios de §8.13) y el botón de radio **«Usar esta»**. Para la toma: **Aprobada** / **Rechazada** / **Falta revisar**, un comentario (hasta 1000 caracteres), **Guardar** y «Guardado por … · fecha».
+- **Progreso y filtros:** «x de 178 tomas revisadas», con barra de aprobadas y rechazadas, y el contador «N contornos corregidos (meta 30–50)». Filtros: Falta revisar (predeterminado), Aprobadas, Rechazadas, Calidad baja, Con avisos (de la foto usada) y Todas; búsqueda por código. Primero las tomas con calidad baja; 24 tomas por página.
+- **Rapidez:** elegir una foto o un estado guarda al instante (AJAX); el comentario, con «Guardar» o Ctrl+Enter. Atajos: 1–9 usan esa foto; A, R y P eligen el estado y pasan a la toma siguiente; J y K, siguiente y anterior; V, foto visible; C, comentario.
+- **Elegir otra foto vuelve a analizar la toma** (`TomaReviewService#save` → `AnalysisService#rerunToma`): se usan las grillas y el TCI ya precalculados de esa réplica (`ReplicaStore`), se recalculan riesgo, asimetría, ROIs de referencia (y con ellos pronóstico y alertas) y la imagen de la toma del estudio pasa a la de esa foto. Elegir la sugerida guarda `replica_elegida = null`. Una toma **rechazada** es sólo una marca: no se excluye del análisis.
+- **Datos por réplica:** en local, del `dataset.json` (`porReplica`, §8.14); en producción, de `termica/<paciente>/<estudio>/replicas.json.gz` y las imágenes `<paciente>/<estudio>/toma<k>-r<n>.png` del bucket privado, que sube `scripts/seed-supabase-real.js --actualizar` (el TCI de cada réplica ya trae el ajuste por ambiente).
+- **Acceso:** `requireRole(medico, admin)`. El médico/a ve y revisa sólo sus estudios; el administrador/a, todos (`StudyService#getForReviewer` y `#listForReviewer`). El paciente recibe 403 y un usuario anónimo va al login. El administrador/a tiene un visor de sólo lectura (`/revision/estudios/:id`).
+- **Rutas:** `GET /revision`, `GET /revision/estudios/:id`, `GET /revision/estudios/:id/visor/:toma/:rep/{miniatura.png,termica.bin,foto.jpg}` y `POST /revision/estudios/:id/tomas/:toma/revision` (CSRF y `tomaReviewSchema`: `replica`, `estado`, `comentario`; con `Accept: application/json` responde la revisión y el cambio de resultado; sin JS vuelve a la página, sólo a rutas `/revision`). Auditoría: `toma.reviewed` (y `analysis.completed` si cambió la foto).
+- **Capas:** `TomaReviewService` usa `TomaReviewRepository` (`listByStudy`, `listByStudyIds`, `upsert`), con drivers memory y Supabase (tabla `study_toma_reviews`, migración `20260101001100_revision_por_toma.sql`, que elimina la tabla por foto anterior).
+
+### Corregir contorno
+
+Desde cada foto de una tarjeta de «Revisión de fotos», **«Corregir contorno»** abre un editor (`/revision/estudios/:id/tomas/:toma/fotos/:rep/contorno`) sobre la térmica de esa réplica, con el visor de siempre (paletas, rango y la foto visible). Muestra el contorno automático (U-Net limpia, el mismo con el que se calcularon las grillas; viaja en RLE en `porReplica.mascara`) por pie, con pincel por pie y goma (tamaño ajustable), opacidad, deshacer, «Volver al contorno automático» y **Guardar contorno**. Reutiliza `public/js/mask-editor.js` de la herramienta local `/mascaras`.
+
+- **Al guardar** (`MaskCorrectionService#save`): se validan las etiquetas (320 × 240; al menos 250 px por pie), se recalculan las grillas canónicas de esa réplica **desde su matriz de temperaturas** (la TPV1 del visor) con esa máscara y sin limpiezas automáticas, y si es la foto que usa el análisis se vuelve a analizar la toma (el TCI se recalcula con la referencia). Sólo cambia qué píxeles son pie: **las temperaturas no se tocan**. La tarjeta muestra «Contorno corregido por …» y el estudio «· contorno corregido por …».
+- **Almacenamiento:** archivo privado `mascaras/<paciente>/<estudio>/toma<k>-r<n>.json.gz` (bucket `estudios`; no empieza con el id del paciente) y la fila de `study_mask_corrections` (migración `20260101001200_contornos_corregidos.sql`, RLS médico tratante y administrador). Driver memory: lo mismo en memoria.
+- **Reentrenamiento:** `node scripts/ml/pull-corrected-masks.js` descarga todos los contornos corregidos de producción a `data-local/ml/corrected-masks/<clave>.npy` (+ `.json`). `scripts/ml/train_unet.py` los usa como etiquetas verdaderas (reemplazan la débil y pesan `UNET_PESO_CORREGIDAS`, por defecto 3) e informa el Dice contra ellos; `scripts/ml/dice_corrected.py` mide la U-Net actual contra ellos. Meta: 30–50 contornos antes de reentrenar.
+- **Rutas:** `GET …/contorno`, `GET …/contorno.json`, `POST …/contorno` (JSON `{ rle, origen }`, CSRF por encabezado) y `POST …/contorno/quitar`. Auditoría: `mask.corrected`.
 
 ### Identidad
 
@@ -1045,23 +1054,18 @@ Sin IA generativa y **sin tocar temperaturas**: sólo se elige otra réplica, se
 - **54 tomas quedan con calidad baja**: no tienen ninguna réplica limpia y no se pueden arreglar sin inventar datos;
 - la categoría de riesgo cambió en 1 de 105 estudios. Los cambios de métricas entre réplicas equivalentes muestran la **variabilidad entre capturas** de la misma toma.
 
-### 8.14 Promedio de réplicas por toma
+### 8.14 Una sola foto por toma
 
-Cambiar entre réplicas **igual de buenas** de una misma toma movía mucho las métricas (por ejemplo, el área caliente de P.HC033 toma 1 pasaba de 34 % a 51 % según la foto elegida). Por eso, desde `data-local/real-v3`, el resultado punto a punto de cada toma usa la **media píxel a píxel** de las grillas canónicas por pie (40 × 100) de **todas las réplicas que pasan los criterios de encuadre y segmentación** (sin banderas graves: C1–C6, C8, C13 de §8.13). El visor sigue mostrando cada foto por separado.
+Desde `data-local/real-v4`, **por toma se usa una sola foto (réplica)**: la elegida a mano en «Revisión de fotos» o, si nadie eligió, la **sugerida** por los criterios de calidad de §8.13 (la mejor sin banderas graves; si ninguna pasa, la menos afectada, y la toma queda con calidad baja). Se dejó de promediar réplicas (el promedio de `real-v3`).
 
 | Regla | Detalle |
 | --- | --- |
-| Qué se promedia | Las grillas `izq` y `der` (°C) ya registradas de cada réplica que pasa. Las banderas leves (pies girados, fondo tibio, foto visible borrosa o desalineada) no excluyen. |
-| Celdas | Cada celda se promedia **sólo entre las réplicas que la midieron**; si ninguna la midió queda sin dato. No se rellena nada. |
-| Ninguna pasa | Se usa la mejor réplica sola (`selectReplica`) y la toma sigue con **calidad baja**. |
-| Foto que representa la toma | La mejor entre las que pasan (imagen del estudio, calidad de registro, fecha, marco). |
-| Registro | `calidadFotos.promedio = { n, promedio, reps, estabilidad }` en cada toma del `dataset.json` (y en el análisis); `enPromedio` por réplica en `fotos.json`. |
-| Estabilidad | Con ≥ 2 réplicas, desvío estándar y rango del área caliente (umbral por píxel por defecto, 1 °C) y desvío del ΔT máximo entre las réplicas usadas. |
-| Desactivar | `PROMEDIO_REPLICAS=0` (o `CORRECCION_FOTOS=0`) vuelve a la réplica sola. |
+| Sugerida | `src/imaging/replicaChoice.js#sugerirReplica`: `selectReplica` entre las réplicas sin banderas graves (C1–C6, C8, C13), o entre todas si ninguna pasa. Empates (< 0,01): la primera captura. |
+| Datos por réplica | `porReplica` en cada toma del `dataset.json`: grillas canónicas `izq`/`der`, TCI, calidad de registro, marco, banderas, imagen PNG (`img/<código>-toma<k>-r<n>.png`) y el contorno automático en RLE. Con ellos, cambiar la foto vuelve a analizar sólo esa toma. |
+| Registro | `calidadFotos = { replicas, limpias, sugerida, rep, baja, banderas, elegidaPor, contornoPor }` en cada toma del análisis; `rep` es la foto usada. |
+| Estudio | «Foto 2 de 3 · elegida por …» o «Foto 1 de 3 · sugerida automáticamente»; en el visor, la réplica «usada en el análisis» y la «sugerida». |
 
-Módulo: `src/imaging/replicaAverage.js` (`meanGrid`, `pasaCriterios`, `promediarToma`, `estabilidad`). En la página del estudio aparece «Promedio de 3 fotos» (o «1 foto», o «1 foto (ninguna pasa los criterios)») con el detalle de las réplicas y su variación; la tabla del detalle técnico agrega la columna «Fotos». En el visor, el selector de réplica marca «en el promedio».
-
-**Resultado en la cohorte** (178 tomas; contra `data-local/real`): 114 tomas se promedian (13 con 2 réplicas, 68 con 3, 30 con 4 y 3 con 5–6), 10 usan la única réplica que pasa y 54 siguen con calidad baja. Entre las réplicas buenas de una misma toma, el área caliente tiene un desvío mediano de 1,2 puntos (p90 3,4; máx. 8,0) y un rango mediano de 2,2 puntos (p90 6,4; máx. 14,9); el ΔT máximo, 0,16 °C. Contra `data-local/real` cambió la categoría de riesgo en 5 de 105 estudios (P.HC007, P.HC024, P.HC045 y P.HC051 de sin riesgo a moderado; P.HC026 de moderado a sin riesgo) y la asimetría de la toma actual en 4 (P.HC010 pasa a con asimetría; P.HC020, P.HC070 y P.RF006 a sin asimetría, todos cerca del 10 % de área mínima). Las diferencias del área caliente por toma tienen mediana 0,7 puntos (p90 3,9).
+**Resultado en la cohorte** (178 tomas, contra `data-local/real-v3`): las 178 tomas usan la misma réplica que representaba a la toma en v3 (114 de ellas antes se promediaban). Cambió la categoría de riesgo en 4 de 105 estudios (P.HC024, P.HC045 y P.HC051 de moderado a sin riesgo; P.HC026 de sin riesgo a moderado) y la asimetría de la toma actual en 4 (P.HC020, P.HC044, P.HC070 y P.RF006 pasan a con asimetría). El área caliente por toma cambió con mediana 0,4 puntos (p90 2,7; máx. 8,6). Contra `data-local/real` (antes de la corrección de fotos) cambió sólo P.HC007 (sin riesgo a moderado).
 
 ### 8.15 Pacientes marcados «NO VALIDO» en la planilla
 

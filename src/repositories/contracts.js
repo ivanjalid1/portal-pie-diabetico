@@ -92,6 +92,10 @@ class StudyRepository {
   async update(_id, _patch) {
     notImplemented('StudyRepository.update');
   }
+  /** Cambia el archivo de la imagen de una toma (`{storagePath, size?}`): otra foto de la toma. */
+  async updateImage(_id, _slot, _patch) {
+    notImplemented('StudyRepository.updateImage');
+  }
   async count() {
     notImplemented('StudyRepository.count');
   }
@@ -165,18 +169,38 @@ class ConsentRepository {
   }
 }
 
-/** Revisión manual de cada foto (toma + réplica) de un estudio. */
-class ImageReviewRepository {
+/** Revisión manual de cada toma de un estudio (foto usada, estado y comentario). */
+class TomaReviewRepository {
   async listByStudy(_studyId) {
-    notImplemented('ImageReviewRepository.listByStudy');
+    notImplemented('TomaReviewRepository.listByStudy');
   }
   /** Revisiones de varios estudios (página «Revisión de fotos»). */
   async listByStudyIds(_studyIds) {
-    notImplemented('ImageReviewRepository.listByStudyIds');
+    notImplemented('TomaReviewRepository.listByStudyIds');
   }
-  /** Crea o reemplaza la revisión de (studyId, toma, replica). */
+  /** Crea o reemplaza la revisión de (studyId, toma). */
   async upsert(_review) {
-    notImplemented('ImageReviewRepository.upsert');
+    notImplemented('TomaReviewRepository.upsert');
+  }
+}
+
+/** Contornos corregidos a mano: una fila por (estudio, toma, réplica). */
+class MaskCorrectionRepository {
+  async listByStudy(_studyId) {
+    notImplemented('MaskCorrectionRepository.listByStudy');
+  }
+  async listByStudyIds(_studyIds) {
+    notImplemented('MaskCorrectionRepository.listByStudyIds');
+  }
+  async listAll() {
+    notImplemented('MaskCorrectionRepository.listAll');
+  }
+  /** Crea o reemplaza el contorno de (studyId, toma, replica). */
+  async upsert(_correction) {
+    notImplemented('MaskCorrectionRepository.upsert');
+  }
+  async remove(_studyId, _toma, _replica) {
+    notImplemented('MaskCorrectionRepository.remove');
   }
 }
 
@@ -197,6 +221,13 @@ class FileStorage {
 
   async getAccess(_storagePath) {
     notImplemented('FileStorage.getAccess');
+  }
+  /** Escribe (o reemplaza) un archivo privado en una ruta fija. */
+  async put(_input) {
+    notImplemented('FileStorage.put');
+  }
+  async remove(_storagePath) {
+    notImplemented('FileStorage.remove');
   }
 }
 
@@ -221,6 +252,7 @@ module.exports = {
   AppointmentRepository,
   AuditRepository,
   ConsentRepository,
-  ImageReviewRepository,
+  TomaReviewRepository,
+  MaskCorrectionRepository,
   FileStorage,
 };

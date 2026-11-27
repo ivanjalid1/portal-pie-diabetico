@@ -8,7 +8,17 @@
  */
 const contracts = require('../contracts');
 const MemoryCollection = require('./MemoryCollection');
-const { User, Patient, Study, AnalysisResult, Appointment, AuditEntry, Consent, ImageReview } = require('../../models');
+const {
+  User,
+  Patient,
+  Study,
+  AnalysisResult,
+  Appointment,
+  AuditEntry,
+  Consent,
+  TomaReview,
+  MaskCorrection,
+} = require('../../models');
 
 const { normalize } = require('../../utils/text');
 
@@ -107,6 +117,12 @@ class MemoryStudyRepository extends contracts.StudyRepository {
   }
   async update(id, patch) {
     return this.col.patch(id, patch);
+  }
+  async updateImage(id, slot, patch) {
+    const study = this.col.get(id);
+    if (!study) return null;
+    const images = study.images.map((i) => (i.slot === slot ? { ...i, ...patch } : i));
+    return this.col.patch(id, { images });
   }
   async count() {
     return this.col.size;
@@ -216,11 +232,35 @@ class MemoryConsentRepository extends contracts.ConsentRepository {
   }
 }
 
-/** Revisión manual por foto: una fila por (estudio, toma, réplica). */
-class MemoryImageReviewRepository extends contracts.ImageReviewRepository {
+/** Revisión manual por toma: una fila por (estudio, toma). */
+class MemoryTomaReviewRepository extends contracts.TomaReviewRepository {
   constructor() {
     super();
-    this.col = new MemoryCollection(ImageReview);
+    this.col = new MemoryCollection(TomaReview);
+  }
+  async listByStudy(studyId) {
+    return this.col.where((r) => r.studyId === studyId).sort((a, b) => a.toma - b.toma);
+  }
+  async listByStudyIds(studyIds) {
+    const ids = new Set(studyIds);
+    return ids.size ? this.col.where((r) => ids.has(r.studyId)) : [];
+  }
+  async upsert(review) {
+    const toma = Number(review.toma);
+    const current = this.col.find((r) => r.studyId === review.studyId && r.toma === toma);
+    const { id: _id, createdAt: _c, ...fields } = review;
+    return current ? this.col.patch(current.id, fields) : this.col.insert(fields);
+  }
+}
+
+/** Contornos corregidos a mano: una fila por (estudio, toma, réplica). */
+class MemoryMaskCorrectionRepository extends contracts.MaskCorrectionRepository {
+  constructor() {
+    super();
+    this.col = new MemoryCollection(MaskCorrection);
+  }
+  #find(studyId, toma, replica) {
+    return this.col.find((r) => r.studyId === studyId && r.toma === Number(toma) && r.replica === Number(replica));
   }
   async listByStudy(studyId) {
     return this.col.where((r) => r.studyId === studyId).sort((a, b) => a.toma - b.toma || a.replica - b.replica);
@@ -229,12 +269,18 @@ class MemoryImageReviewRepository extends contracts.ImageReviewRepository {
     const ids = new Set(studyIds);
     return ids.size ? this.col.where((r) => ids.has(r.studyId)) : [];
   }
-  async upsert(review) {
-    const toma = Number(review.toma);
-    const replica = Number(review.replica);
-    const current = this.col.find((r) => r.studyId === review.studyId && r.toma === toma && r.replica === replica);
-    const { id: _id, createdAt: _c, ...fields } = review;
+  async listAll() {
+    return this.col.all();
+  }
+  async upsert(c) {
+    const current = this.#find(c.studyId, c.toma, c.replica);
+    const { id: _id, createdAt: _c, ...fields } = c;
     return current ? this.col.patch(current.id, fields) : this.col.insert(fields);
+  }
+  async remove(studyId, toma, replica) {
+    const current = this.#find(studyId, toma, replica);
+    if (current) this.col.remove(current.id);
+    return Boolean(current);
   }
 }
 
@@ -269,6 +315,12 @@ class MemoryFileStorage extends contracts.FileStorage {
   async save({ key, buffer, mime }) {
     this.files.set(key, { buffer: Buffer.from(buffer), mime });
     return { storagePath: key };
+  }
+  async put({ key, buffer, mime }) {
+    return this.save({ key, buffer, mime });
+  }
+  async remove(storagePath) {
+    return this.files.delete(storagePath);
   }
   async read(storagePath) {
     return this.files.get(storagePath)?.buffer || this.#fromDisk(storagePath);
@@ -313,7 +365,8 @@ function createMemoryRepositories() {
     appointments: new MemoryAppointmentRepository(),
     audit: new MemoryAuditRepository(),
     consents: new MemoryConsentRepository(),
-    imageReviews: new MemoryImageReviewRepository(),
+    tomaReviews: new MemoryTomaReviewRepository(),
+    maskCorrections: new MemoryMaskCorrectionRepository(),
     files: new MemoryFileStorage(),
     credentials: new MemoryCredentialStore(),
   };
@@ -329,7 +382,8 @@ module.exports = {
   MemoryAppointmentRepository,
   MemoryAuditRepository,
   MemoryConsentRepository,
-  MemoryImageReviewRepository,
+  MemoryTomaReviewRepository,
+  MemoryMaskCorrectionRepository,
   MemoryFileStorage,
   MemoryCredentialStore,
 };

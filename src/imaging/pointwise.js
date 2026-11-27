@@ -230,7 +230,8 @@ function lengthFrames(fi, fd) {
 /** Procesa una matriz IR completa: segmenta, registra y devuelve las grillas canónicas. */
 function canonicalFeet(img, opts = {}) {
   const { width: w, height: h } = img;
-  const T = celsiusImage(img);
+  // `opts.celsius`: temperaturas ya en °C (p. ej. la matriz TPV1 del visor), sin volver a convertir cuentas.
+  const T = opts.celsius instanceof Float32Array && opts.celsius.length === w * h ? opts.celsius : celsiusImage(img);
   // Máscaras externas (p. ej. de la U-Net, scripts/ml/): se usan si son plausibles;
   // si no, se vuelve a la segmentación clásica.
   const externas = plausibleMasks(opts.masks, w, h);

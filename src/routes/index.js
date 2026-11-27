@@ -179,13 +179,18 @@ function buildRoutes(container) {
   r.get('/estudios/:id/visor/:toma/:rep/foto.jpg', review.photo);
   r.get('/estudios/:id/visor/:toma/:rep/miniatura.png', review.thumbnail);
   r.post(
-    '/estudios/:id/visor/:toma/:rep/revision',
-    validate(schemas.imageReviewSchema, {
+    '/estudios/:id/tomas/:toma/revision',
+    validate(schemas.tomaReviewSchema, {
       back: (req) =>
         typeof req.body?.volver === 'string' && req.body.volver.startsWith('/revision') ? req.body.volver : '/revision',
     }),
     review.save,
   );
+  // Corregir contorno (máscara de los pies) de una foto: también en producción.
+  r.get('/estudios/:id/tomas/:toma/fotos/:rep/contorno', review.contorno);
+  r.get('/estudios/:id/tomas/:toma/fotos/:rep/contorno.json', review.contornoJson);
+  r.post('/estudios/:id/tomas/:toma/fotos/:rep/contorno', review.contornoSave);
+  r.post('/estudios/:id/tomas/:toma/fotos/:rep/contorno/quitar', review.contornoReset);
   router.use('/revision', r);
 
   /* ---------- Corrección de máscaras (sólo local; médico/a y administrador/a) ---------- */

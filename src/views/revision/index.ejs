@@ -1,13 +1,14 @@
 <%
-  // Revisión manual de las fotos (médico/a y administrador/a): grilla de todas
-  // las fotos del visor agrupadas por paciente y toma, con Aprobado /
-  // Rechazado / Falta revisar y un comentario. Sin JS cada foto es un
-  // formulario (POST y vuelta a esta página); public/js/image-review.js guarda
-  // sin recargar, actualiza el progreso y agrega los atajos de teclado.
-  // Sólo se muestra el código del paciente (nunca nombre ni DNI).
+  // Revisión manual por TOMA (médico/a y administrador/a): una tarjeta por toma
+  // con todas sus fotos (réplicas) lado a lado. Por toma se usa UNA foto: la
+  // elegida aquí («Usar esta») o la sugerida automáticamente. Además, el estado
+  // de la toma (Aprobada / Rechazada / Falta revisar) y un comentario. Sin JS
+  // cada toma es un formulario (POST y vuelta a esta página);
+  // public/js/image-review.js guarda sin recargar, actualiza el progreso y
+  // agrega los atajos de teclado. Sólo se muestra el código del paciente.
   const ESTADOS = [
-    { v: 'aprobado', t: 'Aprobado', k: 'A' },
-    { v: 'rechazado', t: 'Rechazado', k: 'R' },
+    { v: 'aprobado', t: 'Aprobada', k: 'A' },
+    { v: 'rechazado', t: 'Rechazada', k: 'R' },
     { v: 'pendiente', t: 'Falta revisar', k: 'P' },
   ];
   const TONO = { aprobado: 'ok', rechazado: 'danger', pendiente: 'muted' };
@@ -21,19 +22,17 @@
     return s ? `?${s}` : '';
   };
   const pct = resumen.total ? Math.round((resumen.revisadas / resumen.total) * 100) : 0;
-  const hayFoto = fotos.some((f) => f.foto);
+  const hayFoto = tomas.some((t) => t.reps.some((r) => r.foto));
 %>
 <%- include('../partials/page-header', {
   heading: 'Revisión de fotos',
-  lead: user.role === 'admin'
-    ? 'Todas las fotos de los estudios. Aprobá o rechazá cada una; no cambia el análisis.'
-    : 'Las fotos de los estudios de tus pacientes. Aprobá o rechazá cada una; no cambia el análisis.',
+  lead: (user.role === 'admin' ? 'Todas las tomas de los estudios.' : 'Las tomas de los estudios de tus pacientes.') + ' En cada toma se usa una sola foto: elegí cuál y marcá la toma.',
 }) %>
 
 <section class="card rv-progress" aria-label="Progreso de la revisión">
   <div class="rv-progress__main">
-    <p class="rv-progress__count"><strong class="num" data-rv-revisadas><%= resumen.revisadas %></strong> de <span class="num" data-rv-total><%= resumen.total %></span> revisadas</p>
-    <div class="rv-bar" role="progressbar" aria-label="Fotos revisadas" aria-valuemin="0" aria-valuemax="<%= resumen.total %>" aria-valuenow="<%= resumen.revisadas %>" data-rv-bar>
+    <p class="rv-progress__count"><strong class="num" data-rv-revisadas><%= resumen.revisadas %></strong> de <span class="num" data-rv-total><%= resumen.total %></span> tomas revisadas</p>
+    <div class="rv-bar" role="progressbar" aria-label="Tomas revisadas" aria-valuemin="0" aria-valuemax="<%= resumen.total %>" aria-valuenow="<%= resumen.revisadas %>" data-rv-bar>
       <span class="rv-bar__ok" style="width: <%= resumen.total ? (resumen.aprobado / resumen.total) * 100 : 0 %>%" data-rv-bar-ok></span><span class="rv-bar__bad" style="width: <%= resumen.total ? (resumen.rechazado / resumen.total) * 100 : 0 %>%" data-rv-bar-bad></span>
     </div>
   </div>
@@ -42,11 +41,12 @@
     <li><span class="rv-dot rv-dot--bad" aria-hidden="true"></span><span class="num" data-rv-n="rechazado"><%= resumen.rechazado %></span> rechazadas</li>
     <li><span class="rv-dot" aria-hidden="true"></span><span class="num" data-rv-n="pendiente"><%= resumen.pendiente %></span> por revisar</li>
     <li class="muted"><span class="num" data-rv-pct><%= pct %></span> %</li>
+    <li class="rv-progress__mask" title="Contornos de los pies corregidos a mano: sirven para evaluar y reentrenar la segmentación automática."><span class="num" data-rv-contornos><%= contornos %></span> <%= contornos === 1 ? 'contorno corregido' : 'contornos corregidos' %> <span class="muted">(meta <%= META_CONTORNOS.min %>–<%= META_CONTORNOS.max %>)</span></li>
   </ul>
 </section>
 
 <div class="rv-toolbar">
-  <nav class="rv-filters" aria-label="Filtrar fotos">
+  <nav class="rv-filters" aria-label="Filtrar tomas">
     <% FILTROS.forEach((k) => { const on = k === filtro; %>
     <a class="rv-filter<%= on ? ' is-active' : '' %>" href="/revision<%= qs({ estado: k, pagina: 1 }) %>"<%- on ? ' aria-current="page"' : '' %>><%= FILTRO_LABELS[k] %> <span class="num" data-rv-c="<%= k %>"><%= conteos[k] %></span></a>
     <% }) %>
@@ -63,72 +63,87 @@
   <% if (hayFoto) { %>
   <label class="rv-switch"><input type="checkbox" data-rv-visible><span>Mostrar la foto visible</span></label>
   <% } %>
-  <p class="small muted rv-help__keys">Elegir un estado guarda al instante. Atajos: <kbd>A</kbd> aprobar · <kbd>R</kbd> rechazar · <kbd>P</kbd> falta revisar · <kbd>J</kbd>/<kbd>K</kbd> siguiente/anterior<% if (hayFoto) { %> · <kbd>V</kbd> foto visible<% } %> · <kbd>C</kbd> comentario · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> guardar comentario. Hacé clic en la imagen para abrir el visor.</p>
+  <p class="small muted rv-help__keys">Elegir una foto o un estado guarda al instante; cambiar la foto vuelve a calcular el resultado del estudio. Atajos: <kbd>1</kbd>–<kbd>9</kbd> usar esa foto · <kbd>A</kbd> aprobar · <kbd>R</kbd> rechazar · <kbd>P</kbd> falta revisar · <kbd>J</kbd>/<kbd>K</kbd> siguiente/anterior<% if (hayFoto) { %> · <kbd>V</kbd> foto visible<% } %> · <kbd>C</kbd> comentario · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> guardar comentario.</p>
 </div>
 
-<p class="result-count muted small"><strong class="num"><%= totalFiltrado %></strong> <%= totalFiltrado === 1 ? 'foto' : 'fotos' %> <%= filtro === 'todas' ? '' : `· ${FILTRO_LABELS[filtro].toLowerCase()}` %><%= q ? ` · código «${q}»` : '' %></p>
+<p class="result-count muted small"><strong class="num"><%= totalFiltrado %></strong> <%= totalFiltrado === 1 ? 'toma' : 'tomas' %> <%= filtro === 'todas' ? '' : `· ${FILTRO_LABELS[filtro].toLowerCase()}` %><%= q ? ` · código «${q}»` : '' %></p>
 
-<% if (!grupos.length) { %>
+<% if (!tomas.length) { %>
 <div class="card"><div class="empty"><%- include('../partials/icon', { name: 'check', size: 28 }) %>
-  <h2><%= filtro === 'pendiente' && !q ? 'No quedan fotos por revisar' : 'No hay fotos con este filtro' %></h2>
-  <p><a href="/revision<%= qs({ estado: 'todas', q: '', pagina: 1 }) %>">Ver todas las fotos</a></p>
+  <h2><%= filtro === 'pendiente' && !q ? 'No quedan tomas por revisar' : 'No hay tomas con este filtro' %></h2>
+  <p><a href="/revision<%= qs({ estado: 'todas', q: '', pagina: 1 }) %>">Ver todas las tomas</a></p>
 </div></div>
 <% } else { %>
 <div class="rv-groups" data-rv data-rv-filtro="<%= filtro %>">
-  <% grupos.forEach((g) => { const gid = `grupo-${g.key}`; %>
-  <section class="rv-group" aria-labelledby="<%= gid %>">
-    <header class="rv-group__head">
-      <h2 class="rv-group__title" id="<%= gid %>"><span class="toma-dot toma-dot--<%= g.toma %>" aria-hidden="true"></span><%= g.codigo %> · Toma <%= g.toma %></h2>
-      <span class="muted small num"><%= fmt.date(g.fechaToma) %></span>
-      <% if (g.fotos[0].calidadBaja) { %><span class="badge badge--warn">Calidad baja de la toma</span><% } %>
-      <a class="rv-group__link small" href="<%= studyHref(g.fotos[0]) %>">Abrir en el visor</a>
-    </header>
-    <div class="rv-grid">
-      <% g.fotos.forEach((f) => {
-        const id = `foto-${f.studyId}-${f.toma}-${f.replica}`;
-        const base = `/revision/estudios/${f.studyId}/visor/${f.toma}/${f.replica}`;
-        const nombre = `${f.codigo}, toma ${f.toma}${f.nReps > 1 ? `, réplica ${f.replica}` : ''}`;
-        const saved = guardadoTexto(f, fmt);
-      %>
-      <article class="rv-tile rv-tile--<%= f.estado %>" id="<%= id %>" data-rv-tile tabindex="-1" aria-label="Foto <%= nombre %>">
-        <a class="rv-tile__media" href="<%= studyHref(f) %>" title="Abrir en el visor">
-          <img class="rv-tile__img" src="<%= base %>/miniatura.png" alt="Térmica: <%= nombre %>" width="240" height="180" loading="lazy" decoding="async" data-rv-ir>
-          <% if (f.foto) { %><img class="rv-tile__img" data-src="<%= base %>/foto.jpg" alt="Foto visible: <%= nombre %>" width="240" height="180" decoding="async" hidden data-rv-vis><% } %>
-          <span class="rv-tile__tags">
-            <% if (f.nReps > 1) { %><span class="rv-tag">R<%= f.replica %></span><% } %>
-            <% if (f.mejor && f.nReps > 1) { %><span class="rv-tag rv-tag--best">Mejor</span><% } %>
-            <% if (f.enPromedio) { %><span class="rv-tag">En promedio</span><% } %>
-          </span>
-        </a>
-        <form class="rv-form" method="post" action="<%= base %>/revision" data-ir-form data-estado="<%= f.estado %>">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <input type="hidden" name="volver" value="<%= backUrl %>#<%= id %>">
-          <div class="rv-form__head">
-            <span class="rv-form__name"><%= f.nReps > 1 ? `Réplica ${f.replica}` : 'Única foto' %></span>
-            <span class="badge badge--<%= TONO[f.estado] %>" data-ir-badge><%= f.etiqueta %></span>
-          </div>
-          <% if (f.avisos.length) { %>
-          <ul class="rv-avisos" aria-label="Avisos automáticos">
-            <% f.avisos.forEach((a) => { %><li class="rv-aviso<%= a.grave ? ' rv-aviso--grave' : '' %>"><%= a.label %></li><% }) %>
-          </ul>
-          <% } %>
-          <fieldset class="ir-seg">
-            <legend class="sr-only">Estado de la foto <%= nombre %></legend>
-            <% ESTADOS.forEach((e) => { %>
-            <label class="ir-seg__opt ir-seg__opt--<%= e.v %>"><input type="radio" name="estado" value="<%= e.v %>"<%= f.estado === e.v ? ' checked' : '' %>><span><%= e.t %></span></label>
-            <% }) %>
-          </fieldset>
-          <label class="sr-only" for="<%= id %>-c">Comentario</label>
-          <textarea id="<%= id %>-c" class="rv-form__comment" name="comentario" rows="2" maxlength="1000" placeholder="Comentario (opcional)"><%= f.comentario %></textarea>
-          <div class="rv-form__foot">
-            <span class="rv-form__saved" data-ir-saved role="status" aria-live="polite"><%= saved || 'Sin revisar todavía' %></span>
-            <button type="submit" class="btn btn--ghost btn--sm" data-ir-save>Guardar</button>
-          </div>
-        </form>
-      </article>
-      <% }) %>
-    </div>
-  </section>
+  <% tomas.forEach((t) => {
+    const id = `toma-${t.studyId}-${t.toma}`;
+    const nombre = `${t.codigo}, toma ${t.toma}`;
+    const base = `/revision/estudios/${t.studyId}/visor/${t.toma}`;
+    const saved = guardadoTexto(t, fmt);
+  %>
+  <article class="rv-toma rv-toma--<%= t.estado %>" id="<%= id %>" data-rv-tile tabindex="-1" aria-labelledby="<%= id %>-h">
+    <form class="rv-form" method="post" action="/revision/estudios/<%= t.studyId %>/tomas/<%= t.toma %>/revision" data-ir-form data-estado="<%= t.estado %>">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="volver" value="<%= backUrl %>#<%= id %>">
+      <header class="rv-toma__head">
+        <h2 class="rv-group__title" id="<%= id %>-h"><span class="toma-dot toma-dot--<%= t.toma %>" aria-hidden="true"></span><%= t.codigo %> · Toma <%= t.toma %></h2>
+        <span class="muted small num"><%= fmt.date(t.fechaToma) %></span>
+        <% if (t.calidadBaja) { %><span class="badge badge--warn">Calidad baja</span><% } %>
+        <span class="badge badge--<%= TONO[t.estado] %>" data-ir-badge><%= t.etiqueta %></span>
+        <a class="rv-group__link small" href="<%= studyHref(t) %>" data-rv-visor>Abrir en el visor</a>
+      </header>
+
+      <fieldset class="rv-reps">
+        <legend class="rv-reps__legend"><span>Foto que se usa en el análisis</span> <span class="muted small" data-rv-usada><%= t.usadaTexto %></span></legend>
+        <div class="rv-reps__grid">
+          <% t.reps.forEach((r, i) => { const rid = `${id}-r${r.rep}`; const graves = r.avisos.filter((a) => a.grave).length; %>
+          <label class="rv-rep<%= r.usada ? ' is-used' : '' %>" for="<%= rid %>" data-rv-rep="<%= r.rep %>">
+            <span class="rv-rep__media">
+              <img class="rv-tile__img" src="<%= base %>/<%= r.rep %>/miniatura.png" alt="Térmica: <%= nombre %>, foto <%= r.rep %>" width="240" height="180" loading="lazy" decoding="async" data-rv-ir>
+              <% if (r.foto) { %><img class="rv-tile__img" data-src="<%= base %>/<%= r.rep %>/foto.jpg" alt="Foto visible: <%= nombre %>, foto <%= r.rep %>" width="240" height="180" decoding="async" hidden data-rv-vis><% } %>
+              <span class="rv-tile__tags">
+                <span class="rv-tag"><% if (i < 9) { %><span class="rv-tag__key" aria-hidden="true"><%= i + 1 %></span><% } %>Foto <%= r.rep %></span>
+                <% if (r.sugerida && t.reps.length > 1) { %><span class="rv-tag rv-tag--best">Sugerida</span><% } %>
+              </span>
+            </span>
+            <span class="rv-rep__body">
+              <% if (r.avisos.length) { %>
+              <span class="rv-avisos" aria-label="Avisos automáticos">
+                <% r.avisos.forEach((a) => { %><span class="rv-aviso<%= a.grave ? ' rv-aviso--grave' : '' %>"><%= a.label %></span><% }) %>
+              </span>
+              <% } else { %>
+              <span class="rv-avisos"><span class="rv-aviso rv-aviso--ok">Sin avisos</span></span>
+              <% } %>
+              <% if (r.contorno) { %><span class="rv-contorno small" data-rv-contorno>Contorno corregido por <%= r.contorno.por %></span><% } %>
+              <span class="rv-rep__pick">
+                <input type="radio" id="<%= rid %>" name="replica" value="<%= r.rep %>"<%= r.usada ? ' checked' : '' %> data-rv-pick aria-describedby="<%= rid %>-d">
+                <span class="rv-rep__pick-text">Usar esta</span>
+              </span>
+              <% if (t.origen === 'real') { %><a class="rv-rep__mask small" href="<%= contornoHref(t, r.rep) %>">Corregir contorno</a><% } %>
+              <span class="sr-only" id="<%= rid %>-d"><%= r.sugerida ? 'Sugerida automáticamente. ' : '' %><%= graves ? `${graves} aviso${graves === 1 ? '' : 's'} grave${graves === 1 ? '' : 's'}.` : '' %></span>
+            </span>
+          </label>
+          <% }) %>
+        </div>
+      </fieldset>
+
+      <div class="rv-toma__foot">
+        <fieldset class="ir-seg">
+          <legend class="sr-only">Estado de la toma <%= nombre %></legend>
+          <% ESTADOS.forEach((e) => { %>
+          <label class="ir-seg__opt ir-seg__opt--<%= e.v %>"><input type="radio" name="estado" value="<%= e.v %>"<%= t.estado === e.v ? ' checked' : '' %>><span><%= e.t %></span></label>
+          <% }) %>
+        </fieldset>
+        <label class="sr-only" for="<%= id %>-c">Comentario de la toma</label>
+        <textarea id="<%= id %>-c" class="rv-form__comment" name="comentario" rows="2" maxlength="1000" placeholder="Comentario de la toma (opcional)"><%= t.comentario %></textarea>
+        <div class="rv-form__foot">
+          <span class="rv-form__saved" data-ir-saved role="status" aria-live="polite"><%= saved || 'Sin revisar todavía' %></span>
+          <button type="submit" class="btn btn--ghost btn--sm" data-ir-save>Guardar</button>
+        </div>
+        <p class="rv-result small" data-rv-result role="status" aria-live="polite" hidden></p>
+      </div>
+    </form>
+  </article>
   <% }) %>
 </div>
 <% if (pages > 1) { %>

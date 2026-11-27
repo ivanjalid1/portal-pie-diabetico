@@ -7,6 +7,7 @@ const { controlesFilterSchema, estudiosFilterSchema } = require('../validators/s
 const { sniffImageType } = require('../validators/imageValidator');
 const { is2PreviewPng } = require('../imaging/thermogram');
 const { EVENTS } = require('../utils/eventBus');
+const { ThermalViewerService } = require('../services/ThermalViewerService');
 
 /** Asocia a un error de negocio la URL del formulario al que debe volver. */
 async function withBack(back, fn) {
@@ -216,7 +217,12 @@ function createMedicoController({
 
     async studyDetail(req, res) {
       const data = await studyService.getForMedico(req.params.id, req.user.id);
-      const visor = viewerService ? await viewerService.sources(data.study, data.patient).catch(() => []) : [];
+      const visor = viewerService
+        ? ThermalViewerService.marcarUsadas(
+            await viewerService.sources(data.study, data.patient).catch(() => []),
+            data.analysis,
+          )
+        : [];
       res.render('medico/study-result', {
         title: `Estudio ${data.patient.codigo}`,
         ...data,

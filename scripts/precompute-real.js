@@ -8,11 +8,13 @@
  *
  * Por paciente y por toma (primera y segunda toma de fotos):
  *  - procesa todas las réplicas .IS2 de la carpeta (segmentación, espejado,
- *    registro y grilla canónica — src/imaging/pointwise.js) y se queda con la
- *    de mejor calidad (solapamiento y simetría de las máscaras);
- *  - renderiza esa termografía con la paleta High Contrast (PNG sin
- *    metadatos, sólo la matriz IR);
- *  - guarda las grillas canónicas de cada pie (centésimas de °C).
+ *    registro y grilla canónica — src/imaging/pointwise.js) y sugiere UNA
+ *    (src/imaging/replicaChoice.js): la mejor sin banderas graves;
+ *  - renderiza cada réplica con la paleta High Contrast (PNG sin metadatos,
+ *    sólo la matriz IR);
+ *  - guarda las grillas canónicas de cada pie (centésimas de °C) y el TCI de
+ *    cada réplica (`porReplica`), para poder cambiar la foto de la toma sin
+ *    volver a procesar los IS2.
  *
  * Los datos clínicos e identificatorios salen de la planilla más reciente
  * («Planillas clinicas (3).xlsx»). Todo queda en data-local/: NUNCA se debe
@@ -37,9 +39,16 @@ const { decodeGrid } = require('../src/imaging/pointwise');
 const Q = require('../src/imaging/photoQuality');
 const { alignVisible, reconcileShifts, visibleSharpness } = require('../src/imaging/visibleAlign');
 const { computeTci } = require('../src/imaging/tci');
-const { serializeTci, zonasDeToma } = require('../src/services/predictors/pointwiseAnalysis');
-const { promediarToma, pasaCriterios } = require('../src/imaging/replicaAverage');
-const { asymmetryMetrics, zoneCoverage } = require('../src/imaging/pointwise');
+const { serializeTci } = require('../src/services/predictors/pointwiseAnalysis');
+const { sugerirReplica } = require('../src/imaging/replicaChoice');
+const { encodeRle } = require('../src/services/MaskService');
+
+/** Par de máscaras → etiquetas (0 fondo, 1 pie a la izquierda de la imagen, 2 a la derecha). */
+function etiquetas(mascaras) {
+  const lab = new Uint8Array(320 * 240);
+  for (let i = 0; i < lab.length; i += 1) lab[i] = mascaras[0][i] ? 1 : mascaras[1][i] ? 2 : 0;
+  return lab;
+}
 const { exclusionTesis } = require('../src/utils/tesisExclusion');
 const {
   REFERENCE_FILE,
@@ -71,18 +80,6 @@ const USE_UNET = process.env.SEGMENTACION !== 'clasica';
  * Nunca se modifican temperaturas.
  */
 const CORRECCION = process.env.CORRECCION_FOTOS !== '0';
-/**
- * Promedio de réplicas (por defecto activo, requiere la corrección): el
- * resultado de cada toma usa la media píxel a píxel de las grillas de todas
- * las réplicas sin banderas graves (src/imaging/replicaAverage.js).
- * PROMEDIO_REPLICAS=0 vuelve a usar sólo la réplica elegida.
- */
-const PROMEDIO = CORRECCION && process.env.PROMEDIO_REPLICAS !== '0';
-/** Métricas de asimetría de una réplica (umbral por píxel por defecto), para la estabilidad. */
-function metricasReplica(izq, der) {
-  const { excluidas } = zonasDeToma(zoneCoverage(izq, der));
-  return asymmetryMetrics(izq, der, { umbralPixel: 1, zonasExcluidas: excluidas });
-}
 /** Réplicas a menos de esta diferencia de puntaje se consideran equivalentes (gana la primera captura). */
 const EMPATE =
   Number.isFinite(Number(process.env.SELECCION_EMPATE)) && process.env.SELECCION_EMPATE !== undefined
@@ -345,24 +342,17 @@ function processToma(files, codigo, toma) {
     }
   }
   const validas = cands.length;
+  // Una sola foto por toma (src/imaging/replicaChoice.js): la sugerida es la mejor
+  // entre las réplicas sin banderas graves (o la menos afectada si ninguna pasa).
   // Sin corrección: la de mayor calidad (la primera si empatan), como antes.
-  // Con el promedio, la foto que representa la toma sale de las réplicas que pasan los criterios.
-  const limpias = PROMEDIO ? cands.filter(pasaCriterios) : [];
   const best = CORRECCION
-    ? Q.selectReplica(limpias.length ? limpias : cands, { empate: EMPATE })
+    ? sugerirReplica(cands, { empate: EMPATE })
     : cands.reduce((a, b) => (!a || b.calidad > a.calidad ? b : a), null);
   if (!best) return { toma, replicas: files.length, validas: 0, ok: false };
   let calidadFotos = null;
-  let grillas = { izq: best.cf.izq, der: best.cf.der };
   if (CORRECCION) {
     const tq = Q.tomaQuality(cands, best);
-    calidadFotos = { ...tq, rep: best.rep + 1 };
-    if (PROMEDIO) {
-      const pr = promediarToma(cands, best, { metricas: metricasReplica });
-      grillas = { izq: pr.izq, der: pr.der };
-      calidadFotos.promedio = pr.info;
-      for (const c of cands) c.enPromedio = pr.info.promedio && pr.info.reps.includes(c.rep + 1);
-    }
+    calidadFotos = { ...tq, rep: best.rep + 1, sugerida: best.rep + 1, elegidaPor: null };
     (fotos.tomas[codigo] ||= {})[toma] = { elegida: best.key, ...calidadFotos };
     for (const c of cands) {
       const m = c.metricas;
@@ -373,7 +363,6 @@ function processToma(files, codigo, toma) {
         calidad: c.calidad,
         puntaje: c.puntaje,
         elegida: c === best,
-        enPromedio: Boolean(c.enPromedio),
         banderas: c.banderas,
         segmentacion: c.cf.segmentacion,
         limpieza: c.cf.limpieza,
@@ -398,24 +387,38 @@ function processToma(files, codigo, toma) {
       };
       // Máscara limpia (0 fondo, 1 pie a la izquierda de la imagen, 2 a la derecha) si cambió.
       if (c.cf.limpieza?.cambiados) {
-        const lab = new Uint8Array(320 * 240);
-        for (let i = 0; i < lab.length; i += 1) lab[i] = c.cf.mascaras[0][i] ? 1 : c.cf.mascaras[1][i] ? 2 : 0;
-        writeNpy(path.join(OUT, 'mascaras', `${c.key}.npy`), lab, [240, 320]);
+        writeNpy(path.join(OUT, 'mascaras', `${c.key}.npy`), etiquetas(c.cf.mascaras), [240, 320]);
       }
     }
   }
-  const izq = encodeGrid(grillas.izq);
-  const der = encodeGrid(grillas.der);
-  best.izq = izq;
-  best.der = der;
-  best.segmentacion = best.cf.segmentacion;
-  best.marco = best.cf.marco;
-  const buffer = fs.readFileSync(best.file);
-  const img = decodeIs2(buffer);
-  const { lo, hi } = displayRange(buffer, img);
-  const out = renderThermogram(img, { lo, hi, width: 640, height: 480, palette: highContrast });
-  const imagen = `img/${codigo.replace('.', '')}-toma${toma}.png`;
-  fs.writeFileSync(path.join(OUT, imagen), encodePng(out.width, out.height, out.rgb));
+  // Grillas, calidad e imagen de CADA réplica: elegir otra foto en «Revisión de
+  // fotos» vuelve a analizar la toma sin reprocesar los IS2.
+  const porReplica = [...cands]
+    .sort((a, b) => a.rep - b.rep)
+    .map((c) => {
+      const buffer = fs.readFileSync(c.file);
+      const img = decodeIs2(buffer);
+      const { lo, hi } = displayRange(buffer, img);
+      const out = renderThermogram(img, { lo, hi, width: 640, height: 480, palette: highContrast });
+      const imagen = `img/${codigo.replace('.', '')}-toma${toma}-r${c.rep + 1}.png`;
+      fs.writeFileSync(path.join(OUT, imagen), encodePng(out.width, out.height, out.rgb));
+      return {
+        rep: c.rep + 1,
+        clave: c.key,
+        calidad: c.calidad,
+        puntaje: r3(c.puntaje),
+        banderas: c.banderas || [],
+        segmentacion: c.cf.segmentacion,
+        marco: c.cf.marco,
+        fecha: c.fecha,
+        imagen,
+        izq: encodeGrid(c.cf.izq),
+        der: encodeGrid(c.cf.der),
+        // Contorno usado (U-Net limpia o clásica) en RLE: punto de partida de «Corregir contorno».
+        mascara: c.cf.mascaras ? encodeRle(etiquetas(c.cf.mascaras)) : null,
+      };
+    });
+  const elegida = porReplica.find((r) => r.rep === best.rep + 1);
   return {
     toma,
     ok: true,
@@ -423,15 +426,16 @@ function processToma(files, codigo, toma) {
     replicas: files.length,
     validas,
     calidad: best.calidad,
-    // Réplica elegida: número (1 = primera captura) y clave no identificatoria (hash de la ruta).
+    // Réplica sugerida: número (1 = primera captura) y clave no identificatoria (hash de la ruta).
     replica: best.rep + 1,
     clave: best.key,
-    segmentacion: best.segmentacion,
-    marco: best.marco,
-    imagen,
-    izq: best.izq,
-    der: best.der,
+    segmentacion: best.cf.segmentacion,
+    marco: best.cf.marco,
+    imagen: elegida.imagen,
+    izq: elegida.izq,
+    der: elegida.der,
     ...(calidadFotos ? { calidadFotos } : {}),
+    porReplica,
   };
 }
 
@@ -511,6 +515,9 @@ function main() {
     for (const t of p.tomas) {
       if (!t.ok) continue;
       t.tci = serializeTci(computeTci(decodeGrid(t.izq), decodeGrid(t.der), ref));
+      for (const r of t.porReplica || []) {
+        r.tci = r.rep === t.replica ? t.tci : serializeTci(computeTci(decodeGrid(r.izq), decodeGrid(r.der), ref));
+      }
     }
   }
   if (errores.length)
@@ -539,10 +546,7 @@ function main() {
     console.log(
       `Fotos: ${reps.length} réplicas · máscaras limpiadas ${reps.filter((r) => r.limpieza?.cambiados).length} · ` +
         `fotos realineadas ${reps.filter((r) => r.alineacion?.aplicada).length} · ` +
-        `tomas con calidad baja ${tomasQ.filter((t) => t.baja).length} de ${tomasQ.length}` +
-        (PROMEDIO
-          ? ` · tomas promediadas (≥ 2 réplicas) ${tomasQ.filter((t) => t.promedio?.n >= 2).length}`
-          : ''),
+        `tomas con calidad baja ${tomasQ.filter((t) => t.baja).length} de ${tomasQ.length}`,
     );
   }
   const conT1 = pacientes.filter((p) => p.tomas.some((t) => t.toma === 1 && t.ok)).length;

@@ -10,7 +10,7 @@
  * defensa en profundidad para cualquier acceso directo con la anon key.
  */
 const contracts = require('../contracts');
-const { User, Patient, Study, AnalysisResult, Appointment, AuditEntry, Consent, ImageReview } = require(
+const { User, Patient, Study, AnalysisResult, Appointment, AuditEntry, Consent, TomaReview, MaskCorrection } = require(
   '../../models',
 );
 const { toRow, fromRow } = require('./mappers');
@@ -217,6 +217,14 @@ class SupabaseStudyRepository extends contracts.StudyRepository {
     }
     return this.findById(id);
   }
+  async updateImage(id, slot, patch) {
+    const row = toRow('study_images', patch);
+    check(
+      await this.b.db.from('study_images').update(row).eq('study_id', id).eq('slot', slot),
+      'study_images.update',
+    );
+    return this.findById(id);
+  }
   async count() {
     return this.b.countAll();
   }
@@ -283,13 +291,22 @@ class SupabaseAnalysisRepository extends contracts.AnalysisRepository {
     return this.findByStudyId(row.study_id);
   }
   async update(id, patch) {
-    const { rois: _r, roisToma1: _r1, ...fields } = patch;
+    const { rois, roisToma1, ...fields } = patch;
     let res = await this.db.from('analysis_results').update(toRow('analysis_results', fields)).eq('id', id).select().single();
     if (missingColumn(res.error, 'parametros')) {
       const { parametros: _p, ...rest } = toRow('analysis_results', fields);
       res = await this.db.from('analysis_results').update(rest).eq('id', id).select().single();
     }
     const row = check(res, 'analysis_results.update');
+    // Con ROIs nuevas (otra foto de una toma) se reemplazan las mediciones de referencia.
+    if (Array.isArray(rois) || Array.isArray(roisToma1)) {
+      check(await this.db.from('roi_mediciones').delete().eq('analysis_id', id), 'roi_mediciones.delete');
+      const nuevas = [
+        ...(roisToma1 || []).map((r) => toRow('roi_mediciones', { ...r, toma: 1, analysisId: id })),
+        ...(rois || []).map((r) => toRow('roi_mediciones', { ...r, toma: 2, analysisId: id })),
+      ];
+      if (nuevas.length) check(await this.db.from('roi_mediciones').insert(nuevas), 'roi_mediciones.insert');
+    }
     return this.findByStudyId(row.study_id);
   }
   async count() {
@@ -402,48 +419,97 @@ class SupabaseAuditRepository extends contracts.AuditRepository {
   }
 }
 
-/* ---------- Revisión manual de las fotos ---------- */
-class SupabaseImageReviewRepository extends contracts.ImageReviewRepository {
+/* ---------- Revisión manual de las tomas ---------- */
+class SupabaseTomaReviewRepository extends contracts.TomaReviewRepository {
   constructor(db) {
     super();
-    this.b = new SupabaseBase(db, 'study_image_reviews', ImageReview);
+    this.b = new SupabaseBase(db, 'study_toma_reviews', TomaReview);
   }
   async listByStudy(studyId) {
     const { data, error } = await this.b.db
-      .from('study_image_reviews')
+      .from('study_toma_reviews')
       .select('*')
       .eq('study_id', studyId)
-      .order('toma', { ascending: true })
-      .order('replica', { ascending: true });
-    // Sin la migración aplicada, todas las fotos quedan «Falta revisar».
+      .order('toma', { ascending: true });
+    // Sin la migración aplicada, todas las tomas quedan «Falta revisar».
     if (missingTable(error)) return [];
-    return check({ data, error }, 'study_image_reviews.list').map((r) => this.b.entity(r));
+    return check({ data, error }, 'study_toma_reviews.list').map((r) => this.b.entity(r));
   }
   async listByStudyIds(studyIds) {
     const out = [];
     // En tandas: la lista de ids va en la URL de PostgREST.
     for (let i = 0; i < studyIds.length; i += 60) {
       const { data, error } = await this.b.db
-        .from('study_image_reviews')
+        .from('study_toma_reviews')
         .select('*')
         .in('study_id', studyIds.slice(i, i + 60));
       if (missingTable(error)) return [];
-      out.push(...check({ data, error }, 'study_image_reviews.listMany').map((r) => this.b.entity(r)));
+      out.push(...check({ data, error }, 'study_toma_reviews.listMany').map((r) => this.b.entity(r)));
     }
     return out;
   }
   async upsert(review) {
     const { id: _id, createdAt: _c, ...fields } = review;
-    const row = { ...toRow('study_image_reviews', fields), updated_at: new Date().toISOString() };
+    const row = { ...toRow('study_toma_reviews', fields), updated_at: new Date().toISOString() };
+    const data = check(
+      await this.b.db.from('study_toma_reviews').upsert(row, { onConflict: 'study_id,toma' }).select().single(),
+      'study_toma_reviews.upsert',
+    );
+    return this.b.entity(data);
+  }
+}
+
+/* ---------- Contornos corregidos a mano ---------- */
+class SupabaseMaskCorrectionRepository extends contracts.MaskCorrectionRepository {
+  constructor(db) {
+    super();
+    this.b = new SupabaseBase(db, 'study_mask_corrections', MaskCorrection);
+  }
+  async #select(filter, label) {
+    const { data, error } = await filter(this.b.db.from('study_mask_corrections').select('*'));
+    // Sin la migración aplicada, no hay contornos corregidos.
+    if (missingTable(error)) return [];
+    return check({ data, error }, label).map((r) => this.b.entity(r));
+  }
+  async listByStudy(studyId) {
+    return this.#select((q) => q.eq('study_id', studyId).order('toma').order('replica'), 'mask_corrections.list');
+  }
+  async listByStudyIds(studyIds) {
+    const out = [];
+    for (let i = 0; i < studyIds.length; i += 60) {
+      out.push(
+        ...(await this.#select((q) => q.in('study_id', studyIds.slice(i, i + 60)), 'mask_corrections.listMany')),
+      );
+    }
+    return out;
+  }
+  async listAll() {
+    return this.#select((q) => q, 'mask_corrections.listAll');
+  }
+  async upsert(c) {
+    const { id: _id, createdAt: _c, ...fields } = c;
+    const row = { ...toRow('study_mask_corrections', fields), updated_at: new Date().toISOString() };
     const data = check(
       await this.b.db
-        .from('study_image_reviews')
+        .from('study_mask_corrections')
         .upsert(row, { onConflict: 'study_id,toma,replica' })
         .select()
         .single(),
-      'study_image_reviews.upsert',
+      'mask_corrections.upsert',
     );
     return this.b.entity(data);
+  }
+  async remove(studyId, toma, replica) {
+    check(
+      await this.b.db
+        .from('study_mask_corrections')
+        .delete()
+        .eq('study_id', studyId)
+        .eq('toma', Number(toma))
+        .eq('replica', Number(replica)),
+      'mask_corrections.remove',
+    );
+    return true;
   }
 }
 
@@ -462,6 +528,16 @@ class SupabaseFileStorage extends contracts.FileStorage {
     });
     if (error) throw new Error(`[supabase] storage.upload: ${error.message}`);
     return { storagePath: data.path };
+  }
+  async put({ key, buffer, mime }) {
+    const { error } = await this.db.storage.from(this.bucket).upload(key, buffer, { contentType: mime, upsert: true });
+    if (error) throw new Error(`[supabase] storage.upload: ${error.message}`);
+    return { storagePath: key };
+  }
+  async remove(storagePath) {
+    const { error } = await this.db.storage.from(this.bucket).remove([storagePath]);
+    if (error) throw new Error(`[supabase] storage.remove: ${error.message}`);
+    return true;
   }
   async read(storagePath) {
     const { data, error } = await this.db.storage.from(this.bucket).download(storagePath);
@@ -487,7 +563,8 @@ function createSupabaseRepositories(db, config) {
     appointments: new SupabaseAppointmentRepository(db),
     consents: new SupabaseConsentRepository(db),
     audit: new SupabaseAuditRepository(db),
-    imageReviews: new SupabaseImageReviewRepository(db),
+    tomaReviews: new SupabaseTomaReviewRepository(db),
+    maskCorrections: new SupabaseMaskCorrectionRepository(db),
     files: new SupabaseFileStorage(db, config.supabase),
   };
 }
@@ -502,6 +579,7 @@ module.exports = {
   SupabaseAppointmentRepository,
   SupabaseConsentRepository,
   SupabaseAuditRepository,
-  SupabaseImageReviewRepository,
+  SupabaseTomaReviewRepository,
+  SupabaseMaskCorrectionRepository,
   SupabaseFileStorage,
 };

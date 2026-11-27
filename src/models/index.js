@@ -8,7 +8,8 @@ module.exports = {
   Appointment: require('./Appointment'),
   AuditEntry: require('./AuditEntry'),
   Consent: require('./Consent'),
-  ImageReview: require('./ImageReview'),
+  TomaReview: require('./TomaReview'),
+  MaskCorrection: require('./MaskCorrection'),
   PatientView: require('./PatientView'),
   ...require('./roles'),
 };

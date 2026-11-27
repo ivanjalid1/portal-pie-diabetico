@@ -26,7 +26,9 @@ const OutcomeLog = require('./services/OutcomeLog');
 const ThermalForecastService = require('./services/ThermalForecastService');
 const { MaskService } = require('./services/MaskService');
 const { ThermalViewerService } = require('./services/ThermalViewerService');
-const { ImageReviewService } = require('./services/ImageReviewService');
+const { TomaReviewService } = require('./services/TomaReviewService');
+const { ReplicaStore } = require('./services/ReplicaStore');
+const { MaskCorrectionService } = require('./services/MaskCorrectionService');
 const { seedDemoData, DEMO_PASSWORD } = require('./seed');
 const { loadRealDataset, seedRealData } = require('./seed/realData');
 
@@ -133,12 +135,36 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
           : null,
   });
 
-  // Revisión manual de cada foto del visor (sólo una etiqueta; no toca el análisis).
-  const imageReviewService = new ImageReviewService({
-    reviews: repos.imageReviews,
+  // Datos de análisis de cada réplica (foto) de las tomas reales: el dataset local
+  // (driver memory con SEED=real) o, en producción, el almacenamiento privado.
+  const dataset =
+    data.driver === 'memory' && overrides.seed !== false && config.seed === 'real'
+      ? loadRealDataset(config.realDataDir)
+      : null;
+  const replicaStore = overrides.replicaStore || new ReplicaStore({ dataset, files: repos.files });
+
+  // Contornos de los pies corregidos a mano en «Revisión de fotos» (también en producción).
+  const maskCorrectionService = new MaskCorrectionService({
+    corrections: repos.maskCorrections,
+    files: repos.files,
     users: repos.users,
     studyService,
     viewerService,
+    replicaStore,
+    analysisService,
+    events,
+  });
+
+  // Revisión manual por toma: qué foto se usa (vuelve a analizar la toma), estado y comentario.
+  const tomaReviewService = new TomaReviewService({
+    reviews: repos.tomaReviews,
+    users: repos.users,
+    studyService,
+    viewerService,
+    replicaStore,
+    analysisService,
+    studies: repos.studies,
+    maskCorrectionService,
     events,
   });
 
@@ -174,7 +200,9 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
       settingsService,
       maskService,
       viewerService,
-      imageReviewService,
+      tomaReviewService,
+      replicaStore,
+      maskCorrectionService,
       forecastService,
     },
     outcomeLog,
@@ -186,7 +214,6 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
   // pacientes reales precalculados; si falta (CI, Vercel, pruebas), la demo.
   if (data.driver === 'memory' && overrides.seed !== false) {
     const passwordHash = bcrypt.hashSync(DEMO_PASSWORD, config.security.bcryptRounds);
-    const dataset = config.seed === 'real' ? loadRealDataset(config.realDataDir) : null;
     if (config.seed === 'real' && !dataset) {
       console.warn(
         '[seed] SEED=real pero no se encontró data-local/real/dataset.json: se usan los datos de demostración.',

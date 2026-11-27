@@ -11,7 +11,7 @@ const {
   CODIGO_REGEX,
   VIBRATORIA_MAX,
 } = require('../config/domain');
-const ImageReview = require('../models/ImageReview');
+const TomaReview = require('../models/TomaReview');
 
 /* ---------- Autenticación ---------- */
 
@@ -202,13 +202,25 @@ const notesSchema = z.object({ notasMedico: z.string().trim().max(4000, 'Máximo
 
 const publishSchema = z.object({ publicado: f.checkbox() });
 
-/** Revisión manual de una foto del estudio (la toma y la réplica van en la URL). */
-const imageReviewSchema = z.object({
-  estado: z.enum(ImageReview.ESTADOS, { error: 'Elegí Aprobada, Rechazada o Falta revisar.' }),
+/**
+ * Revisión manual de una toma del estudio (la toma va en la URL): la foto que
+ * se usa (réplica; vacía = la sugerida), el estado y un comentario.
+ */
+const tomaReviewSchema = z.object({
+  replica: z.preprocess(
+    (v) => (v === '' || v === undefined || v === null ? undefined : v),
+    z.coerce
+      .number({ error: 'Elegí una foto de la toma.' })
+      .int('Elegí una foto de la toma.')
+      .min(1, 'Elegí una foto de la toma.')
+      .max(TomaReview.REPLICA_MAX, 'Elegí una foto de la toma.')
+      .optional(),
+  ),
+  estado: z.enum(TomaReview.ESTADOS, { error: 'Elegí Aprobada, Rechazada o Falta revisar.' }),
   comentario: z
     .string()
     .trim()
-    .max(ImageReview.COMENTARIO_MAX, `Máximo ${ImageReview.COMENTARIO_MAX} caracteres.`)
+    .max(TomaReview.COMENTARIO_MAX, `Máximo ${TomaReview.COMENTARIO_MAX} caracteres.`)
     .default(''),
 });
 
@@ -294,7 +306,7 @@ module.exports = {
   studySchema,
   notesSchema,
   publishSchema,
-  imageReviewSchema,
+  tomaReviewSchema,
   outcomeSchema,
   consentSchema,
   revokeConsentSchema,

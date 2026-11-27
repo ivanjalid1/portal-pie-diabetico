@@ -952,14 +952,14 @@
         o.value = String(r.rep);
         const parts = [`Réplica ${r.rep}`];
         if (r.calidad !== null && r.calidad !== undefined) parts.push(`calidad ${nf2.format(r.calidad)}`);
-        if (r.mejor) parts.push('mejor');
-        if (r.enPromedio) parts.push('en el promedio');
+        if (r.usada) parts.push('usada en el análisis');
+        if (r.mejor) parts.push('sugerida');
         const graves = (r.avisos || []).filter((a) => a.grave).length;
         if (graves) parts.push(`${graves} aviso${graves === 1 ? '' : 's'}`);
         o.textContent = parts.join(' · ');
         repSel.appendChild(o);
       });
-      const best = src.reps.find((r) => r.mejor) || src.reps[0];
+      const best = src.reps.find((r) => r.usada) || src.reps.find((r) => r.mejor) || src.reps[0];
       repSel.value = String(best.rep);
       return best;
     }

@@ -7,7 +7,7 @@
 <%- include('../partials/page-header', {
   back: { href: volver, label: 'Revisión de fotos' },
   heading: codigo,
-  lead: 'Visor de sólo lectura. Para aprobar o rechazar una foto, volvé a «Revisión de fotos».',
+  lead: 'Visor de sólo lectura. Para elegir la foto de una toma o marcarla, volvé a «Revisión de fotos».',
 }) %>
 <% if (visor.length) { %>
 <%- include('../partials/thermo-viewer', { study, visor, fecha: fechaToma, activa: fotoSel ? fotoSel.toma : visor[visor.length - 1].toma, repInicial: fotoSel ? fotoSel.rep : null, base: `/revision/estudios/${study.id}` }) %>

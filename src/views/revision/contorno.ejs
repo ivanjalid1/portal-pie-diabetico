@@ -1,0 +1,68 @@
+<%
+  // «Corregir contorno» de una foto (réplica) de una toma, en «Revisión de
+  // fotos»: pincel por pie, goma, tamaño, deshacer y guardar sobre la térmica
+  // (con la foto visible en el visor). Lo maneja public/js/mask-editor.js con
+  // las rutas de esta sección. Sólo cambia qué píxeles son pie: las
+  // temperaturas no se tocan. Sólo se muestra el código del paciente.
+%>
+<%- include('../partials/page-header', {
+  heading: `Corregir contorno · ${codigo}`,
+  lead: `Toma ${m.toma}, foto ${m.rep}${m.usada ? ' (la que usa el análisis)' : ''}. Pintá cada pie con su color y borrá lo que no es pie (tela, pierna, objetos).`,
+  back: { href: volver, label: 'Revisión de fotos' },
+}) %>
+
+<div class="mask-editor" data-mask-editor data-key="<%= `${m.study.id}-${m.toma}-${m.rep}` %>" data-csrf="<%= csrfToken %>" data-masks-url="<%= urls.masks %>" data-save-url="<%= urls.save %>" data-reset-url="<%= urls.reset %>" data-next="">
+  <div class="mask-stage card card--flush" data-tv>
+    <%- include('../partials/thermo-viewer-core', {
+      uid: `tv-contorno-${m.study.id}-${m.toma}-${m.rep}`,
+      mascara: true,
+      sources: [source],
+    }) %>
+    <p class="mask-stage__hint small muted"><kbd>1</kbd> pie a la izquierda · <kbd>2</kbd> pie a la derecha · <kbd>E</kbd> borrar · <kbd>[</kbd> <kbd>]</kbd> tamaño · <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshacer · <kbd>H</kbd> ocultar contorno</p>
+  </div>
+
+  <aside class="mask-panel card" aria-label="Herramientas">
+    <fieldset class="mask-tools">
+      <legend class="mask-panel__label">Herramienta</legend>
+      <label class="mask-tool mask-tool--l"><input type="radio" name="tool" value="1" checked><span><i aria-hidden="true"></i>Pie a la izquierda</span></label>
+      <label class="mask-tool mask-tool--r"><input type="radio" name="tool" value="2"><span><i aria-hidden="true"></i>Pie a la derecha</span></label>
+      <label class="mask-tool mask-tool--e"><input type="radio" name="tool" value="0"><span><%- include('../partials/icon', { name: 'eraser', size: 16 }) %>Borrar</span></label>
+    </fieldset>
+
+    <div class="field mask-range">
+      <label for="mask-size" class="mask-panel__label">Tamaño del pincel <output class="num" for="mask-size" data-size-out>6</output> px</label>
+      <input id="mask-size" type="range" min="1" max="30" value="6" data-size>
+    </div>
+    <div class="field mask-range">
+      <label for="mask-alpha" class="mask-panel__label">Opacidad del contorno <output class="num" for="mask-alpha" data-alpha-out>35</output> %</label>
+      <input id="mask-alpha" type="range" min="0" max="80" value="35" data-alpha>
+    </div>
+
+    <div class="mask-panel__row">
+      <button type="button" class="btn btn--ghost btn--sm" data-undo disabled><%- include('../partials/icon', { name: 'undo', size: 16 }) %>Deshacer</button>
+      <button type="button" class="btn btn--ghost btn--sm" data-toggle><%- include('../partials/icon', { name: 'eye', size: 16 }) %>Ocultar</button>
+    </div>
+
+    <div class="mask-panel__group">
+      <p class="mask-panel__label">Empezar desde</p>
+      <div class="tabs tabs--pill mask-sources" role="group" aria-label="Contorno de partida">
+        <% if (m.corregida) { %><button type="button" class="tabs__item<%= m.base === 'corregida' ? ' is-active' : '' %>" data-source="corregida">Corregido</button><% } %>
+        <% if (m.automatica) { %><button type="button" class="tabs__item<%= m.base === 'automatica' ? ' is-active' : '' %>" data-source="automatica">Automático (U-Net)</button><% } %>
+      </div>
+    </div>
+
+    <dl class="mask-stats small">
+      <div><dt><i class="sw sw--l" aria-hidden="true"></i>Pie a la izquierda</dt><dd class="num" data-count="1">—</dd></div>
+      <div><dt><i class="sw sw--r" aria-hidden="true"></i>Pie a la derecha</dt><dd class="num" data-count="2">—</dd></div>
+    </dl>
+
+    <div class="mask-panel__actions">
+      <button type="button" class="btn btn--primary btn--block" data-save><%- include('../partials/icon', { name: 'check', size: 18 }) %>Guardar contorno</button>
+      <button type="button" class="btn btn--ghost btn--block" data-reset<%= m.corregida ? '' : ' hidden' %>>Volver al contorno automático</button>
+      <p class="small muted mask-status" data-status role="status" aria-live="polite"><%= m.corregidoAt ? `Contorno corregido por ${m.corregidoPor} · ${fmt.dateTime(m.corregidoAt)}` : 'Contorno automático (sin corregir).' %></p>
+      <p class="rv-result small" data-result role="status" aria-live="polite" hidden></p>
+    </div>
+    <p class="small muted">Guardar vuelve a calcular las grillas de esta foto con el contorno nuevo<%= m.usada ? ' y el resultado del estudio' : '' %>. Las temperaturas no cambian. «Pie a la izquierda» es el que aparece a la izquierda de la imagen.</p>
+  </aside>
+</div>
+<script src="/js/mask-editor.js" defer></script>

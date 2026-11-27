@@ -1,5 +1,6 @@
-/* Corrección de máscaras (herramienta local): pincel por pie, goma, deshacer,
-   opacidad y guardado. La máscara es una matriz de etiquetas 320 × 240
+/* Corrección de máscaras: pincel por pie, goma, deshacer, opacidad y guardado.
+   Sirve a la herramienta local (/mascaras) y a «Corregir contorno» de
+   «Revisión de fotos» (rutas en data-masks-url, data-save-url y data-reset-url). La máscara es una matriz de etiquetas 320 × 240
    (0 fondo, 1 pie a la izquierda de la imagen, 2 a la derecha) que viaja
    comprimida en RLE «valor:cantidad,…». */
 (function () {
@@ -10,6 +11,9 @@
   const $$ = (s) => [...root.querySelectorAll(s)];
   const key = root.dataset.key;
   const csrf = root.dataset.csrf;
+  const masksUrl = root.dataset.masksUrl || `/mascaras/${key}/mascaras.json`;
+  const saveUrl = root.dataset.saveUrl || `/mascaras/${key}`;
+  const resetUrl = root.dataset.resetUrl || null;
   const canvas = $('[data-overlay]');
   const ctx = canvas.getContext('2d');
   const W = canvas.width;
@@ -242,7 +246,7 @@
     btns.forEach((b) => (b.disabled = true));
     setStatus('Guardando…');
     try {
-      const res = await fetch(`/mascaras/${key}`, {
+      const res = await fetch(saveUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
         body: JSON.stringify({ rle: encode(labels), origen }),
@@ -250,7 +254,17 @@
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || body.message || 'No se pudo guardar.');
       dirty = false;
-      setStatus('Guardada.', 'ok');
+      setStatus(body.guardado || 'Guardada.', 'ok');
+      const res2 = $('[data-result]');
+      if (res2 && body.analisis) {
+        res2.hidden = false;
+        res2.textContent =
+          body.analisis.antes === body.analisis.despues
+            ? `Resultado del estudio recalculado con este contorno (${body.analisis.despues}).`
+            : `Resultado del estudio recalculado: ${body.analisis.antes} → ${body.analisis.despues}.`;
+      }
+      const rb = $('[data-reset]');
+      if (rb) rb.hidden = false;
       if (goNext && root.dataset.next) window.location.assign(root.dataset.next);
     } catch (err) {
       setStatus(err.message || 'No se pudo guardar.', 'danger');
@@ -261,15 +275,35 @@
   $('[data-save]').addEventListener('click', () => save(false));
   const nextBtn = $('[data-save-next]');
   if (nextBtn) nextBtn.addEventListener('click', () => save(true));
+  const resetBtn = $('[data-reset]');
+  if (resetBtn && resetUrl) {
+    resetBtn.addEventListener('click', async () => {
+      if (!window.confirm('¿Volver al contorno automático? Se borra la corrección guardada.')) return;
+      resetBtn.disabled = true;
+      setStatus('Quitando la corrección…');
+      try {
+        const res = await fetch(resetUrl, {
+          method: 'POST',
+          headers: { Accept: 'application/json', 'X-CSRF-Token': csrf },
+        });
+        if (!res.ok) throw new Error('No se pudo quitar la corrección.');
+        dirty = false;
+        window.location.reload();
+      } catch (err) {
+        setStatus(err.message, 'danger');
+        resetBtn.disabled = false;
+      }
+    });
+  }
   window.addEventListener('beforeunload', (ev) => {
     if (dirty) ev.preventDefault();
   });
 
   /* ---------- Carga ---------- */
-  fetch(`/mascaras/${key}/mascaras.json`, { headers: { Accept: 'application/json' } })
+  fetch(masksUrl, { headers: { Accept: 'application/json' } })
     .then((r) => r.json())
     .then((m) => {
-      sources = { corregida: m.corregida, unet: m.unet, clasica: m.clasica };
+      sources = { corregida: m.corregida, unet: m.unet, clasica: m.clasica, automatica: m.automatica };
       origen = m.base;
       if (sources[m.base]) labels = decode(sources[m.base]);
       draw();

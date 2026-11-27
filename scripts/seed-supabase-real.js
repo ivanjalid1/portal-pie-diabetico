@@ -27,13 +27,15 @@
  *   node scripts/seed-supabase-real.js --models          (sube los modelos de data-local al bucket `modelos`)
  *   node scripts/seed-supabase-real.js --ambiente        (estudios ya cargados: completa el ambiente de
  *        cada toma —data-local/real/ambiente.json— y recalcula su análisis con la configuración vigente)
- *   node scripts/seed-supabase-real.js --actualizar      (estudios ya cargados: reemplaza las grillas de
- *        cada toma por las del dataset —p. ej. el promedio de réplicas—, vuelve a subir la imagen de cada
- *        toma, recalcula el análisis con la configuración vigente y quita la marca automática «no válido»
- *        de la Parte 1; los pacientes nuevos se cargan como siempre)
+ *   node scripts/seed-supabase-real.js --actualizar      (estudios ya cargados: una foto por toma —la
+ *        elegida en «Revisión de fotos» o la sugerida—, sube la imagen y los datos de análisis de CADA
+ *        réplica al almacenamiento privado —para cambiar la foto desde el portal—, recalcula el análisis
+ *        con la configuración vigente y quita la marca automática «no válido» de la Parte 1. Después de
+ *        cargar pacientes nuevos, correr también --actualizar)
  */
 require('dotenv').config({ quiet: true });
 const crypto = require('node:crypto');
+const zlib = require('node:zlib');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -207,22 +209,64 @@ async function updateAmbient({ repos, predictor, dataset, dryRun, log }) {
 }
 
 /** Motivo que la carga anterior ponía a los marcados «NO VALIDO» (ahora sólo etiqueta histórica). */
-const MOTIVO_NO_VALIDO_ANTERIOR = 'Marcado en la planilla clínica como «no válido» por la imagen (excluido en la Parte 1).';
+const MOTIVO_NO_VALIDO_ANTERIOR =
+  'Marcado en la planilla clínica como «no válido» por la imagen (excluido en la Parte 1).';
 
 /**
- * Estudios reales ya cargados: grillas nuevas del dataset (promedio de
- * réplicas), imagen de cada toma, análisis recalculado con la configuración
+ * Datos de análisis de cada réplica de las tomas de un paciente para el
+ * almacenamiento privado (ReplicaStore): el TCI de cada réplica ya trae el
+ * ajuste por el ambiente de la toma, porque en producción no está la
+ * referencia del TCI para recalcularlo.
+ */
+function replicasDePaciente(p, amb, tciReference) {
+  const { analyzePointwise } = require('../src/services/predictors/pointwiseAnalysis');
+  const out = {};
+  for (const t of p.tomas) {
+    if (!t.ok || !Array.isArray(t.porReplica) || !t.porReplica.length) continue;
+    out[t.toma] = t.porReplica.map((r) => {
+      if (!tciReference) return r;
+      const [x] = analyzePointwise({ toma1: { ...r, ambiente: amb[t.toma] || null } }, {}, { tciReference }).tomas;
+      return { ...r, tci: x?.tci ?? r.tci ?? null };
+    });
+  }
+  return out;
+}
+
+/**
+ * Estudios reales ya cargados: grillas del dataset (una foto por toma: la
+ * elegida en «Revisión de fotos» o la sugerida), los datos de cada réplica en
+ * el almacenamiento privado (para poder cambiar la foto desde el portal), la
+ * imagen PNG de cada réplica, el análisis recalculado con la configuración
  * vigente y sin la marca automática «no válido» de la Parte 1. No toca las
- * fichas, los consentimientos, las revisiones de fotos ni lo que haya marcado
- * a mano el equipo (otro motivo de invalidez se respeta).
+ * fichas, los consentimientos, las revisiones ni lo que haya marcado a mano el
+ * equipo (otro motivo de invalidez se respeta).
  */
 async function refreshExisting({ repos, admin, bucket, predictor, dataset, dir, dryRun, log }) {
   const { camposAmbiente, sinConsentimiento } = require('../src/seed/realData');
   const SettingsService = require('../src/services/SettingsService');
+  const { ReplicaStore, REMOTE_REPLICAS } = require('../src/services/ReplicaStore');
+  const { tomaConReplica } = require('../src/imaging/replicaChoice');
+  const { loadReferenceStore, referenceFor } = require('../src/services/predictors/tciReference');
   const settings = new SettingsService({ settings: repos.settings, analyses: repos.analyses, events: null });
   const params = await settings.params();
-  const tot = { estudios: 0, imagenes: 0, cambiaronCategoria: 0, validados: 0, faltan: 0, nuevos: 0 };
+  const tciStore = loadReferenceStore(dir);
+  const tot = {
+    estudios: 0,
+    imagenes: 0,
+    replicas: 0,
+    cambiaronCategoria: 0,
+    validados: 0,
+    faltan: 0,
+    nuevos: 0,
+    elegidasAMano: 0,
+    contornosCorregidos: 0,
+  };
   const cambios = [];
+  const upload = async (key, buffer, contentType) => {
+    if (dryRun) return;
+    const { error } = await admin.storage.from(bucket).upload(key, buffer, { contentType, upsert: true });
+    if (error) throw new Error(`storage.upload: ${error.message}`);
+  };
   for (const p of dataset.pacientes) {
     if (sinConsentimiento(p)) continue;
     const t1 = p.tomas.find((t) => t.toma === 1 && t.ok);
@@ -242,35 +286,87 @@ async function refreshExisting({ repos, admin, bucket, predictor, dataset, dir, 
     const amb = dataset.ambiente?.[p.codigo] || {};
     const conT2 = Boolean(t2 && study.image('toma2'));
     const campos = camposAmbiente(amb, conT2);
+    const porToma = replicasDePaciente(p, amb, referenceFor(tciStore, p.codigo));
+    // Foto elegida a mano en «Revisión de fotos» (si la hay); si no, la sugerida.
+    const reviews = repos.tomaReviews ? await repos.tomaReviews.listByStudy(study.id) : [];
+    const usadas = {};
+    // Contornos corregidos a mano (MaskCorrectionService): se usan sus grillas en la foto usada.
+    const corregidos = repos.maskCorrections ? await repos.maskCorrections.listByStudy(study.id) : [];
+    const conContorno = async (toma, entry) => {
+      const row = corregidos.find((c) => c.toma === toma && c.replica === entry.rep);
+      if (!row?.storagePath || !repos.files) return entry;
+      try {
+        const f = JSON.parse(zlib.gunzipSync(await repos.files.read(row.storagePath)).toString('utf8'));
+        const quien = row.corregidoPor ? await repos.users.findById(row.corregidoPor) : null;
+        tot.contornosCorregidos += 1;
+        return {
+          ...entry,
+          izq: f.izq,
+          der: f.der,
+          calidad: f.calidad ?? entry.calidad,
+          marco: f.marco ?? entry.marco,
+          segmentacion: 'manual',
+          tci: null,
+          contorno: { por: quien?.nombreCompleto || 'un usuario' },
+        };
+      } catch {
+        return entry;
+      }
+    };
+    const tomaHint = async (t, fecha) => {
+      const base = { ...t, fecha, ambiente: amb[t.toma] || null };
+      const reps = porToma[t.toma] || [];
+      const rv = reviews.find((r) => r.toma === t.toma && r.replicaElegida);
+      const elegida = rv ? reps.find((r) => r.rep === rv.replicaElegida) : null;
+      const entry = elegida || reps.find((r) => r.rep === t.replica) || null;
+      usadas[t.toma] = entry ? entry.rep : t.replica;
+      if (!entry) return base;
+      if (elegida) tot.elegidasAMano += 1;
+      const quien = elegida && rv.revisadoPor ? await repos.users.findById(rv.revisadoPor) : null;
+      const revisor = elegida ? quien?.nombreCompleto || 'un usuario' : null;
+      const final = await conContorno(t.toma, entry);
+      if (!elegida && final === entry) return base;
+      return { ...tomaConReplica(base, final, { revisor }), fecha, ambiente: base.ambiente };
+    };
     const hints = {
       puntual: {
-        toma1: { ...t1, fecha: study.fechaToma1 || study.fechaHora, ambiente: amb[1] || null },
-        ...(conT2 ? { toma2: { ...t2, fecha: study.fechaHora, ambiente: amb[2] || null } } : {}),
+        toma1: await tomaHint(t1, study.fechaToma1 || study.fechaHora),
+        ...(conT2 ? { toma2: await tomaHint(t2, study.fechaHora) } : {}),
       },
     };
     const out = await predictor.predict({ patient, study: { ...study, ...campos }, hints, params });
-    const { rois: _r, roisToma1: _r1, ...fields } = out;
-    if (fields.categoria !== a.categoria) {
+    if (out.categoria !== a.categoria) {
       tot.cambiaronCategoria += 1;
-      cambios.push(`${p.codigo} ${a.categoria}→${fields.categoria}`);
+      cambios.push(`${p.codigo} ${a.categoria}→${out.categoria}`);
     }
     const validar = !study.valida && study.motivoInvalidez === MOTIVO_NO_VALIDO_ANTERIOR;
     if (validar) tot.validados += 1;
+    // Imagen PNG y datos de análisis de cada réplica (almacenamiento privado).
     for (const [t, slot] of [[t1, 'toma1'], ...(conT2 ? [[t2, 'toma2']] : [])]) {
-      const img = study.image(slot);
-      if (!img?.storagePath || !t.imagen) continue;
-      const buffer = fs.readFileSync(path.join(dir, t.imagen));
-      if (!dryRun) {
-        const { error } = await admin.storage
-          .from(bucket)
-          .upload(img.storagePath, buffer, { contentType: 'image/png', upsert: true });
-        if (error) throw new Error(`storage.upload: ${error.message}`);
+      if (!study.image(slot)) continue;
+      for (const r of porToma[t.toma] || []) {
+        if (!r.imagen) continue;
+        await upload(
+          REMOTE_REPLICAS.image(study, t.toma, r.rep),
+          fs.readFileSync(path.join(dir, r.imagen)),
+          'image/png',
+        );
+        tot.imagenes += 1;
       }
-      tot.imagenes += 1;
+      if (!dryRun && (porToma[t.toma] || []).length) {
+        await repos.studies.updateImage(study.id, slot, {
+          storagePath: REMOTE_REPLICAS.image(study, t.toma, usadas[t.toma]),
+        });
+      }
+      tot.replicas += (porToma[t.toma] || []).length;
+    }
+    const tomasRemotas = Object.fromEntries(Object.entries(porToma).filter(([k]) => Number(k) === 1 || conT2));
+    if (Object.keys(tomasRemotas).length) {
+      await upload(REMOTE_REPLICAS.file(study), ReplicaStore.remoteFile(tomasRemotas), 'application/octet-stream');
     }
     if (!dryRun) {
       await repos.studies.update(study.id, { ...campos, ...(validar ? { valida: true, motivoInvalidez: null } : {}) });
-      await repos.analyses.update(a.id, fields);
+      await repos.analyses.update(a.id, out);
     }
     tot.estudios += 1;
   }

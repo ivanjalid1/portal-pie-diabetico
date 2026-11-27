@@ -79,8 +79,8 @@
       <span class="badge badge--persist" title="Más del <%= fmt.num(FC.areaMinima, 0) %> % de la zona caliente en la toma 1 y en la toma 2. La asimetría que persiste en mediciones sucesivas se considera preulcerosa (IWGDF 2023, recomendación 7; Lavery et al. 2007)."><%- include('../partials/icon', { name: 'alert', size: 14 }) %><%= nP > 1 ? 'Zonas calientes persistentes' : 'Zona caliente persistente' %>: <%= FC.persistentes.map((z) => z.texto).join(', ') %> (2 tomas)</span>
       <% } %>
       <span class="badge badge--muted"><%= t2 ? 'Toma 1 y toma 2' : 'Sólo toma 1' %></span>
-      <% if (PW) { PW.tomas.forEach((t) => { const pf = pw.promedioFotos(t); if (pf) { %>
-      <span class="badge badge--muted" data-promedio-fotos title="<%= pf.detalle %>"><%= PW.tomas.length > 1 ? `Toma ${t.toma}: ` : '' %><%= pf.corto %></span>
+      <% if (PW) { PW.tomas.forEach((t) => { const fu = pw.fotoUsada(t); if (fu) { %>
+      <span class="badge badge--muted" data-foto-usada title="En cada toma se usa una sola foto. Se cambia en «Revisión de fotos»."><%= PW.tomas.length > 1 ? `Toma ${t.toma}: ` : '' %><%= fu.corto %></span>
       <% } }) } %>
       <span class="badge badge--outline"><%= s.publicado ? 'Visible para el paciente' : 'No visible para el paciente' %></span>
     </div>
@@ -181,7 +181,7 @@
       <div class="table-wrap">
         <table class="table table--num table--dense">
           <caption class="sr-only">Métricas de la diferencia izquierdo − derecho por toma</caption>
-          <thead><tr><th scope="col">Toma</th><th scope="col">Área &gt; umbral</th><th scope="col">|ΔT| medio</th><th scope="col">|ΔT| p95</th><th scope="col">|ΔT| máx.</th><th scope="col">Media con signo</th><th scope="col">Puntos</th><th scope="col">Mediana plantar</th><th scope="col">Calidad de registro</th><th scope="col">Fotos</th></tr></thead>
+          <thead><tr><th scope="col">Toma</th><th scope="col">Área &gt; umbral</th><th scope="col">|ΔT| medio</th><th scope="col">|ΔT| p95</th><th scope="col">|ΔT| máx.</th><th scope="col">Media con signo</th><th scope="col">Puntos</th><th scope="col">Mediana plantar</th><th scope="col">Calidad de registro</th><th scope="col">Foto usada</th></tr></thead>
           <tbody>
             <% PW.tomas.forEach((t) => { const m = t.metricas; %>
             <tr>
@@ -194,8 +194,8 @@
               <td><%= m ? m.celdas : '—' %></td>
               <td><%= t.absoluta ? (t.absoluta.medianaAjustadaC !== null ? `${fmt.num(t.absoluta.medianaAjustadaC, 1)} (cruda ${fmt.num(t.absoluta.medianaC, 1)})` : fmt.num(t.absoluta.medianaC, 1)) : '—' %></td>
               <td><%= t.calidad !== null ? fmt.num(t.calidad, 2) : '—' %></td>
-              <% const pfT = pw.promedioFotos(t); const eT = t.calidadFotos && t.calidadFotos.promedio && t.calidadFotos.promedio.estabilidad; %>
-              <td title="<%= pfT ? pfT.detalle : '' %>"><%= pfT ? pfT.corto : '—' %><% if (eT && eT.areaCalienteDe !== null) { %><span class="muted"> · área ± <%= fmt.num(eT.areaCalienteDe, 1) %> pts</span><% } %></td>
+              <% const fuT = pw.fotoUsada(t); %>
+              <td><%= fuT ? fuT.corto : '—' %></td>
             </tr>
             <% }) %>
           </tbody>

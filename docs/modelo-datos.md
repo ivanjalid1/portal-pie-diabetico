@@ -16,8 +16,10 @@ erDiagram
   PROFILES ||--o{ STUDIES : "realiza"
   STUDIES ||--o{ STUDY_IMAGES : "2 imágenes"
   STUDIES ||--o{ ANALYSIS_RESULTS : "resultado"
-  STUDIES ||--o{ STUDY_IMAGE_REVIEWS : "revisión por foto"
-  PROFILES |o--o{ STUDY_IMAGE_REVIEWS : "revisa"
+  STUDIES ||--o{ STUDY_TOMA_REVIEWS : "revisión por toma"
+  PROFILES |o--o{ STUDY_TOMA_REVIEWS : "revisa"
+  STUDIES ||--o{ STUDY_MASK_CORRECTIONS : "contornos corregidos"
+  PROFILES |o--o{ STUDY_MASK_CORRECTIONS : "corrige"
   ANALYSIS_RESULTS ||--|{ ROI_MEDICIONES : "7 ROIs"
   PATIENTS ||--o{ APPOINTMENTS : "controles"
   STUDIES |o--o{ APPOINTMENTS : "origina"
@@ -195,15 +197,20 @@ Historial de firmas y revocaciones (`version`, `fecha_firma`, `registrado_por`, 
 
 Una fila por imagen (`slot` = `toma1` / `toma2`, ambas termografías), con `storage_path` (bucket `estudios`, ruta `<patient_id>/<study_id>/<slot>.<ext>`) o `public_url` (sólo imágenes demo), `mime`, `size_bytes`, `original_name`.
 
-### `study_image_reviews`
+### `study_toma_reviews`
 
-Revisión manual de cada foto del visor (migración `20260101001000_revision_imagenes.sql`). Hay una fila por `(study_id, toma, replica)`, que es una clave única. Columnas:
+Revisión manual de cada **toma** (migración `20260101001100_revision_por_toma.sql`, que reemplaza y elimina la antigua `study_image_reviews` por foto). Hay una fila por `(study_id, toma)`, clave única. Columnas:
 
+- `replica_elegida`: la foto (réplica) que usa el análisis de la toma; `null` = la sugerida por los criterios automáticos de calidad;
 - `estado`: `pendiente` (por defecto, «Falta revisar»), `aprobado` o `rechazado`;
 - `comentario`: hasta 1000 caracteres;
 - `revisado_por` → `profiles` y `revisado_at`.
 
-RLS: el médico tratante y el administrador leen y escriben; el paciente no tiene acceso. Es sólo una etiqueta: no modifica `analysis_results` ni excluye fotos del análisis.
+RLS: el médico tratante y el administrador leen y escriben; el paciente no tiene acceso. Elegir otra foto vuelve a calcular el análisis de esa toma; rechazar es sólo una marca (la toma no se excluye).
+
+### `study_mask_corrections`
+
+Contornos (máscaras de los pies) corregidos a mano en «Corregir contorno» (migración `20260101001200_contornos_corregidos.sql`). Una fila por `(study_id, toma, replica)`: `storage_path` (archivo privado `mascaras/<paciente>/<estudio>/toma<k>-r<n>.json.gz` del bucket `estudios`, con la máscara en RLE y las grillas recalculadas), `clave` (hash no identificatorio de la réplica, para reentrenar la U-Net), `pixeles`, `corregido_por` → `profiles` y `corregido_at`. Mismas políticas RLS que la revisión por toma. Sólo cambia qué píxeles son pie: las temperaturas no se tocan.
 
 ### `analysis_results` y `roi_mediciones`
 

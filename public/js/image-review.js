@@ -1,10 +1,12 @@
-/* Revisión manual de las fotos (página /revision, mejora progresiva).
- * Sin JS cada foto es un formulario normal (POST + vuelta a la página). Con JS:
- *  - elegir Aprobado / Rechazado / Falta revisar guarda al instante;
+/* Revisión manual por toma (página /revision, mejora progresiva).
+ * Sin JS cada toma es un formulario normal (POST + vuelta a la página). Con JS:
+ *  - elegir una foto («Usar esta») o un estado guarda al instante; cambiar la
+ *    foto vuelve a calcular el resultado del estudio y se avisa el cambio;
  *  - «Guardar» (o Ctrl+Enter en el comentario) guarda el comentario;
- *  - se actualizan la etiqueta, el «Guardado por…» y el progreso sin recargar;
- *  - atajos: A/R/P (estado y pasa a la siguiente), J/K (siguiente/anterior),
- *    V (foto visible), C (comentario). */
+ *  - se actualizan la etiqueta, la foto usada, el «Guardado por…» y el
+ *    progreso sin recargar;
+ *  - atajos: 1–9 (usar esa foto), A/R/P (estado y pasa a la siguiente toma),
+ *    J/K (siguiente/anterior), V (foto visible), C (comentario). */
 (() => {
   'use strict';
 
@@ -42,7 +44,7 @@
   /* ---------- Guardar ---------- */
   function setEstado(form, estado, etiqueta) {
     const tile = form.closest('[data-rv-tile]');
-    if (tile) ESTADOS.forEach((e) => tile.classList.toggle(`rv-tile--${e}`, e === estado));
+    if (tile) ESTADOS.forEach((e) => tile.classList.toggle(`rv-toma--${e}`, e === estado));
     const badge = $('[data-ir-badge]', form);
     if (badge) {
       badge.classList.remove('badge--ok', 'badge--danger', 'badge--muted');
@@ -58,8 +60,22 @@
     form.dataset.estado = estado;
   }
 
+  function setUsada(form, rev) {
+    $$('[data-rv-rep]', form).forEach((el) => {
+      const used = Number(el.dataset.rvRep) === rev.usada;
+      el.classList.toggle('is-used', used);
+      const radio = $('[data-rv-pick]', el);
+      if (radio) radio.checked = used;
+    });
+    const txt = $('[data-rv-usada]', form);
+    if (txt) txt.textContent = rev.usadaTexto;
+    const visor = $('[data-rv-visor]', form);
+    if (visor) visor.href = visor.href.replace(/foto=\d+-\d+/, `foto=${rev.toma}-${rev.usada}`);
+  }
+
   function bind(form) {
     const saved = $('[data-ir-saved]', form);
+    const result = $('[data-rv-result]', form);
     const btn = $('[data-ir-save]', form);
     const comment = $('textarea', form);
     let busy = false;
@@ -72,6 +88,7 @@
       }
       busy = true;
       if (btn) btn.disabled = true;
+      form.setAttribute('aria-busy', 'true');
       if (saved) saved.textContent = 'Guardando…';
       try {
         const res = await fetch(form.action, {
@@ -83,13 +100,21 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || 'No se pudo guardar la revisión.');
         setEstado(form, data.revision.estado, data.revision.etiqueta);
+        setUsada(form, data.revision);
         if (saved) saved.textContent = data.revision.guardado;
+        if (result && data.analisis) {
+          result.hidden = false;
+          result.textContent = data.analisis.cambioCategoria
+            ? `Resultado del estudio recalculado: ${data.analisis.antes} → ${data.analisis.despues}.`
+            : `Resultado del estudio recalculado con esta foto (${data.analisis.despues}).`;
+        }
         form.classList.remove('is-dirty', 'is-error');
       } catch (err) {
         if (saved) saved.textContent = err.message || 'No se pudo guardar la revisión.';
         form.classList.add('is-error');
       } finally {
         busy = false;
+        form.removeAttribute('aria-busy');
         if (btn) btn.disabled = false;
         if (again) {
           again = false;
@@ -100,7 +125,7 @@
     form.rvSave = save;
 
     form.addEventListener('change', (ev) => {
-      if (ev.target.name === 'estado') save();
+      if (ev.target.name === 'estado' || ev.target.name === 'replica') save();
     });
     if (comment) {
       comment.addEventListener('input', () => {
@@ -128,9 +153,9 @@
   /* ---------- Foto visible ---------- */
   const visToggle = $('[data-rv-visible]');
   function showVisible(on) {
-    tiles.forEach((t) => {
-      const vis = $('[data-rv-vis]', t);
-      const ir = $('[data-rv-ir]', t);
+    $$('.rv-rep__media', root).forEach((m) => {
+      const vis = $('[data-rv-vis]', m);
+      const ir = $('[data-rv-ir]', m);
       if (!vis || !ir) return;
       if (on && !vis.getAttribute('src')) {
         vis.loading = 'lazy';
@@ -157,14 +182,14 @@
     }
   }
 
-  /* ---------- Foto actual y atajos ---------- */
+  /* ---------- Toma actual y atajos ---------- */
   let current = null;
   function focusTile(t, { scroll = true } = {}) {
     if (!t) return;
     if (current) current.classList.remove('is-current');
     current = t;
     t.classList.add('is-current');
-    if (scroll) t.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (scroll) t.scrollIntoView({ block: 'start', behavior: 'smooth' });
     t.focus({ preventScroll: true });
   }
   root.addEventListener('focusin', (ev) => {
@@ -211,6 +236,16 @@
       $('textarea', form).focus();
       return;
     }
+    if (/^[1-9]$/.test(k)) {
+      const radio = $$('[data-rv-pick]', form)[Number(k) - 1];
+      if (!radio) return;
+      ev.preventDefault();
+      if (!radio.checked) {
+        radio.checked = true;
+        form.rvSave();
+      }
+      return;
+    }
     const estado = KEY_ESTADO[k];
     if (!estado) return;
     ev.preventDefault();
@@ -222,7 +257,7 @@
     step(1, { page: false });
   });
 
-  // Vuelta desde un guardado sin JS (#foto-…): marca esa foto.
+  // Vuelta desde un guardado sin JS (#toma-…): marca esa toma.
   if (location.hash) {
     const t = document.getElementById(location.hash.slice(1));
     if (t && t.matches('[data-rv-tile]')) focusTile(t, { scroll: false });

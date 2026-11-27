@@ -1,6 +1,7 @@
 'use strict';
 
 const { EVENTS } = require('../utils/eventBus');
+const { tomaConReplica } = require('../imaging/replicaChoice');
 
 const dec = (v) => String(v ?? '').replace('.', ',');
 
@@ -79,6 +80,36 @@ class AnalysisService {
       detail: `${actualizados} estudios recalculados (${cambiaron} cambiaron de clasificación) · umbral ${dec(params?.umbral)} °C, simetría < ${dec(params?.corteSimetria)} °C, cortes ${params?.corteModerado}/${params?.corteAlto} %`,
     });
     return { actualizados, cambiaron };
+  }
+
+  /**
+   * Vuelve a analizar un estudio con OTRA foto (réplica) en una toma: usa las
+   * grillas y el TCI ya precalculados de esa réplica (ReplicaStore); las otras
+   * tomas, la fecha y el ambiente quedan como estaban. Recalcula riesgo,
+   * asimetría, ROIs de referencia y todo lo que deriva del análisis (pronóstico
+   * y alertas se calculan a partir de él).
+   * @param {{study, patient, toma:number, replica:object, revisor?:string|null}} args
+   * @returns {Promise<{antes: object, despues: object}|null>} null si el estudio no tiene análisis punto a punto
+   */
+  async rerunToma({ study, patient, toma, replica, revisor = null }, actor) {
+    const a = await this.analyses.findByStudyId(study.id);
+    const t = a?.puntual?.tomas?.find((x) => x.toma === Number(toma));
+    if (!t) return null;
+    const params = await this.#params();
+    const hints = {
+      puntual: Object.fromEntries(
+        a.puntual.tomas.map((x) => [`toma${x.toma}`, x === t ? tomaConReplica(x, replica, { revisor }) : x]),
+      ),
+    };
+    const out = await this.predictor.predict({ study, patient, hints, params });
+    const despues = await this.analyses.update(a.id, out);
+    this.events.publish(EVENTS.ANALYSIS_COMPLETED, {
+      actor,
+      entity: 'estudio',
+      entityId: study.id,
+      detail: `${patient.codigo}: toma ${toma} con la foto ${replica.rep} · ${a.categoria} → ${despues.categoria}`,
+    });
+    return { antes: a, despues };
   }
 
   async forStudy(studyId) {

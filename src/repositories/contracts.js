@@ -170,6 +170,10 @@ class ImageReviewRepository {
   async listByStudy(_studyId) {
     notImplemented('ImageReviewRepository.listByStudy');
   }
+  /** Revisiones de varios estudios (página «Revisión de fotos»). */
+  async listByStudyIds(_studyIds) {
+    notImplemented('ImageReviewRepository.listByStudyIds');
+  }
   /** Crea o reemplaza la revisión de (studyId, toma, replica). */
   async upsert(_review) {
     notImplemented('ImageReviewRepository.upsert');

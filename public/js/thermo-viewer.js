@@ -1043,7 +1043,27 @@
     const toma0 = sources.find((s) => s.toma === st.toma) ? st.toma : sources[0].toma;
     st.toma = toma0;
     resize();
-    load(fillReps());
+    // Muestra una toma/réplica (enlace «?foto=t-r» o la revisión de fotos).
+    function show(toma, rep) {
+      const src = sources.find((s) => s.toma === toma);
+      if (!src) return false;
+      if (st.toma !== toma) {
+        st.toma = toma;
+        $$('[data-tv-toma]').forEach((x) => {
+          const on = Number(x.dataset.tvToma) === toma;
+          x.setAttribute('aria-selected', String(on));
+          x.tabIndex = on ? 0 : -1;
+        });
+      }
+      const best = fillReps();
+      const r = src.reps.find((x) => x.rep === rep) || best;
+      repSel.value = String(r.rep);
+      load(r);
+      return true;
+    }
+    root.addEventListener('tv:mostrar', (ev) => show(Number(ev.detail?.toma), Number(ev.detail?.rep)));
+    const rep0 = Number(root.dataset.tvRepInicial);
+    if (!(rep0 && show(st.toma, rep0))) load(fillReps());
   }
 
   document.querySelectorAll('[data-tv]').forEach((root) => {

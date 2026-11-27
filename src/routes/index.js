@@ -17,6 +17,7 @@ const { createPacienteController } = require('../controllers/pacienteController'
 const { createMediaController } = require('../controllers/mediaController');
 const { createSettingsController } = require('../controllers/settingsController');
 const { createMaskController } = require('../controllers/maskController');
+const { createReviewController } = require('../controllers/reviewController');
 
 /**
  * Definición de rutas. Cada ruta protegida arma su cadena de responsabilidad:
@@ -34,6 +35,7 @@ function buildRoutes(container) {
   const media = createMediaController(services);
   const settings = createSettingsController(services);
   const masks = createMaskController(services);
+  const review = createReviewController(services);
 
   const loginLimiter = rateLimit({
     windowMs: config.security.loginRateLimitWindowMs,
@@ -145,13 +147,6 @@ function buildRoutes(container) {
   m.get('/estudios/:id/informe', medico.report);
   m.get('/estudios/:id/visor/:toma/:rep/termica.bin', medico.viewerThermal);
   m.get('/estudios/:id/visor/:toma/:rep/foto.jpg', medico.viewerPhoto);
-  m.post(
-    '/estudios/:id/visor/:toma/:rep/revision',
-    validate(schemas.imageReviewSchema, {
-      back: (req) => `/medico/estudios/${req.params.id}#revision-t${req.params.toma}-r${req.params.rep}`,
-    }),
-    medico.saveImageReview,
-  );
   m.post('/estudios/:id/notas', validate(schemas.notesSchema), medico.saveNotes);
   m.post('/estudios/:id/publicacion', validate(schemas.publishSchema), medico.publish);
   m.post(
@@ -172,6 +167,26 @@ function buildRoutes(container) {
   c.post('/vista-previa', settings.preview);
   c.post('/recalcular', settings.recalculate);
   router.use('/configuracion', c);
+
+  /* ---------- Revisión manual de las fotos (médico/a y administrador/a) ---------- */
+  // Médico/a: sólo las fotos de sus estudios; administrador/a: todas
+  // (StudyService#getForReviewer). El paciente recibe 403.
+  const r = express.Router();
+  r.use(requireAuth, requireRole(ROLES.MEDICO, ROLES.ADMIN));
+  r.get('/', review.page);
+  r.get('/estudios/:id', review.study);
+  r.get('/estudios/:id/visor/:toma/:rep/termica.bin', review.thermal);
+  r.get('/estudios/:id/visor/:toma/:rep/foto.jpg', review.photo);
+  r.get('/estudios/:id/visor/:toma/:rep/miniatura.png', review.thumbnail);
+  r.post(
+    '/estudios/:id/visor/:toma/:rep/revision',
+    validate(schemas.imageReviewSchema, {
+      back: (req) =>
+        typeof req.body?.volver === 'string' && req.body.volver.startsWith('/revision') ? req.body.volver : '/revision',
+    }),
+    review.save,
+  );
+  router.use('/revision', r);
 
   /* ---------- Corrección de máscaras (sólo local; médico/a y administrador/a) ---------- */
   const k = express.Router();

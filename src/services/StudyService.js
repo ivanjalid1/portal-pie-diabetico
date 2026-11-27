@@ -146,6 +146,39 @@ class StudyService {
     return { study, patient, analysis, appointments };
   }
 
+  /**
+   * Estudio y paciente para revisar sus fotos: el médico/a, sólo los de sus
+   * pacientes; el administrador/a, cualquiera. El paciente no tiene acceso.
+   * Liviano (sin análisis ni controles): lo usan también las miniaturas.
+   */
+  async getForReviewer(id, user) {
+    if (![ROLES.MEDICO, ROLES.ADMIN].includes(user?.role)) {
+      throw new ForbiddenError('Tu rol no tiene acceso a esta sección.');
+    }
+    const study = await this.studies.findById(id);
+    if (!study) throw new NotFoundError('El estudio no existe.');
+    if (user.role === ROLES.MEDICO && study.medicoId !== user.id) {
+      throw new ForbiddenError('Este estudio no pertenece a tus pacientes.');
+    }
+    const patient = await this.patients.findById(study.patientId);
+    if (!patient) throw new NotFoundError('El estudio no existe.');
+    return { study, patient };
+  }
+
+  /** Estudios con su paciente que el usuario puede revisar (médico: los suyos; admin: todos). */
+  async listForReviewer(user) {
+    if (![ROLES.MEDICO, ROLES.ADMIN].includes(user?.role)) {
+      throw new ForbiddenError('Tu rol no tiene acceso a esta sección.');
+    }
+    const admin = user.role === ROLES.ADMIN;
+    const [studies, patients] = await Promise.all([
+      admin ? this.studies.listAll() : this.studies.listByMedico(user.id),
+      admin ? this.patients.listAll() : this.patients.listByMedico(user.id),
+    ]);
+    const byId = new Map(patients.map((p) => [p.id, p]));
+    return studies.map((study) => ({ study, patient: byId.get(study.patientId) })).filter((x) => x.patient);
+  }
+
   /** Detalle para el paciente: sólo sus estudios; el resultado sólo si fue publicado. */
   async getForPaciente(id, userId) {
     const patient = await this.patientService.getByUserId(userId);

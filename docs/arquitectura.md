@@ -280,16 +280,15 @@ El registro es fijo: el píxel IR (x, y) cae en (80 + 1,5·x, 60 + 1,5·y) de la
 
 ### Revisión manual de las fotos
 
-Debajo del visor, cada foto del estudio (cada réplica de cada toma) tiene un bloque **«Revisión de las fotos»** (`src/views/partials/image-review.ejs`):
+La revisión vive **sólo** en su propia sección, **«Revisión de fotos»** (`/revision`), en el menú del médico/a y del administrador/a. La página del estudio y el visor no tienen controles de revisión.
 
-- tres botones segmentados: **Aprobado** (verde), **Rechazado** (rojo) y **Falta revisar** (gris, por defecto);
-- un comentario de hasta 1000 caracteres, un botón **Guardar** y la línea «Guardado por … · fecha».
-
-El encabezado del estudio muestra el contador «Fotos: 4 aprobadas · 1 rechazada · 1 por revisar», que enlaza al bloque.
-
-- **Capas:** `ImageReviewService` → `ImageReviewRepository` (`listByStudy`, `upsert`), con drivers memory y Supabase (tabla `study_image_reviews`, migración `20260101001000_revision_imagenes.sql`). La clave es única por estudio, toma y réplica.
-- **Ruta:** `POST /medico/estudios/:id/visor/:toma/:rep/revision` (CSRF y `imageReviewSchema`). Sólo el médico tratante: el paciente, el administrador y otro médico reciben 403. Una toma o réplica que no está en el visor da 404. La acción queda en la auditoría (`image.reviewed`).
-- **Mejora progresiva:** sin JS cada bloque es un formulario (POST y redirección al ancla `#revision-t<k>-r<n>`). Con JS, `public/js/image-review.js` envía con `Accept: application/json` y actualiza la etiqueta y el contador sin recargar. También resalta la foto que muestra el visor (evento `tv:foto` de `thermo-viewer.js`).
+- **Grilla:** todas las fotos del visor (cada réplica de cada toma), agrupadas por paciente (sólo el código) y toma. Cada foto muestra la miniatura térmica (`miniatura.png`, escala fija 24–35 °C y High Contrast), con la opción «Mostrar la foto visible», las marcas «Mejor» y «En promedio», los avisos automáticos, los botones **Aprobado** / **Rechazado** / **Falta revisar**, el comentario (hasta 1000 caracteres), **Guardar** y la línea «Guardado por … · fecha».
+- **Progreso y filtros:** «123 de 606 revisadas», con una barra de aprobadas y rechazadas. Los filtros son Falta revisar (el predeterminado), Aprobadas, Rechazadas, Calidad baja (de la toma), Con avisos automáticos y Todas. También se puede buscar por código. Cada página junta grupos enteros hasta unas 48 fotos.
+- **Rapidez:** elegir un estado guarda al instante (AJAX). El comentario se guarda con «Guardar» o Ctrl+Enter. Atajos: A, R y P eligen el estado y pasan a la foto siguiente; J y K van a la siguiente y a la anterior; V muestra la foto visible; C va al comentario.
+- **Contexto:** un clic en la imagen abre el visor en esa réplica (`?foto=t-r`). El médico/a llega a su página del estudio; el administrador/a, que no tiene páginas de estudio, a un visor de sólo lectura (`/revision/estudios/:id`).
+- **Acceso:** `requireRole(medico, admin)`. El médico/a ve y revisa sólo las fotos de sus estudios; el administrador/a, todas (`StudyService#getForReviewer` y `#listForReviewer`). El paciente recibe 403 y un usuario anónimo va al login.
+- **Rutas:** `GET /revision`, `GET /revision/estudios/:id`, `GET /revision/estudios/:id/visor/:toma/:rep/{miniatura.png,termica.bin,foto.jpg}` y `POST …/revision` (CSRF e `imageReviewSchema`; con `Accept: application/json` responde la revisión; sin JS vuelve a la página, sólo a rutas `/revision`). La acción queda en la auditoría (`image.reviewed`).
+- **Capas:** `ImageReviewService#overview` y `#save` usan `ImageReviewRepository` (`listByStudy`, `listByStudyIds`, `upsert`), con drivers memory y Supabase (tabla `study_image_reviews`, migración `20260101001000_revision_imagenes.sql`; sus políticas RLS ya permiten al médico tratante y al administrador). La clave es única por estudio, toma y réplica.
 - **Alcance:** es sólo una etiqueta. No cambia temperaturas ni análisis, y una foto rechazada **no** se excluye del análisis.
 
 ### Identidad

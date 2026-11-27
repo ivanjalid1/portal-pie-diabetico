@@ -2,7 +2,12 @@
   // Tarjeta «Termografía (visor)» del estudio: una pestaña por toma y, con datos
   // reales, selector de réplica. Parámetros: study, visor
   // (ThermalViewerService#sources), fecha(toma) y activa (toma inicial).
+  // Opcionales: base (prefijo de las rutas del visor; por defecto las del
+  // médico/a) y repInicial (réplica inicial, enlace «?foto=t-r»). La revisión
+  // manual de las fotos vive sólo en /revision (no en el visor).
   const uid = `tv-${study.id}`;
+  const B = typeof base !== 'undefined' && base ? base : `/medico/estudios/${study.id}`;
+  const R0 = typeof repInicial !== 'undefined' && repInicial ? repInicial : null;
   const sources = visor.map((v) => ({
     toma: v.toma,
     origen: v.origen,
@@ -19,8 +24,8 @@
       alineacion: r.alineacion || null,
       encuadre: r.encuadre || null,
       giro: r.giro || 0,
-      termica: `/medico/estudios/${study.id}/visor/${v.toma}/${r.rep}/termica.bin`,
-      foto: r.foto ? `/medico/estudios/${study.id}/visor/${v.toma}/${r.rep}/foto.jpg` : null,
+      termica: `${B}/visor/${v.toma}/${r.rep}/termica.bin`,
+      foto: r.foto ? `${B}/visor/${v.toma}/${r.rep}/foto.jpg` : null,
     })),
   }));
   const inicial = sources.some((x) => x.toma === activa) ? activa : sources[sources.length - 1].toma;
@@ -32,7 +37,7 @@
     fechas: Object.fromEntries(sources.map((x) => [x.toma, fmt.date(fecha(x.toma))])),
   };
 %>
-<section class="card tv-card" id="visor" aria-labelledby="<%= uid %>-title" data-tv data-tv-toma-inicial="<%= inicial %>">
+<section class="card tv-card" id="visor" aria-labelledby="<%= uid %>-title" data-tv data-tv-toma-inicial="<%= inicial %>"<% if (R0) { %> data-tv-rep-inicial="<%= R0 %>"<% } %>>
   <div class="sr-visual__head">
     <div class="tv-card__heading">
       <h2 id="<%= uid %>-title" class="card__title">Termografía (visor)</h2>
@@ -49,5 +54,4 @@
     <% } %>
   </div>
   <%- include('thermo-viewer-core', { uid, sources, fallbackInfo }) %>
-  <% if (typeof revision !== 'undefined' && revision && revision.fotos.length) { %><%- include('image-review', { study, visor, revision }) %><% } %>
 </section>

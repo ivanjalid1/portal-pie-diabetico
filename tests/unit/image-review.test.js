@@ -188,3 +188,114 @@ describe('ImageReviewService', () => {
     ).rejects.toBeInstanceOf(NotFoundError);
   });
 });
+
+describe('MemoryImageReviewRepository#listByStudyIds', () => {
+  it('devuelve las revisiones de varios estudios a la vez', async () => {
+    const repo = new MemoryImageReviewRepository();
+    const base = { toma: 1, replica: 1, estado: 'aprobado', comentario: '', revisadoPor: 'u1' };
+    await repo.upsert({ ...base, studyId: 's1' });
+    await repo.upsert({ ...base, studyId: 's2', replica: 2 });
+    await repo.upsert({ ...base, studyId: 's3' });
+    const rows = await repo.listByStudyIds(['s1', 's2']);
+    expect(rows.map((r) => r.studyId).sort()).toEqual(['s1', 's2']);
+    expect(await repo.listByStudyIds([])).toEqual([]);
+  });
+});
+
+describe('ImageReviewService: página «Revisión de fotos»', () => {
+  let c;
+  let svc;
+  let medico;
+  let otro;
+  let admin;
+  let paciente;
+  const actor = (u) => ({ id: u.id, email: u.email, ip: '127.0.0.1', role: u.role });
+
+  beforeEach(async () => {
+    c = container();
+    await c.ready;
+    svc = c.services.imageReviewService;
+    medico = await c.repos.users.findByEmail('medico@demo.com');
+    otro = await c.repos.users.findByEmail('medico2@demo.com');
+    admin = await c.repos.users.findByEmail('admin@demo.com');
+    paciente = await c.repos.users.findByEmail('paciente@demo.com');
+  });
+
+  it('el médico ve todas las fotos de sus estudios con el progreso', async () => {
+    const studies = await c.repos.studies.listByMedico(medico.id);
+    const ov = await svc.overview(actor(medico), { estado: 'todas' });
+    expect(ov.resumen.total).toBe(studies.length * 2);
+    expect(ov.resumen).toMatchObject({ revisadas: 0, aprobado: 0, rechazado: 0, pendiente: ov.resumen.total });
+    expect(new Set(ov.fotos.map((f) => f.studyId))).toEqual(new Set(studies.map((s) => s.id)));
+    const f = ov.fotos[0];
+    expect(f).toMatchObject({ estado: 'pendiente', etiqueta: 'Falta revisar', revisor: null });
+    expect(typeof f.codigo).toBe('string');
+    expect(f).not.toHaveProperty('nombre');
+  });
+
+  it('el administrador ve las fotos de todos los médicos', async () => {
+    const all = await c.repos.studies.listAll();
+    const mine = await c.repos.studies.listByMedico(medico.id);
+    const ov = await svc.overview(actor(admin), { estado: 'todas' });
+    expect(all.length).toBeGreaterThan(mine.length);
+    expect(ov.resumen.total).toBe(all.length * 2);
+  });
+
+  it('el paciente no tiene acceso', async () => {
+    await expect(svc.overview(actor(paciente))).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it('filtra por estado y cuenta las revisadas', async () => {
+    const [s1, s2] = await c.repos.studies.listByMedico(medico.id);
+    await svc.save(s1.id, { toma: 1, replica: 1, estado: 'aprobado', comentario: '' }, actor(medico));
+    await svc.save(s2.id, { toma: 2, replica: 1, estado: 'rechazado', comentario: 'Movida' }, actor(medico));
+    const todas = await svc.overview(actor(medico), { estado: 'todas' });
+    expect(todas.resumen).toMatchObject({ revisadas: 2, aprobado: 1, rechazado: 1 });
+    expect(todas.resumen.pendiente).toBe(todas.resumen.total - 2);
+    const apr = await svc.overview(actor(medico), { estado: 'aprobado' });
+    expect(apr.fotos).toHaveLength(1);
+    expect(apr.fotos[0]).toMatchObject({ studyId: s1.id, toma: 1, replica: 1, revisor: medico.nombreCompleto });
+    const rec = await svc.overview(actor(medico), { estado: 'rechazado' });
+    expect(rec.fotos.map((f) => f.comentario)).toEqual(['Movida']);
+    const pend = await svc.overview(actor(medico));
+    expect(pend.filtro).toBe('pendiente');
+    expect(pend.fotos).toHaveLength(todas.resumen.total - 2);
+    // El progreso es siempre del total, aunque se filtre.
+    expect(pend.resumen.revisadas).toBe(2);
+  });
+
+  it('busca por código de paciente', async () => {
+    const [s1] = await c.repos.studies.listByMedico(medico.id);
+    const p = await c.repos.patients.findById(s1.patientId);
+    const ov = await svc.overview(actor(medico), { estado: 'todas', q: p.codigo.toLowerCase() });
+    expect(ov.fotos.length).toBeGreaterThan(0);
+    expect(ov.fotos.every((f) => f.codigo === p.codigo)).toBe(true);
+  });
+
+  it('agrupa por estudio y toma y pagina sin cortar un grupo', async () => {
+    const ov = await svc.overview(actor(admin), { estado: 'todas', size: 3 });
+    expect(ov.pages).toBeGreaterThan(1);
+    expect(ov.grupos.length).toBeGreaterThan(0);
+    for (const g of ov.grupos) {
+      expect(g.fotos.every((f) => f.studyId === g.studyId && f.toma === g.toma)).toBe(true);
+    }
+    const p2 = await svc.overview(actor(admin), { estado: 'todas', size: 3, page: 2 });
+    expect(p2.page).toBe(2);
+    expect(p2.grupos[0].key).not.toBe(ov.grupos[0].key);
+  });
+
+  it('el administrador puede revisar cualquier foto y queda su nombre', async () => {
+    const [s] = await c.repos.studies.listByMedico(otro.id);
+    const r = await svc.save(s.id, { toma: 1, replica: 1, estado: 'aprobado', comentario: 'ok' }, actor(admin));
+    expect(r.revisadoPor).toBe(admin.id);
+    const ov = await svc.overview(actor(admin), { estado: 'aprobado' });
+    expect(ov.fotos[0].revisor).toBe(admin.nombreCompleto);
+  });
+
+  it('el paciente no puede guardar revisiones', async () => {
+    const [s] = await c.repos.studies.listByMedico(medico.id);
+    await expect(
+      svc.save(s.id, { toma: 1, replica: 1, estado: 'aprobado', comentario: '' }, actor(paciente)),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+});

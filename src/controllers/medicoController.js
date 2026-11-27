@@ -7,7 +7,6 @@ const { controlesFilterSchema, estudiosFilterSchema } = require('../validators/s
 const { sniffImageType } = require('../validators/imageValidator');
 const { is2PreviewPng } = require('../imaging/thermogram');
 const { EVENTS } = require('../utils/eventBus');
-const { resumenTexto, guardadoTexto } = require('../services/ImageReviewService');
 
 /** Asocia a un error de negocio la URL del formulario al que debe volver. */
 async function withBack(back, fn) {
@@ -17,6 +16,12 @@ async function withBack(back, fn) {
     if (!err.back) err.back = back;
     throw err;
   }
+}
+
+/** «?foto=2-3» → { toma: 2, rep: 3 } (foto inicial del visor) o null. */
+function fotoDeQuery(q) {
+  const m = /^([12])-(\d{1,2})$/.exec(typeof q === 'string' ? q : '');
+  return m ? { toma: Number(m[1]), rep: Number(m[2]) } : null;
 }
 
 const RIESGO_FILTROS = ['alto', 'moderado', 'sin_riesgo', 'P', 'C', 'sin_estudios'];
@@ -29,7 +34,6 @@ function createMedicoController({
   appointmentService,
   forecastService = null,
   viewerService = null,
-  imageReviewService = null,
   events,
   config,
 }) {
@@ -213,14 +217,11 @@ function createMedicoController({
     async studyDetail(req, res) {
       const data = await studyService.getForMedico(req.params.id, req.user.id);
       const visor = viewerService ? await viewerService.sources(data.study, data.patient).catch(() => []) : [];
-      const revision = imageReviewService ? await imageReviewService.forStudy(data.study, visor) : null;
       res.render('medico/study-result', {
         title: `Estudio ${data.patient.codigo}`,
         ...data,
         visor,
-        revision,
-        resumenTexto,
-        guardadoTexto,
+        fotoSel: fotoDeQuery(req.query.foto),
         proximo: data.appointments.find((a) => a.estado === 'pendiente') || null,
         defaultControl: AppointmentService.defaultDate(data.study.fechaHora, req.settings?.diasControl),
         imageSlots: IMAGE_SLOTS,
@@ -244,25 +245,6 @@ function createMedicoController({
       res.set('Cache-Control', 'private, no-store');
       res.set('X-Content-Type-Options', 'nosniff');
       res.type('image/jpeg').send(jpeg);
-    },
-
-    /** Revisión manual de una foto (toma/réplica): aprobada, rechazada o «Falta revisar». */
-    async saveImageReview(req, res) {
-      const { id, toma, rep } = req.params;
-      await imageReviewService.save(id, { toma, replica: rep, ...req.validated }, actor(req));
-      if (req.accepts(['html', 'json']) === 'json') {
-        const { study, patient } = await studyService.getForMedico(id, req.user.id);
-        const visor = await viewerService.sources(study, patient);
-        const { fotos, resumen } = await imageReviewService.forStudy(study, visor);
-        const foto = fotos.find((f) => f.toma === Number(toma) && f.replica === Number(rep));
-        return res.json({
-          revision: { ...foto, guardado: guardadoTexto(foto, res.locals.fmt) },
-          resumen,
-          resumenTexto: resumenTexto(resumen),
-        });
-      }
-      req.flash('success', `Guardaste la revisión de la foto (toma ${toma}, réplica ${rep}).`);
-      return res.redirect(303, `/medico/estudios/${id}#revision-t${toma}-r${rep}`);
     },
 
     /** Vista previa PNG de un archivo IS2 (el navegador no puede mostrarlo). */
@@ -357,4 +339,4 @@ function createMedicoController({
   };
 }
 
-module.exports = { createMedicoController };
+module.exports = { createMedicoController, fotoDeQuery };

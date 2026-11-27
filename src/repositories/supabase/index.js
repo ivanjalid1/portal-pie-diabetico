@@ -419,6 +419,19 @@ class SupabaseImageReviewRepository extends contracts.ImageReviewRepository {
     if (missingTable(error)) return [];
     return check({ data, error }, 'study_image_reviews.list').map((r) => this.b.entity(r));
   }
+  async listByStudyIds(studyIds) {
+    const out = [];
+    // En tandas: la lista de ids va en la URL de PostgREST.
+    for (let i = 0; i < studyIds.length; i += 60) {
+      const { data, error } = await this.b.db
+        .from('study_image_reviews')
+        .select('*')
+        .in('study_id', studyIds.slice(i, i + 60));
+      if (missingTable(error)) return [];
+      out.push(...check({ data, error }, 'study_image_reviews.listMany').map((r) => this.b.entity(r)));
+    }
+    return out;
+  }
   async upsert(review) {
     const { id: _id, createdAt: _c, ...fields } = review;
     const row = { ...toRow('study_image_reviews', fields), updated_at: new Date().toISOString() };

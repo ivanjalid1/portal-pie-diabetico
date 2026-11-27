@@ -225,6 +225,10 @@ class MemoryImageReviewRepository extends contracts.ImageReviewRepository {
   async listByStudy(studyId) {
     return this.col.where((r) => r.studyId === studyId).sort((a, b) => a.toma - b.toma || a.replica - b.replica);
   }
+  async listByStudyIds(studyIds) {
+    const ids = new Set(studyIds);
+    return ids.size ? this.col.where((r) => ids.has(r.studyId)) : [];
+  }
   async upsert(review) {
     const toma = Number(review.toma);
     const replica = Number(review.replica);

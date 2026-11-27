@@ -1,0 +1,16 @@
+<%
+  // Visor de sólo lectura (contexto) para quien revisa las fotos sin tener la
+  // página del estudio (administrador/a). No tiene controles de revisión: la
+  // revisión manual vive sólo en /revision.
+  const fechaToma = (k) => (k === 1 ? study.fechaToma1 || study.fechaHora : study.fechaHora);
+%>
+<%- include('../partials/page-header', {
+  back: { href: volver, label: 'Revisión de fotos' },
+  heading: codigo,
+  lead: 'Visor de sólo lectura. Para aprobar o rechazar una foto, volvé a «Revisión de fotos».',
+}) %>
+<% if (visor.length) { %>
+<%- include('../partials/thermo-viewer', { study, visor, fecha: fechaToma, activa: fotoSel ? fotoSel.toma : visor[visor.length - 1].toma, repInicial: fotoSel ? fotoSel.rep : null, base: `/revision/estudios/${study.id}` }) %>
+<% } else { %>
+<div class="card"><div class="empty"><h2>Este estudio no tiene fotos en el visor</h2></div></div>
+<% } %>

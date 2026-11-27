@@ -6,9 +6,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { decodeIs2, extractVisible, hasVisible, is2Info } = require('../imaging/is2');
 const { is2CaptureDate } = require('../imaging/pointwise');
-const { decodePng } = require('../imaging/png');
-const { toCelsius } = require('../imaging/thermogram');
-const { encodeThermal, grayToCelsius } = require('../imaging/thermalArray');
+const { decodePng, encodePng } = require('../imaging/png');
+const { toCelsius, renderThermogram } = require('../imaging/thermogram');
+const { encodeThermal, decodeThermal, grayToCelsius } = require('../imaging/thermalArray');
 const { flagLabels } = require('../imaging/photoQuality');
 const { NotFoundError } = require('../utils/errors');
 
@@ -228,9 +228,11 @@ class ThermalViewerService {
 
   /**
    * Fuentes del visor de un estudio (ya autorizado): por toma, sus réplicas.
+   * Con `info: false` no lee los metadatos de captura de cada IS2 local
+   * (página «Revisión de fotos», que lista cientos de réplicas).
    * @returns {Promise<Array<{toma:number, origen:string, reps:Array<{rep:number, calidad:number|null, mejor:boolean, foto:boolean, noValido:boolean}>}>>}
    */
-  async sources(study, patient) {
+  async sources(study, patient, { info: conInfo = true } = {}) {
     const out = [];
     const man = this.maskService?.enabled ? null : await this.remoteManifest(study);
     for (const toma of [1, 2]) {
@@ -278,7 +280,7 @@ class ThermalViewerService {
             mejor: e === best,
             noValido: Boolean(e.noValido),
             foto: this.hasVisibleKey(e.key),
-            info: this.infoByKey(e.key),
+            info: conInfo ? this.infoByKey(e.key) : null,
             ...ThermalViewerService.viewerQuality(q(e)),
           })),
         });
@@ -345,6 +347,19 @@ class ThermalViewerService {
       const data = new Float32Array(img.data.length);
       for (let i = 0; i < data.length; i += 1) data[i] = toCelsius(img.data[i]);
       return encodeThermal({ width: img.width, height: img.height, data });
+    });
+  }
+
+  /**
+   * Miniatura PNG de la térmica (página «Revisión de fotos»): escala fija de
+   * la cámara (24–35 °C) y paleta High Contrast, como arranca el visor.
+   */
+  async thumbnail(study, patient, toma, rep, { width = 240, height = 180 } = {}) {
+    const tpv = await this.thermal(study, patient, toma, rep);
+    return this.memo(`t:${study.id}:${toma}:${rep}`, () => {
+      const img = decodeThermal(tpv);
+      const out = renderThermogram(img, { lo: 24, hi: 35, width, height });
+      return encodePng(out.width, out.height, out.rgb);
     });
   }
 

@@ -278,6 +278,20 @@ El registro es fijo: el píxel IR (x, y) cae en (80 + 1,5·x, 60 + 1,5·y) de la
 - **Rutas:** `/medico/estudios/:id/visor/:toma/:rep/foto.jpg` y `termica.bin` (médico tratante); `/mascaras/:clave/foto.jpg` (médico/a y administrador/a, sólo en local). Sin sesión redirigen al login.
 - **Demo:** no hay fotos y la ruta da 404. El extremo «Visible» de la fusión muestra la **térmica en escala de grises**, y el PIP queda deshabilitado. Para los pares demo, la matriz se reconstruye de la variante en grises pública (`public/demo/*-grises.png`) con la escala en °C de cada imagen (`src/seed/demoImages.json`, campo `escala`).
 
+### Revisión manual de las fotos
+
+Debajo del visor, cada foto del estudio (cada réplica de cada toma) tiene un bloque **«Revisión de las fotos»** (`src/views/partials/image-review.ejs`):
+
+- tres botones segmentados: **Aprobado** (verde), **Rechazado** (rojo) y **Falta revisar** (gris, por defecto);
+- un comentario de hasta 1000 caracteres, un botón **Guardar** y la línea «Guardado por … · fecha».
+
+El encabezado del estudio muestra el contador «Fotos: 4 aprobadas · 1 rechazada · 1 por revisar», que enlaza al bloque.
+
+- **Capas:** `ImageReviewService` → `ImageReviewRepository` (`listByStudy`, `upsert`), con drivers memory y Supabase (tabla `study_image_reviews`, migración `20260101001000_revision_imagenes.sql`). La clave es única por estudio, toma y réplica.
+- **Ruta:** `POST /medico/estudios/:id/visor/:toma/:rep/revision` (CSRF y `imageReviewSchema`). Sólo el médico tratante: el paciente, el administrador y otro médico reciben 403. Una toma o réplica que no está en el visor da 404. La acción queda en la auditoría (`image.reviewed`).
+- **Mejora progresiva:** sin JS cada bloque es un formulario (POST y redirección al ancla `#revision-t<k>-r<n>`). Con JS, `public/js/image-review.js` envía con `Accept: application/json` y actualiza la etiqueta y el contador sin recargar. También resalta la foto que muestra el visor (evento `tv:foto` de `thermo-viewer.js`).
+- **Alcance:** es sólo una etiqueta. No cambia temperaturas ni análisis, y una foto rechazada **no** se excluye del análisis.
+
 ### Identidad
 
 El logo (`public/img/logo.svg`) muestra dos plantas sobre un mosaico verde azulado: la izquierda fría y la derecha cálida, que representan la asimetría térmica que mide el estudio. Se eligió entre tres variantes (`docs/screenshots/logo-variantes.png`) por legibilidad a 16 px y por no depender del color para leerse. Se generan `favicon.svg`, `favicon.ico` (16 + 32), `apple-touch-icon.png` (180), íconos 192/512 y maskable para el `manifest.webmanifest`.

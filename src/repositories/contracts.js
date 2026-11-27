@@ -165,6 +165,17 @@ class ConsentRepository {
   }
 }
 
+/** Revisión manual de cada foto (toma + réplica) de un estudio. */
+class ImageReviewRepository {
+  async listByStudy(_studyId) {
+    notImplemented('ImageReviewRepository.listByStudy');
+  }
+  /** Crea o reemplaza la revisión de (studyId, toma, replica). */
+  async upsert(_review) {
+    notImplemented('ImageReviewRepository.upsert');
+  }
+}
+
 /** Almacenamiento de archivos (imágenes de estudios). */
 class FileStorage {
   /** @returns {Promise<{storagePath: string}>} */
@@ -206,5 +217,6 @@ module.exports = {
   AppointmentRepository,
   AuditRepository,
   ConsentRepository,
+  ImageReviewRepository,
   FileStorage,
 };

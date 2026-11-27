@@ -15,6 +15,7 @@ const ACTION_LABELS = Object.freeze({
   [EVENTS.STUDY_CREATED]: 'Nuevo estudio termográfico',
   [EVENTS.ANALYSIS_COMPLETED]: 'Análisis completado',
   [EVENTS.STUDY_NOTES_UPDATED]: 'Notas del médico',
+  [EVENTS.IMAGE_REVIEWED]: 'Revisión manual de una foto',
   [EVENTS.RESULT_PUBLISHED]: 'Resultado visible al paciente',
   [EVENTS.RESULT_UNPUBLISHED]: 'Resultado ocultado al paciente',
   [EVENTS.OUTCOME_RECORDED]: 'Registro de desenlace (¿generó lesión?)',

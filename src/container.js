@@ -26,6 +26,7 @@ const OutcomeLog = require('./services/OutcomeLog');
 const ThermalForecastService = require('./services/ThermalForecastService');
 const { MaskService } = require('./services/MaskService');
 const { ThermalViewerService } = require('./services/ThermalViewerService');
+const { ImageReviewService } = require('./services/ImageReviewService');
 const { seedDemoData, DEMO_PASSWORD } = require('./seed');
 const { loadRealDataset, seedRealData } = require('./seed/realData');
 
@@ -125,6 +126,15 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
           : null,
   });
 
+  // Revisión manual de cada foto del visor (sólo una etiqueta; no toca el análisis).
+  const imageReviewService = new ImageReviewService({
+    reviews: repos.imageReviews,
+    users: repos.users,
+    studyService,
+    viewerService,
+    events,
+  });
+
   // Desenlaces reales registrados en el portal: con el driver memory y datos
   // reales se guardan también en data-local/outcomes/ (persisten al reiniciar y
   // alimentan scripts/ml/train-outcome.py). En pruebas sólo si se pide.
@@ -157,6 +167,7 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
       settingsService,
       maskService,
       viewerService,
+      imageReviewService,
       forecastService,
     },
     outcomeLog,

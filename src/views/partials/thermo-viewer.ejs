@@ -42,4 +42,5 @@
     <% } %>
   </div>
   <%- include('thermo-viewer-core', { uid, sources, fallbackInfo }) %>
+  <% if (typeof revision !== 'undefined' && revision && revision.fotos.length) { %><%- include('image-review', { study, visor, revision }) %><% } %>
 </section>

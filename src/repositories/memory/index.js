@@ -8,7 +8,7 @@
  */
 const contracts = require('../contracts');
 const MemoryCollection = require('./MemoryCollection');
-const { User, Patient, Study, AnalysisResult, Appointment, AuditEntry, Consent } = require('../../models');
+const { User, Patient, Study, AnalysisResult, Appointment, AuditEntry, Consent, ImageReview } = require('../../models');
 
 const { normalize } = require('../../utils/text');
 
@@ -216,6 +216,24 @@ class MemoryConsentRepository extends contracts.ConsentRepository {
   }
 }
 
+/** Revisión manual por foto: una fila por (estudio, toma, réplica). */
+class MemoryImageReviewRepository extends contracts.ImageReviewRepository {
+  constructor() {
+    super();
+    this.col = new MemoryCollection(ImageReview);
+  }
+  async listByStudy(studyId) {
+    return this.col.where((r) => r.studyId === studyId).sort((a, b) => a.toma - b.toma || a.replica - b.replica);
+  }
+  async upsert(review) {
+    const toma = Number(review.toma);
+    const replica = Number(review.replica);
+    const current = this.col.find((r) => r.studyId === review.studyId && r.toma === toma && r.replica === replica);
+    const { id: _id, createdAt: _c, ...fields } = review;
+    return current ? this.col.patch(current.id, fields) : this.col.insert(fields);
+  }
+}
+
 /** Almacenamiento de imágenes en memoria (no usa disco: apto para serverless). */
 class MemoryFileStorage extends contracts.FileStorage {
   constructor() {
@@ -291,6 +309,7 @@ function createMemoryRepositories() {
     appointments: new MemoryAppointmentRepository(),
     audit: new MemoryAuditRepository(),
     consents: new MemoryConsentRepository(),
+    imageReviews: new MemoryImageReviewRepository(),
     files: new MemoryFileStorage(),
     credentials: new MemoryCredentialStore(),
   };
@@ -306,6 +325,7 @@ module.exports = {
   MemoryAppointmentRepository,
   MemoryAuditRepository,
   MemoryConsentRepository,
+  MemoryImageReviewRepository,
   MemoryFileStorage,
   MemoryCredentialStore,
 };

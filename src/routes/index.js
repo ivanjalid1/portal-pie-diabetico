@@ -145,6 +145,13 @@ function buildRoutes(container) {
   m.get('/estudios/:id/informe', medico.report);
   m.get('/estudios/:id/visor/:toma/:rep/termica.bin', medico.viewerThermal);
   m.get('/estudios/:id/visor/:toma/:rep/foto.jpg', medico.viewerPhoto);
+  m.post(
+    '/estudios/:id/visor/:toma/:rep/revision',
+    validate(schemas.imageReviewSchema, {
+      back: (req) => `/medico/estudios/${req.params.id}#revision-t${req.params.toma}-r${req.params.rep}`,
+    }),
+    medico.saveImageReview,
+  );
   m.post('/estudios/:id/notas', validate(schemas.notesSchema), medico.saveNotes);
   m.post('/estudios/:id/publicacion', validate(schemas.publishSchema), medico.publish);
   m.post(

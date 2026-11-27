@@ -124,6 +124,13 @@ function buildContainer({ config = getConfig(), overrides = {} } = {}) {
         : config.localTools && !config.isTest && config.seed === 'real'
           ? config.privateDataDir
           : null,
+    // Calidad automática por réplica del precálculo (data-local/real/fotos.json).
+    fotosDir:
+      overrides.viewerFotosDir !== undefined
+        ? overrides.viewerFotosDir
+        : config.seed === 'real' && !config.isTest
+          ? config.realDataDir
+          : null,
   });
 
   // Revisión manual de cada foto del visor (sólo una etiqueta; no toca el análisis).

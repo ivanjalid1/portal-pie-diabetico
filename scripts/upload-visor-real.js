@@ -38,7 +38,12 @@ async function main() {
   const maskService = new MaskService({ dir: config.localDataDir });
   if (!maskService.enabled) throw new Error('falta data-local/ml/cache (matrices por réplica)');
   const privateDir = path.join(__dirname, '..', 'tesis-2026info');
-  const viewer = new ThermalViewerService({ maskService, privateDir: sinFotos ? null : privateDir });
+  // fotosDir: calidad automática por réplica del precálculo (data-local/real/fotos.json).
+  const viewer = new ThermalViewerService({
+    maskService,
+    privateDir: sinFotos ? null : privateDir,
+    fotosDir: config.realDataDir,
+  });
   console.log(`${dryRun ? '[dry-run] ' : ''}Supabase: ${config.supabase.url} · fotos: ${!sinFotos}`);
 
   const upload = async (key, buffer, contentType) => {
@@ -83,7 +88,7 @@ async function main() {
     const manifest = {
       version: 1,
       generado: new Date().toISOString(),
-      tomas: fuentes.map((f) => ({ toma: f.toma, reps: f.reps })),
+      tomas: fuentes.map((f) => ({ toma: f.toma, calidadBaja: Boolean(f.calidadBaja), reps: f.reps })),
     };
     await upload(REMOTE.manifest(study), Buffer.from(JSON.stringify(manifest)), 'application/octet-stream');
     tot.estudios += 1;

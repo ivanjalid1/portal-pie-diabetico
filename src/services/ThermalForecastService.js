@@ -1,7 +1,6 @@
 'use strict';
 
 const fs = require('node:fs');
-const path = require('node:path');
 const { GRID, ZONAS, zonaDeFila, decodeGrid } = require('../imaging/pointwise');
 
 /**
@@ -29,7 +28,7 @@ const { GRID, ZONAS, zonaDeFila, decodeGrid } = require('../imaging/pointwise');
  * modelo y se calcula igual.
  */
 const FORECAST_MODEL_PATH =
-  process.env.PRONOSTICO_MODELO || path.join(__dirname, '..', '..', 'data-local', 'models', 'forecast-zones.json');
+  process.env.PRONOSTICO_MODELO || require('../config/localData').localDataPath('models', 'forecast-zones.json');
 
 const PIES = Object.freeze(['izq', 'der']);
 const PIE_NOMBRE = Object.freeze({ izq: 'izquierdo', der: 'derecho' });

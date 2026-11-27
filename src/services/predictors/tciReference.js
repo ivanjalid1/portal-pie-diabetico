@@ -68,12 +68,7 @@ function selectReferenceMembers(pacientes, criterio = CRITERIO_COHORTE) {
 }
 
 /** Grillas derivadas de la base pública (scripts/ml/export-public.js). */
-const PUBLIC_GRIDS = path.join(
-  __dirname,
-  '..',
-  '..',
-  '..',
-  'data-local',
+const PUBLIC_GRIDS = require('../../config/localData').localDataPath(
   'public',
   'hernandez2019',
   'derived',

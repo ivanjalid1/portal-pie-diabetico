@@ -24,15 +24,18 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { readXlsx, excelDate } = require('./lib/xlsx');
-const { decodeIs2 } = require('../src/imaging/is2');
+const { localDataPath } = require('../src/config/localData');
+const { decodeIs2, decodeVisible } = require('../src/imaging/is2');
 const { renderThermogram, displayRange } = require('../src/imaging/thermogram');
 const { encodePng } = require('../src/imaging/png');
 const { highContrast } = require('../src/utils/thermal');
-const { analyzeIs2Pointwise, is2CaptureDate } = require('../src/imaging/pointwise');
+const { is2CaptureDate, canonicalFeet, qualityScore, encodeGrid } = require('../src/imaging/pointwise');
 const { marcaSinConsentimiento } = require('../src/utils/consent');
 const { labelsToMasks } = require('../src/imaging/pointwise');
-const { readNpy, is2Key } = require('./lib/npy');
+const { readNpy, writeNpy, is2Key } = require('./lib/npy');
 const { decodeGrid } = require('../src/imaging/pointwise');
+const Q = require('../src/imaging/photoQuality');
+const { alignVisible, reconcileShifts, visibleSharpness } = require('../src/imaging/visibleAlign');
 const { computeTci } = require('../src/imaging/tci');
 const { serializeTci } = require('../src/services/predictors/pointwiseAnalysis');
 const {
@@ -45,15 +48,36 @@ const {
 } = require('../src/services/predictors/tciReference');
 
 const ROOT = path.join(__dirname, '..');
-const PRIVATE = path.join(ROOT, 'tesis-2026info');
+const PRIVATE = process.env.PRIVATE_DATA_DIR || path.join(ROOT, 'tesis-2026info');
 const PLANILLA = path.join(PRIVATE, 'Planillas clinicas (3).xlsx');
 const PRIMERA = path.join(PRIVATE, 'PRIMERAS FOTOS', 'PRIMERAS FOTOS');
 const SEGUNDA = path.join(PRIVATE, 'SEGUNDA TOMA DE FOTOS');
-const OUT = path.join(ROOT, 'data-local', 'real');
+// REAL_DATA_DIR / LOCAL_DATA_DIR permiten generar otra versión (p. ej. data-local/real-v2) sin pisar la que usa el portal.
+const OUT = process.env.REAL_DATA_DIR || localDataPath('real');
 const IMG = path.join(OUT, 'img');
 /** Máscaras de la U-Net (scripts/ml/segment_unet.py): una por archivo IS2, clave = hash de la ruta. */
-const UNET_MASKS = path.join(ROOT, 'data-local', 'ml', 'unet-masks');
+const UNET_MASKS = localDataPath('ml', 'unet-masks');
 const USE_UNET = process.env.SEGMENTACION !== 'clasica';
+/**
+ * Corrección de fotos (por defecto activa; CORRECCION_FOTOS=0 vuelve al
+ * criterio anterior: sólo la calidad de registro, sin limpieza de máscaras):
+ *  - limpieza de las máscaras por forma (src/imaging/maskCleanup.js);
+ *  - banderas de calidad por réplica y elección por puntaje
+ *    (src/imaging/photoQuality.js);
+ *  - alineación de la foto visible por réplica (src/imaging/visibleAlign.js).
+ * Nunca se modifican temperaturas.
+ */
+const CORRECCION = process.env.CORRECCION_FOTOS !== '0';
+/** Réplicas a menos de esta diferencia de puntaje se consideran equivalentes (gana la primera captura). */
+const EMPATE =
+  Number.isFinite(Number(process.env.SELECCION_EMPATE)) && process.env.SELECCION_EMPATE !== undefined
+    ? Number(process.env.SELECCION_EMPATE)
+    : Q.EMPATE;
+/** Calidad automática por réplica (clave → banderas, alineación, encuadre). */
+const FOTOS_FILE = 'fotos.json';
+const fotos = { replicas: {}, tomas: {} };
+const errores = [];
+const r3 = (v) => (Number.isFinite(v) ? Math.round(v * 1000) / 1000 : null);
 
 /** Máscaras U-Net del archivo, si existen (si no, la segmentación clásica). */
 function unetMasks(file) {
@@ -253,23 +277,112 @@ function inventory(contacts) {
   return { toma1, toma2, porNombre, sinMatch };
 }
 
+/**
+ * Calidad automática de una réplica ya segmentada: medidas, banderas,
+ * alineación de la foto visible y sugerencias de vista (encuadre, giro).
+ */
+function evaluarReplica(buffer, cf) {
+  const w = 320;
+  const h = 240;
+  const metricas = Q.replicaMetrics({ T: cf.temperatura, masks: cf.mascaras, width: w, height: h });
+  const fg = new Uint8Array(w * h);
+  for (let i = 0; i < fg.length; i += 1) fg[i] = cf.mascaras[0][i] || cf.mascaras[1][i] ? 1 : 0;
+  let alineacion = null;
+  let nitidezFoto = null;
+  const vis = decodeVisible(buffer);
+  if (vis) {
+    const { gray, ...al } = alignVisible(vis, fg);
+    alineacion = al;
+    nitidezFoto = visibleSharpness(gray, vis.width, vis.height, fg, al);
+  }
+  return { metricas, alineacion, nitidezFoto, vista: Q.displayHints(metricas) };
+}
+
 function processToma(files, codigo, toma) {
-  let best = null;
-  let validas = 0;
-  for (const file of files) {
-    let buffer;
+  const cands = [];
+  for (const [rep, file] of files.entries()) {
     try {
-      buffer = fs.readFileSync(file);
+      const buffer = fs.readFileSync(file);
       const masks = unetMasks(file);
-      const r = analyzeIs2Pointwise(buffer, masks ? { masks, masksSource: 'unet' } : {});
-      if (!r.ok) continue;
-      validas += 1;
-      if (!best || r.calidad > best.calidad) best = { ...r, file, fecha: is2CaptureDate(buffer) };
-    } catch {
-      // archivo ilegible: se ignora la réplica
+      const cf = canonicalFeet(decodeIs2(buffer), {
+        ...(masks ? { masks, masksSource: 'unet' } : {}),
+        limpiar: CORRECCION,
+        conMascaras: CORRECCION,
+      });
+      if (!cf.ok) continue;
+      const calidad = qualityScore(cf);
+      const c = { rep, file, key: is2Key(PRIVATE, file), cf, calidad, fecha: is2CaptureDate(buffer), puntaje: calidad };
+      if (CORRECCION) Object.assign(c, evaluarReplica(buffer, cf));
+      cands.push(c);
+    } catch (err) {
+      // archivo ilegible: se ignora la réplica (sólo se cuenta; sin rutas ni nombres)
+      errores.push(err && err.message ? err.message.slice(0, 80) : String(err));
     }
   }
+  if (CORRECCION) {
+    // Un desplazamiento grande de la foto sólo se aplica si otra réplica lo respalda.
+    reconcileShifts(cands.map((c) => c.alineacion));
+    for (const c of cands) {
+      c.banderas = Q.qualityFlags({ ...c.metricas, nitidezFoto: c.nitidezFoto, alineacion: c.alineacion });
+      c.puntaje = Q.selectionScore(c.calidad, c.banderas, c.metricas);
+    }
+  }
+  const validas = cands.length;
+  // Sin corrección: la de mayor calidad (la primera si empatan), como antes.
+  const best = CORRECCION
+    ? Q.selectReplica(cands, { empate: EMPATE })
+    : cands.reduce((a, b) => (!a || b.calidad > a.calidad ? b : a), null);
   if (!best) return { toma, replicas: files.length, validas: 0, ok: false };
+  let calidadFotos = null;
+  if (CORRECCION) {
+    const tq = Q.tomaQuality(cands, best);
+    calidadFotos = { ...tq, rep: best.rep + 1 };
+    (fotos.tomas[codigo] ||= {})[toma] = { elegida: best.key, ...calidadFotos };
+    for (const c of cands) {
+      const m = c.metricas;
+      fotos.replicas[c.key] = {
+        codigo,
+        toma,
+        rep: c.rep,
+        calidad: c.calidad,
+        puntaje: c.puntaje,
+        elegida: c === best,
+        banderas: c.banderas,
+        segmentacion: c.cf.segmentacion,
+        limpieza: c.cf.limpieza,
+        metricas: {
+          largoMin: r3(m.largoMin),
+          largoAnchoMin: r3(m.largoAnchoMin),
+          largoAnchoMax: r3(m.largoAnchoMax),
+          areaRatio: r3(m.areaRatio),
+          margen: m.margen,
+          separacion: r3(m.separacion),
+          puente: m.puente,
+          anguloMax: r3(m.anguloMax),
+          anguloDif: r3(m.anguloDif),
+          contraste: r3(m.contraste),
+          fondoC: r3(m.fondoC),
+          nitidezIr: r3(m.nitidezIr),
+          nitidezFoto: r3(c.nitidezFoto),
+        },
+        alineacion: c.alineacion,
+        encuadre: c.vista.encuadre,
+        giro: c.vista.giro,
+      };
+      // Máscara limpia (0 fondo, 1 pie a la izquierda de la imagen, 2 a la derecha) si cambió.
+      if (c.cf.limpieza?.cambiados) {
+        const lab = new Uint8Array(320 * 240);
+        for (let i = 0; i < lab.length; i += 1) lab[i] = c.cf.mascaras[0][i] ? 1 : c.cf.mascaras[1][i] ? 2 : 0;
+        writeNpy(path.join(OUT, 'mascaras', `${c.key}.npy`), lab, [240, 320]);
+      }
+    }
+  }
+  const izq = encodeGrid(best.cf.izq);
+  const der = encodeGrid(best.cf.der);
+  best.izq = izq;
+  best.der = der;
+  best.segmentacion = best.cf.segmentacion;
+  best.marco = best.cf.marco;
   const buffer = fs.readFileSync(best.file);
   const img = decodeIs2(buffer);
   const { lo, hi } = displayRange(buffer, img);
@@ -283,15 +396,24 @@ function processToma(files, codigo, toma) {
     replicas: files.length,
     validas,
     calidad: best.calidad,
+    // Réplica elegida: número (1 = primera captura) y clave no identificatoria (hash de la ruta).
+    replica: best.rep + 1,
+    clave: best.key,
     segmentacion: best.segmentacion,
     marco: best.marco,
     imagen,
     izq: best.izq,
     der: best.der,
+    ...(calidadFotos ? { calidadFotos } : {}),
   };
 }
 
 function main() {
+  if (process.env.LOCAL_DATA_DIR && !process.env.REAL_DATA_DIR) {
+    // Salvaguarda: con otra carpeta local, la salida debe ser explícita (se regenera completa).
+    console.error('Con LOCAL_DATA_DIR hay que definir también REAL_DATA_DIR (carpeta de salida).');
+    process.exit(1);
+  }
   if (!fs.existsSync(PLANILLA) || !fs.existsSync(PRIMERA)) {
     console.error('Falta la carpeta privada tesis-2026info/ (planilla o primeras fotos). No se generó nada.');
     process.exit(1);
@@ -364,6 +486,8 @@ function main() {
       t.tci = serializeTci(computeTci(decodeGrid(t.izq), decodeGrid(t.der), ref));
     }
   }
+  if (errores.length)
+    console.log(`Réplicas con error: ${errores.length} (${[...new Set(errores)].slice(0, 3).join(' | ')})`);
   console.log(`Referencia TCI (${fuente}): ${miembros.length} miembros`);
   const dataset = {
     _aviso: 'DATOS REALES DE PACIENTES. Local: no versionar, no publicar, no desplegar.',
@@ -372,6 +496,25 @@ function main() {
     pacientes,
   };
   fs.writeFileSync(path.join(OUT, 'dataset.json'), JSON.stringify(dataset));
+  if (CORRECCION) {
+    fs.writeFileSync(
+      path.join(OUT, FOTOS_FILE),
+      JSON.stringify({
+        _aviso: 'Calidad automática por réplica (claves = hash de la ruta). Local: no versionar.',
+        version: 1,
+        generado: dataset.generado,
+        umbrales: Q.UMBRALES,
+        ...fotos,
+      }),
+    );
+    const reps = Object.values(fotos.replicas);
+    const tomasQ = Object.values(fotos.tomas).flatMap((t) => Object.values(t));
+    console.log(
+      `Fotos: ${reps.length} réplicas · máscaras limpiadas ${reps.filter((r) => r.limpieza?.cambiados).length} · ` +
+        `fotos realineadas ${reps.filter((r) => r.alineacion?.aplicada).length} · ` +
+        `tomas con calidad baja ${tomasQ.filter((t) => t.baja).length} de ${tomasQ.length}`,
+    );
+  }
   const conT1 = pacientes.filter((p) => p.tomas.some((t) => t.toma === 1 && t.ok)).length;
   const conT2 = pacientes.filter((p) => p.tomas.some((t) => t.toma === 2 && t.ok)).length;
   console.log(

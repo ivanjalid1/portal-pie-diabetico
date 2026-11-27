@@ -90,6 +90,8 @@ function analyzePointwise(grids, p, { tciReference = null } = {}) {
       ambiente,
       absoluta,
       calidad: g.calidad ?? null,
+      // Calidad automática de las fotos de la toma (precálculo con datos reales).
+      calidadFotos: g.calidadFotos ?? null,
       marco: g.marco ?? null,
       fecha: g.fecha ?? null,
       cobertura: Object.fromEntries(Object.entries(cobertura).map(([z, v]) => [z, Math.round(v * 100) / 100])),

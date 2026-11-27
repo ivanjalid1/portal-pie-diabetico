@@ -51,7 +51,7 @@ function build(env = process.env) {
     tciReferenceDir: env.TCI_REFERENCE_DIR || null,
     // Carpeta local de trabajo (ignorada por git y Vercel): desenlaces registrados,
     // máscaras corregidas, datos de ML.
-    localDataDir: env.LOCAL_DATA_DIR || require('node:path').join(__dirname, '..', '..', 'data-local'),
+    localDataDir: env.LOCAL_DATA_DIR || require('./localData').localDataDir(),
     // Carpeta privada con los IS2 originales (no versionada). Sólo se lee en local con
     // SEED=real, para la foto visible del visor de termogramas (nunca en producción).
     privateDataDir: env.PRIVATE_DATA_DIR || require('node:path').join(__dirname, '..', '..', 'tesis-2026info'),

@@ -5,7 +5,8 @@
   // barra de color, barra de herramientas (zoom, giro, desplazamiento) y
   // deslizador «Fusión IR». Lo arma public/js/thermo-viewer.js.
   //   uid        prefijo único de ids
-  //   sources    [{ toma, reps: [{ rep, calidad, mejor, noValido, termica, foto, info }] }]
+  //   sources    [{ toma, calidadBaja, reps: [{ rep, calidad, mejor, noValido, termica, foto, info,
+  //                avisos, alineacion, encuadre, giro }] }]
   //   mascara    (opcional) modo herramienta de máscaras: canvas de la máscara
   //              encima, sin zoom/giro/PIP ni caja de análisis.
   //   fallbackInfo (opcional) datos de adquisición del estudio para «Información».
@@ -41,6 +42,12 @@
       <div class="tv-field" data-tv-rep-group hidden>
         <label class="tv-label" for="<%= uid %>-rep">Réplica</label>
         <select id="<%= uid %>-rep" class="tv-select" data-tv-rep></select>
+      </div>
+      <div class="tv-field" data-tv-quality hidden>
+        <span class="tv-label">Calidad automática de la foto</span>
+        <ul class="tv-flags" data-tv-flags aria-label="Avisos automáticos de la réplica"></ul>
+        <p class="tv-hint tv-hint--warn" data-tv-lowq hidden>Calidad baja: ninguna réplica de esta toma está libre de problemas; se usa la menos afectada.</p>
+        <p class="tv-hint">Avisos automáticos, aparte de la revisión manual.</p>
       </div>
       <div class="tv-field">
         <label class="tv-label" for="<%= uid %>-pal">Paleta</label>
@@ -127,7 +134,8 @@
       </div>
     </div>
     <span class="tv-span__end num">−30 °C</span>
-    <label class="tv-check"><input type="checkbox" data-tv-auto checked><span>Escala automática</span></label>
+    <label class="tv-check"><input type="checkbox" data-tv-auto<%= M ? ' checked' : '' %>><span>Escala automática</span></label>
+    <button type="button" class="btn btn--ghost btn--sm tv-span__fixed" data-tv-fixed title="Escala fija de la cámara">24–35 °C</button>
   </div>
 
   <!-- Imagen -->
@@ -165,6 +173,10 @@
       <div class="tv-toolbar__group">
         <button type="button" class="tv-icon-btn" data-tv-rot="-1" aria-label="Girar a la izquierda"><%- svg(I.rotL) %></button>
         <button type="button" class="tv-icon-btn" data-tv-rot="1" aria-label="Girar a la derecha"><%- svg(I.rotR) %></button>
+      </div>
+      <div class="tv-toolbar__group">
+        <button type="button" class="btn btn--ghost btn--sm" data-tv-crop aria-pressed="true" title="Acercar la vista al recuadro de los pies (sólo vista)">Encuadrar pies</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-tv-straight aria-pressed="false" title="Girar la vista para enderezar los pies (sólo vista; los datos no cambian)">Enderezar</button>
       </div>
       <div class="tv-pan" aria-label="Desplazar">
         <button type="button" class="tv-icon-btn tv-pan__up" data-tv-pan="0,-1" aria-label="Arriba"><%- svg(I.up) %></button>

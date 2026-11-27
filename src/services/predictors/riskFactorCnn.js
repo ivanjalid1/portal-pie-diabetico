@@ -1,7 +1,6 @@
 'use strict';
 
 const fs = require('node:fs');
-const path = require('node:path');
 const { GRID, decodeGrid } = require('../../imaging/pointwise');
 
 /**
@@ -22,7 +21,7 @@ const { GRID, decodeGrid } = require('../../imaging/pointwise');
  */
 const RISK_FACTOR_MODEL_PATH =
   process.env.RIESGO_FACTOR_MODELO ||
-  path.join(__dirname, '..', '..', '..', 'data-local', 'models', 'riskfactor-neuropatia-cnn.json');
+  require('../../config/localData').localDataPath('models', 'riskfactor-neuropatia-cnn.json');
 
 /** Requisitos (los mismos de la regla fijada antes de entrenar). */
 const REQUISITOS = Object.freeze({ positivos: 10, negativos: 10, pPermutacion: 0.05 });

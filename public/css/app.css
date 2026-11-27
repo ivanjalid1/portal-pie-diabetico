@@ -9505,6 +9505,30 @@ body.has-savebar {
   display: none;
 }
 
+.tv-hint--warn {
+  color: var(--warn);
+  font-weight: 560;
+}
+
+/* Avisos automáticos de calidad de la réplica (chips). */
+.tv-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tv-flags .badge {
+  white-space: normal;
+}
+
+.tv-span__fixed {
+  margin-top: 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .tv .tv-select {
   min-height: 38px;
   padding: 0.4rem 0.6rem;

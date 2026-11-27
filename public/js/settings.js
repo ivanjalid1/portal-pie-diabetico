@@ -61,6 +61,8 @@
     savebar.hidden = dirty === 0;
     document.body.classList.toggle('has-savebar', dirty > 0);
     $('[data-dirty-count]', savebar).textContent = String(dirty);
+    const word = $('[data-dirty-word]', savebar);
+    if (word) word.textContent = dirty === 1 ? 'cambio' : 'cambios';
     const modalDirty = $('[data-modal-dirty]');
     if (modalDirty) modalDirty.hidden = dirty === 0;
     clearTimeout(timer);
@@ -79,7 +81,8 @@
       const p = await res.json();
       $$('[data-pv]').forEach((el) => (el.textContent = String(p[el.dataset.pv] ?? '')));
       $$('[data-pv-bar]').forEach((el) => {
-        el.style.width = `${p.total ? Math.round((p[el.dataset.pvBar] / p.total) * 100) : 0}%`;
+        const of = p[el.dataset.pvOf || 'total'];
+        el.style.width = `${of ? Math.round((p[el.dataset.pvBar] / of) * 100) : 0}%`;
       });
       $$('[data-pv-riesgo]').forEach((el) => (el.textContent = String(p.riesgo[el.dataset.pvRiesgo])));
       $$('[data-pv-seg]').forEach((el) => (el.style.flexGrow = String(p.riesgo[el.dataset.pvSeg])));
@@ -107,6 +110,11 @@
   });
   form.addEventListener('submit', () => {
     window.removeEventListener('beforeunload', guard);
+    const btn = form.querySelector('.savebar button[type="submit"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Guardando…';
+    }
   });
   function guard(e) {
     if (!savebar.hidden) {

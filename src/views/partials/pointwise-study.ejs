@@ -58,7 +58,7 @@
           </figure>
         </div>
         <%- include('scale', { gradient: thermal.PALETTE_CSS.alto_contraste, ticks: tempTicks, label: `Escala de temperatura de ${fmt.num(rango.lo, 1)} a ${fmt.num(rango.hi, 1)} °C` }) %>
-        <p class="sr-caption">Temperatura de cada planta, con la misma escala para los dos pies.<% if (t.ambiente && t.ambiente.ajusteC) { %> Ajustada a una sala de 22 °C (<span class="num"><%= fmt.signed(t.ambiente.ajusteC, 2) %> °C</span>; sala <%= t.ambiente.origen === 'estimada' ? '≈' : '' %><span class="num"><%= fmt.num(t.ambiente.tempC, 1) %> °C</span>, <%= t.ambiente.origen %>).<% } %></p>
+        <p class="sr-caption">Misma escala para los dos pies.<% if (t.ambiente && t.ambiente.ajusteC) { %> Ajustada a 22 °C (<span class="num"><%= fmt.signed(t.ambiente.ajusteC, 2) %> °C</span>; sala <%= t.ambiente.origen === 'estimada' ? '≈' : '' %><span class="num"><%= fmt.num(t.ambiente.tempC, 1) %> °C</span>, <%= t.ambiente.origen %>).<% } %></p>
       </div>
       <div class="sr-maps__group sr-maps__group--dt">
         <figure class="pw-map pw-map--dt">

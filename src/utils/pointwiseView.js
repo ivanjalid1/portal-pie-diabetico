@@ -10,7 +10,7 @@ const { zonasTexto, ZONA_NOMBRES } = require('../services/predictors/pointwiseAn
 const thermal = require('./thermal');
 const { fmt } = require('./format');
 const { flagLabels } = require('../imaging/photoQuality');
-const { etiquetaExclusionTesis } = require('./tesisExclusion');
+const { observacionesVisibles } = require('./tesisExclusion');
 
 /** LUT High Contrast reducida a 64 colores (para el navegador). */
 const LUT = (() => {
@@ -360,7 +360,7 @@ module.exports = {
   noAnalizadoTexto,
   calidadFotosAviso,
   promedioFotos,
-  etiquetaExclusionTesis,
+  observacionesVisibles,
   cambioArea,
   ZONA_NOMBRES,
   ZONA_CON_ARTICULO,

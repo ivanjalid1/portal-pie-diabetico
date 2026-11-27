@@ -336,13 +336,15 @@ El análisis principal del portal compara los pies **punto a punto (píxel a pí
 
 Reglas que no se negocian: **no se usa IA generativa ni *inpainting*** y **nunca se modifican ni completan temperaturas**. Sólo se recorta, centra y alinea para mostrar, y las zonas sin dato se pintan en gris.
 
-Parámetros (Configuración → «Análisis punto a punto», con vista previa del efecto):
+Parámetros (Configuración → «Asimetría entre pies», con vista previa del efecto; el cambio local entre tomas está en «Avanzado»):
 
 - umbral por punto, 1,0 °C;
 - área mínima para marcar «con asimetría punto a punto», 10 %;
 - cambio local relevante entre tomas, 1,0 °C.
 
 Los 10 % se calibraron con la toma 1 de los 54 pacientes de la hoja «DifT°» de la Parte 1. Con ese valor se marcan 27 tomas (la Parte 1 clasificó 26 como P) y la clasificación coincide en 43 de 54. Como las grillas se guardan en cada análisis, cambiar un parámetro y recalcular **no vuelve a procesar las imágenes**.
+
+**Página de Configuración.** Desde el 27/11/2026 muestra cinco grupos simples (asimetría entre pies, riesgo de úlcera, seguimiento, condiciones de la sala, imágenes) con etiquetas cortas y una línea de ayuda; la explicación completa y la fuente de cada parámetro van en «¿Qué es esto?», y los técnicos (priors IWGDF, cortes del modelo entrenado, análisis por regiones de la Parte 1, cámara, etiqueta del pronóstico y nombres de las imágenes) en «Avanzado». Antes, el grupo «Análisis punto a punto» no se mostraba y guardar el formulario lo volvía al valor por defecto; ahora un campo que no viene en el formulario conserva el valor vigente.
 
 **Concordancia con la Parte 1.** El ΔT general por regiones calculado sobre la grilla tiene r = 0,84 con la planilla del equipo (54 pacientes, toma 1), con una diferencia mediana de 0,09 °C (con la segmentación clásica: r = 0,83). El script de entrenamiento lo vuelve a calcular.
 
@@ -1067,7 +1069,7 @@ Módulo: `src/imaging/replicaAverage.js` (`meanGrid`, `pasaCriterios`, `promedia
 La columna OBSERVACIONES de la planilla marca 31 de los pacientes cargados como «PACIENTE NO VALIDO X IMAGEN» (excluidos en la Parte 1 de la tesis) y uno, P.HC009, como «NO VALIDO X PESO» (excluido por peso > 150 kg, no por la imagen). En el portal:
 
 - se cargan y se evalúan con **los mismos criterios automáticos de calidad de foto que el resto** (§8.13–8.14): el estudio ya no queda «no válido» por esa marca;
-- se muestra sólo una etiqueta histórica neutra: «Excluido en la tesis de Ana (imagen)» o, para P.HC009, «Excluido en la tesis de Ana (peso > 150 kg)» (`src/utils/tesisExclusion.js`, a partir de las observaciones de la ficha);
+- **no se muestra ninguna etiqueta**: la marca «PACIENTE NO VALIDO…» se quita de las observaciones que ve el equipo (ficha y formulario) y se conserva al guardar la ficha (`observacionesVisibles` / `conservarMarca` en `src/utils/tesisExclusion.js`). Hasta el 27/11/2026 se mostraba una etiqueta histórica con el nombre de la autora de la Parte 1; se retiró a pedido del equipo;
 - **siguen fuera** del entrenamiento de los modelos y de la referencia del TCI (`clinica.noValido`), como antes.
 
 Los 3 pacientes sin consentimiento siguen excluidos por completo (sin ficha, sin imágenes y sin entrenamiento).

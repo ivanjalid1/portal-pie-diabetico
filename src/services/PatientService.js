@@ -1,6 +1,7 @@
 'use strict';
 
 const { ROLES } = require('../models/roles');
+const { conservarMarca } = require('../utils/tesisExclusion');
 const PatientView = require('../models/PatientView');
 const Patient = require('../models/Patient');
 const { EXCLUSION_CRITERIA, CONSENT_VERSION, CODIGO_REGEX, prefijoCentro } = require('../config/domain');
@@ -117,6 +118,9 @@ class PatientService {
     const { email: _e, ...profile } = personal;
     // Al guardar la ficha la neuropatía queda registrada (sí o no).
     if ('neuropatia' in changes) changes.neuropatiaSinDato = false;
+    // El formulario muestra las observaciones sin la marca interna «NO VALIDO» de la planilla: se conserva.
+    if ('observaciones' in changes)
+      changes.observaciones = conservarMarca(patient.observaciones, changes.observaciones) || null;
     await this.patients.update(id, changes);
     if (patient.userId && Object.keys(profile).length) await this.users.update(patient.userId, profile);
     this.events.publish(EVENTS.PATIENT_UPDATED, { actor, entity: 'paciente', entityId: id, detail: patient.codigo });

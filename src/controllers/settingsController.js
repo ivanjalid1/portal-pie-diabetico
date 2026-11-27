@@ -38,7 +38,7 @@ function createSettingsController({ settingsService, analysisService }) {
         req.flash(
           'success',
           changes.length
-            ? `Guardaste ${changes.length} ${changes.length === 1 ? 'cambio' : 'cambios'}. Los estudios nuevos usan la configuración actualizada.`
+            ? `Guardado: ${changes.length} ${changes.length === 1 ? 'cambio' : 'cambios'}. Se aplica a los estudios nuevos.`
             : 'No había cambios para guardar.',
         );
         res.redirect(303, '/configuracion');
@@ -58,7 +58,7 @@ function createSettingsController({ settingsService, analysisService }) {
       const { actualizados, cambiaron } = await analysisService.recalculateAll(actor(req));
       req.flash(
         'success',
-        `Recalculaste ${actualizados} ${actualizados === 1 ? 'estudio' : 'estudios'} con la configuración vigente (${cambiaron} cambiaron de clasificación o de nivel de riesgo).`,
+        `Recalculados: ${actualizados} ${actualizados === 1 ? 'estudio' : 'estudios'} (${cambiaron} cambiaron de clasificación o de riesgo).`,
       );
       res.redirect(303, '/configuracion');
     },

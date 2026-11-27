@@ -30,22 +30,22 @@
   // Avisos: todo lo que condiciona la lectura, en un solo lugar.
   const avisos = [];
   if (PW) {
-    if (!t2) avisos.push({ tono: 'info', texto: '<strong>Sin toma 2.</strong> Se analizó sólo la termografía basal; no hay comparación entre tomas.' });
+    if (!t2) avisos.push({ tono: 'info', texto: '<strong>Sin toma 2.</strong> Sólo termografía basal; no hay comparación.' });
     PW.tomas.forEach((t) => {
       const na = pw.noAnalizadoTexto(t);
-      if (na) avisos.push({ tono: 'info', texto: `<strong>Toma ${t.toma}: ${na}.</strong> No se detectaron completos en ambos pies (fuera del cuadro o demasiado fríos); quedan fuera de las métricas y se ven en gris.` });
-      if (t.calidad !== null && t.calidad < 0.6) avisos.push({ tono: 'warn', texto: `<strong>Toma ${t.toma}: segmentación a revisar.</strong> Los contornos de ambos pies coinciden poco (calidad ${fmt.num(t.calidad, 2)}); mirá la termografía original.` });
+      if (na) avisos.push({ tono: 'info', texto: `<strong>Toma ${t.toma}: ${na}.</strong> Incompletos en algún pie: quedan fuera de las métricas (en gris).` });
+      if (t.calidad !== null && t.calidad < 0.6) avisos.push({ tono: 'warn', texto: `<strong>Toma ${t.toma}: segmentación a revisar.</strong> Los contornos coinciden poco (calidad ${fmt.num(t.calidad, 2)}); revisá la termografía.` });
       const cf = pw.calidadFotosAviso(t);
-      if (cf) avisos.push({ tono: 'warn', texto: `<strong>Toma ${t.toma}: calidad baja de la foto.</strong> ${cf.texto.charAt(0).toUpperCase() + cf.texto.slice(1)}. Interpretá el resultado con cautela; los avisos de cada réplica están en el visor.` });
+      if (cf) avisos.push({ tono: 'warn', texto: `<strong>Toma ${t.toma}: calidad baja de la foto.</strong> ${cf.texto.charAt(0).toUpperCase() + cf.texto.slice(1)}. Ver avisos en el visor.` });
     });
   }
-  if (estimadas) avisos.push({ tono: 'info', texto: `<strong>Fecha estimada${estimadas.includes('y') ? 's' : ''}:</strong> toma ${estimadas}. El reloj de la cámara no estaba configurado.` });
+  if (estimadas) avisos.push({ tono: 'info', texto: `<strong>Fecha estimada${estimadas.includes('y') ? 's' : ''}:</strong> toma ${estimadas}. Reloj de la cámara sin configurar.` });
   // Condiciones de la sala por toma (medidas o estimadas), contra el protocolo de Configuración.
   const PR = protocolo();
   const AMB = pw.ambientesDe(a, s);
   const tomasAmb = (t2 ? [1, 2] : [1]).map((k) => ({ k, ...pw.ambienteToma(AMB[k] || null, PR) }));
   const fueraAmb = tomasAmb.filter((x) => x.fuera.alguno);
-  if (fueraAmb.length) avisos.push({ tono: 'warn', texto: `<strong>${fueraAmb.map((x) => `Toma ${x.k}`).join(' y ')} fuera del protocolo de ambiente</strong> (${fmt.num(PR.tempAmbiente.min, 0)}–${fmt.num(PR.tempAmbiente.max, 0)} °C, ${PR.humedadRelativa.min}–${PR.humedadRelativa.max} % HR)${fueraAmb.some((x) => x.origen === 'estimada') ? ', con la temperatura estimada en alguna toma' : ''}. Las temperaturas absolutas se muestran ajustadas a una sala de 22 °C; la asimetría (ΔT) no depende del ambiente.` });
+  if (fueraAmb.length) avisos.push({ tono: 'warn', texto: `<strong>${fueraAmb.map((x) => `Toma ${x.k}`).join(' y ')} fuera del protocolo de sala</strong> (${fmt.num(PR.tempAmbiente.min, 0)}–${fmt.num(PR.tempAmbiente.max, 0)} °C, ${PR.humedadRelativa.min}–${PR.humedadRelativa.max} % HR)${fueraAmb.some((x) => x.origen === 'estimada') ? ', con la temperatura estimada en alguna toma' : ''}. Temperaturas ajustadas a 22 °C; la diferencia entre pies no cambia.` });
   const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   if (!s.valida) avisos.push({ tono: 'warn', texto: `<strong>Imágenes marcadas como no válidas.</strong>${s.motivoInvalidez ? ` Motivo: ${esc(s.motivoInvalidez)}` : ''}` });
   const avisoWarn = avisos.some((x) => x.tono === 'warn');
@@ -82,9 +82,6 @@
       <% if (PW) { PW.tomas.forEach((t) => { const pf = pw.promedioFotos(t); if (pf) { %>
       <span class="badge badge--muted" data-promedio-fotos title="<%= pf.detalle %>"><%= PW.tomas.length > 1 ? `Toma ${t.toma}: ` : '' %><%= pf.corto %></span>
       <% } }) } %>
-      <% const exTesis = pw.etiquetaExclusionTesis(p); if (exTesis) { %>
-      <span class="badge badge--outline" data-exclusion-tesis title="Marca histórica de la planilla clínica: no afecta este análisis, que usa los mismos criterios de calidad de foto que el resto. El paciente sigue fuera del entrenamiento de los modelos."><%= exTesis %></span>
-      <% } %>
       <span class="badge badge--outline"><%= s.publicado ? 'Visible para el paciente' : 'No visible para el paciente' %></span>
       <% if (typeof revision !== 'undefined' && revision && revision.resumen.total) { const RS = revision.resumen; %>
       <a class="badge badge--<%= RS.rechazado ? 'danger' : RS.pendiente ? 'muted' : 'ok' %> ir-count" href="#revision" data-ir-count title="Revisión manual de las fotos del visor">Fotos: <span data-ir-count-text><%= resumenTexto(RS) %></span></a>
@@ -112,8 +109,7 @@
   <span class="iwgdf-alert__icon" aria-hidden="true"><%- include('../partials/icon', { name: 'alert', size: 22 }) %></span>
   <div class="iwgdf-alert__body">
     <p class="iwgdf-alert__title">Asimetría ≥ <%= fmt.num(FC.umbralIwgdf, 1) %> °C persistente en <%= FC.alertas.map((z) => z.texto).join(', ') %> (2 tomas)</p>
-    <p class="iwgdf-alert__sub">Criterio IWGDF de riesgo preulceroso: diferencia contralateral ≥ 2,2 °C en dos mediciones consecutivas. <%= FC.alertas.map((z) => `${z.texto.charAt(0).toUpperCase()}${z.texto.slice(1)}: p95 de la zona ${fmt.num(z.p95[0], 1)} → ${fmt.num(z.p95[1], 1)} °C`).join(' · ') %>.</p>
-    <p class="iwgdf-alert__cite">IWGDF 2023 (Bus et al., doi:10.1002/dmrr.3651), recomendación 7; Lavery et al. 2007, Diabetes Care 30:14-20 (doi:10.2337/dc06-1600).</p>
+    <p class="iwgdf-alert__sub" title="Criterio IWGDF de riesgo preulceroso: diferencia contralateral ≥ 2,2 °C en dos mediciones consecutivas. IWGDF 2023 (Bus et al., doi:10.1002/dmrr.3651), recomendación 7; Lavery et al. 2007, Diabetes Care 30:14-20 (doi:10.2337/dc06-1600).">Criterio IWGDF (≥ 2,2 °C en dos tomas). <%= FC.alertas.map((z) => `${z.texto.charAt(0).toUpperCase()}${z.texto.slice(1)}: p95 de la zona ${fmt.num(z.p95[0], 1)} → ${fmt.num(z.p95[1], 1)} °C`).join(' · ') %>.</p>
   </div>
 </div>
 <% } %>
@@ -430,6 +426,6 @@
 
 <section class="card" id="desenlace" aria-labelledby="out-title">
   <h2 id="out-title" class="card__title">Desenlace real</h2>
-  <p class="muted small">Se registra por paciente al finalizar el seguimiento y alimenta la validación del modelo.</p>
+  <p class="muted small">Al finalizar el seguimiento. Sirve para validar el modelo.</p>
   <%- include('../partials/outcome-form', { patient: p, volver: `/medico/estudios/${s.id}#desenlace` }) %>
 </section>

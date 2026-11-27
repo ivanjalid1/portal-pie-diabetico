@@ -236,7 +236,7 @@
       </div>
       <div class="field field--span3">
         <label for="observaciones">Observaciones</label>
-        <textarea id="observaciones" name="observaciones" rows="3"><%= val('observaciones') %></textarea>
+        <textarea id="observaciones" name="observaciones" rows="3"><%= hasOld ? val('observaciones') : (pw.observacionesVisibles(val('observaciones')) || '') %></textarea>
       </div>
     </div>
   </details>

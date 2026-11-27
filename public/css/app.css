@@ -7378,6 +7378,203 @@ body.has-savebar {
   }
 }
 
+/* Configuración: grupos simples, «¿Qué es esto?» y «Avanzado» */
+.cfg-meta {
+  margin: -6px 0 14px;
+}
+
+.cfg-columns--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cfg-card--protocolo,
+.cfg-card--visualizacion {
+  grid-column: auto;
+}
+
+.cfg-card--protocolo .cfg-fields--grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cfg-card--protocolo .cfg-input {
+  max-width: none;
+}
+
+.cfg-field__help {
+  max-width: 60ch;
+}
+
+.cfg-more {
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+
+.cfg-more summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  color: var(--primary);
+  font-weight: 560;
+  cursor: pointer;
+  list-style: none;
+}
+
+.cfg-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.cfg-more summary::before {
+  content: '?';
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+.cfg-more[open] summary {
+  margin-bottom: 4px;
+}
+
+.cfg-more p {
+  margin: 0 0 6px;
+  max-width: 70ch;
+}
+
+.cfg-seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cfg-seg__opt {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.cfg-seg__opt input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cfg-seg__opt:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  box-shadow: inset 0 0 0 1px var(--primary);
+  font-weight: 560;
+}
+
+.cfg-seg__opt:has(input:focus-visible) {
+  box-shadow: var(--focus);
+}
+
+.cfg-advanced {
+  margin-top: 18px;
+  padding: 0;
+}
+
+.cfg-advanced__summary {
+  display: grid;
+  gap: 2px;
+  padding: 16px 20px 16px 44px;
+  position: relative;
+  cursor: pointer;
+  list-style: none;
+}
+
+.cfg-advanced__summary::-webkit-details-marker {
+  display: none;
+}
+
+.cfg-advanced__summary::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 21px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 160ms var(--ease);
+}
+
+.cfg-advanced[open] .cfg-advanced__summary::before {
+  transform: rotate(45deg);
+}
+
+.cfg-advanced__title {
+  font-weight: 620;
+  font-size: 1rem;
+}
+
+.cfg-advanced__body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 28px;
+  padding: 0 20px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.cfg-sub {
+  min-width: 0;
+  padding-top: 14px;
+}
+
+.cfg-sub .cfg-card__head {
+  margin-bottom: 4px;
+}
+
+.cfg-sub__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 620;
+}
+
+.cfg-sub.cfg-card--riesgo,
+.cfg-sub.cfg-card--protocolo {
+  grid-column: 1 / -1;
+}
+
+.cfg-sub.cfg-card--riesgo .cfg-fields--grid,
+.cfg-sub.cfg-card--protocolo .cfg-fields--grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+}
+
+@media (max-width: 1080px) {
+  .cfg-columns--3,
+  .cfg-advanced__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .cfg-advanced__body {
+    padding: 0 14px 14px;
+  }
+
+  .cfg-advanced__summary {
+    padding: 14px 14px 14px 38px;
+  }
+
+  .cfg-advanced__summary::before {
+    left: 16px;
+  }
+}
+
 /* =========================================================================
    Análisis punto a punto (mapas ΔT, histograma, cambio entre tomas)
    ========================================================================= */

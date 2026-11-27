@@ -25,28 +25,15 @@ const PALETA_CAMARA = Object.freeze({
 const GROUPS = Object.freeze([
   Object.freeze({
     key: 'puntual',
-    titulo: 'Análisis punto a punto',
+    titulo: 'Asimetría entre pies',
     icono: 'scan',
-    descripcion: 'Umbrales del mapa de diferencias píxel a píxel entre ambos pies y entre tomas.',
-  }),
-  Object.freeze({
-    key: 'asimetria',
-    titulo: 'Referencia por regiones (Parte 1)',
-    icono: 'thermo',
-    descripcion: 'Clasificación por regiones de la tesis de la Parte 1, que se muestra como referencia secundaria.',
+    descripcion: 'Cuándo una toma se marca «con asimetría».',
   }),
   Object.freeze({
     key: 'riesgo',
-    titulo: 'Riesgo',
+    titulo: 'Riesgo de úlcera',
     icono: 'gauge',
-    descripcion:
-      'Riesgo de úlcera calibrado con la bibliografía: horizonte, incidencia por grupo IWGDF y umbral de asimetría.',
-  }),
-  Object.freeze({
-    key: 'pronostico',
-    titulo: 'Pronóstico por zona',
-    icono: 'activity',
-    descripcion: 'Pronóstico del próximo control por pie y zona: horizonte que se muestra.',
+    descripcion: 'Plazo y corte de asimetría del riesgo informado.',
   }),
   Object.freeze({
     key: 'seguimiento',
@@ -56,15 +43,27 @@ const GROUPS = Object.freeze([
   }),
   Object.freeze({
     key: 'protocolo',
-    titulo: 'Protocolo de adquisición',
-    icono: 'scan',
-    descripcion: 'Rangos válidos de la captura. Fuera de rango se avisa en el asistente (no bloquea).',
+    titulo: 'Condiciones de la sala',
+    icono: 'thermo',
+    descripcion: 'Fuera de rango, el asistente avisa (no bloquea).',
   }),
   Object.freeze({
     key: 'visualizacion',
-    titulo: 'Visualización',
+    titulo: 'Imágenes',
     icono: 'eye',
-    descripcion: 'Paleta por defecto del visor y nombres de las imágenes.',
+    descripcion: 'Cómo se muestran las termografías.',
+  }),
+  Object.freeze({
+    key: 'asimetria',
+    titulo: 'Análisis por regiones (Parte 1)',
+    icono: 'thermo',
+    descripcion: 'Referencia secundaria: no cambia el riesgo.',
+  }),
+  Object.freeze({
+    key: 'pronostico',
+    titulo: 'Pronóstico por zona',
+    icono: 'activity',
+    descripcion: 'Texto que acompaña al pronóstico.',
   }),
 ]);
 
@@ -77,6 +76,8 @@ const FUENTE_PROTOCOLO = 'Protocolo de adquisición del equipo (cámara Fluke Ti
 const DEFINITIONS = Object.freeze([
   {
     key: 'umbralPixel',
+    corto: 'Diferencia mínima por punto',
+    ayuda: 'Un punto cuenta como caliente si supera al mismo punto del otro pie por este valor.',
     group: 'puntual',
     type: 'number',
     label: 'Umbral de diferencia por píxel (|ΔT|)',
@@ -88,12 +89,14 @@ const DEFINITIONS = Object.freeze([
     help: 'Un punto del pie se considera «caliente» si la diferencia con el mismo punto del otro pie (ya registrado) supera este valor.',
     fuente: 'Mismo criterio de 1,0 °C de la solicitud del PI, aplicado a cada punto en lugar de a cada región.',
     presets: [
-      { value: 1.0, label: '1,0 °C', detalle: 'Solicitud PI (criterio por región)' },
-      { value: 2.2, label: '2,2 °C', detalle: 'Referencia bibliográfica' },
+      { value: 1.0, label: '1,0 °C', detalle: 'Protocolo del equipo' },
+      { value: 2.2, label: '2,2 °C', detalle: 'Bibliografía' },
     ],
   },
   {
     key: 'areaMinima',
+    corto: 'Área caliente para marcar asimetría',
+    ayuda: 'Porcentaje de la planta que tiene que superar esa diferencia.',
     group: 'puntual',
     type: 'number',
     label: 'Área caliente mínima para marcar asimetría',
@@ -108,6 +111,9 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'umbralCambio',
+    corto: 'Cambio local entre tomas',
+    ayuda: 'Cambio de un punto entre la toma 1 y la 2, descontando el cambio general del pie.',
+    avanzado: true,
     group: 'puntual',
     type: 'number',
     label: 'Cambio local relevante entre tomas',
@@ -121,6 +127,9 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'umbralAsimetria',
+    corto: 'Umbral por región',
+    ayuda: 'Una región con más diferencia que esto marca «Con asimetría».',
+    avanzado: true,
     group: 'asimetria',
     type: 'number',
     label: 'Umbral de asimetría por región (|ΔT|)',
@@ -130,14 +139,17 @@ const DEFINITIONS = Object.freeze([
     step: 0.1,
     default: 1.0,
     help: 'Una toma es «Con asimetría (P)» si alguna región supera este |ΔT| entre pies; si no, «Sin asimetría (C)».',
-    fuente: 'Solicitud del PI de Inés (versión actual): 1,0 °C. Tesis de Ana P. Muñoz, p. 54, y Alwashmi 2025: 2,2 °C.',
+    fuente: 'Solicitud del PI (versión actual): 1,0 °C. Tesis previa (Parte 1), p. 54, y Alwashmi 2025: 2,2 °C.',
     presets: [
-      { value: 1.0, label: '1,0 °C', detalle: 'Solicitud PI de Inés (versión actual)' },
-      { value: 2.2, label: '2,2 °C', detalle: 'Tesis Ana p. 54; Alwashmi 2025' },
+      { value: 1.0, label: '1,0 °C', detalle: 'Protocolo del equipo' },
+      { value: 2.2, label: '2,2 °C', detalle: 'Bibliografía' },
     ],
   },
   {
     key: 'corteSimetria',
+    corto: 'Corte de simetría global',
+    ayuda: 'Diferencia media del pie completo por debajo de la cual se considera simétrico.',
+    avanzado: true,
     group: 'asimetria',
     type: 'number',
     label: 'Corte de simetría global (|ΔT general|)',
@@ -151,6 +163,9 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'referenciaBibliografica',
+    corto: 'Referencia bibliográfica',
+    ayuda: 'Las regiones que la superan se marcan en la tabla de temperaturas.',
+    avanzado: true,
     group: 'asimetria',
     type: 'number',
     label: 'Referencia bibliográfica (etiqueta «≥»)',
@@ -160,10 +175,13 @@ const DEFINITIONS = Object.freeze([
     step: 0.1,
     default: 2.2,
     help: 'Las regiones que la superan muestran una etiqueta informativa en la tabla de temperaturas.',
-    fuente: 'Tesis de Ana P. Muñoz (Parte 1), p. 54; Alwashmi 2025.',
+    fuente: 'Tesis previa (Parte 1), p. 54; Alwashmi 2025.',
   },
   {
     key: 'cambioRelevante',
+    corto: 'Cambio entre tomas por región',
+    ayuda: 'Cambio mínimo para marcar aumento o mejora.',
+    avanzado: true,
     group: 'asimetria',
     type: 'number',
     label: 'Cambio relevante de asimetría entre tomas',
@@ -177,6 +195,8 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'horizonteSemanas',
+    corto: 'Plazo del riesgo',
+    ayuda: 'Período para el que se informa el riesgo de úlcera.',
     group: 'riesgo',
     type: 'number',
     label: 'Horizonte del riesgo de úlcera',
@@ -189,17 +209,19 @@ const DEFINITIONS = Object.freeze([
     fuente:
       'Frykberg et al. 2017, Diabetes Care 40:973 (doi:10.2337/dc16-2294): anticipación media de 37 días. Lavery et al. 2019, BMJ Open Diabetes Res Care 7:e000696 (doi:10.1136/bmjdrc-2019-000696): tasas informadas en períodos de 2 meses. Prior a 12 meses desde la úlcera a 3 años de Peters y Lavery 2001 con riesgo constante.',
     presets: [
-      { value: 52, label: '12 meses', detalle: 'Por defecto: 6 períodos de 2 meses compuestos' },
-      { value: 8, label: '2 meses', detalle: 'Ventana de los LR (Lavery 2019)' },
+      { value: 52, label: '12 meses', detalle: 'Recomendado' },
+      { value: 8, label: '2 meses', detalle: 'Ventana de los estudios' },
     ],
   },
   {
     key: 'modoRiesgo',
+    corto: 'Corte de asimetría para el riesgo',
+    ayuda: 'Diferencia entre pies que usa el cálculo del riesgo.',
     group: 'riesgo',
     type: 'enum',
     label: 'Umbral de asimetría de los cocientes de verosimilitud',
     options: {
-      graduado: '2,2 °C con banda alta de 3,2 °C',
+      graduado: '2,2 y 3,2 °C (recomendado)',
       2.2: 'Sólo 2,2 °C',
       3.2: 'Sólo 3,2 °C',
     },
@@ -210,6 +232,9 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'priorIwgdf0',
+    corto: 'IWGDF 0',
+    ayuda: 'Sin neuropatía ni EAP.',
+    avanzado: true,
     group: 'riesgo',
     type: 'number',
     label: 'Úlcera a 3 años, IWGDF 0 (sin neuropatía ni EAP)',
@@ -223,6 +248,9 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'priorIwgdf1',
+    corto: 'IWGDF 1',
+    ayuda: 'Neuropatía o EAP. Fija el corte de riesgo moderado.',
+    avanzado: true,
     group: 'riesgo',
     type: 'number',
     label: 'Úlcera a 3 años, IWGDF 1 (neuropatía o EAP)',
@@ -236,6 +264,9 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'priorIwgdf2',
+    corto: 'IWGDF 2',
+    ayuda: 'Neuropatía + EAP o deformidad.',
+    avanzado: true,
     group: 'riesgo',
     type: 'number',
     label: 'Úlcera a 3 años, IWGDF 2 (neuropatía + EAP o deformidad)',
@@ -248,6 +279,9 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'priorIwgdf3',
+    corto: 'IWGDF 3',
+    ayuda: 'Úlcera o amputación previa. Fija el corte de riesgo alto.',
+    avanzado: true,
     group: 'riesgo',
     type: 'number',
     label: 'Úlcera a 3 años, IWGDF 3 (antecedente de úlcera o amputación)',
@@ -261,6 +295,9 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'grupoIwgdfDefecto',
+    corto: 'Grupo si falta el dato de neuropatía',
+    ayuda: 'Se usa cuando la ficha no registra neuropatía ni otro factor.',
+    avanzado: true,
     group: 'riesgo',
     type: 'enum',
     label: 'Grupo IWGDF si falta el dato de neuropatía',
@@ -272,6 +309,9 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'corteModerado',
+    corto: 'Corte moderado (modelo entrenado)',
+    ayuda: 'Sólo para el modelo entrenado con desenlaces.',
+    avanzado: true,
     group: 'riesgo',
     type: 'number',
     label: 'Corte de riesgo moderado (modelo entrenado)',
@@ -281,10 +321,13 @@ const DEFINITIONS = Object.freeze([
     step: 1,
     default: 50,
     help: 'Sólo para el modelo entrenado con los desenlaces del portal. El riesgo bibliográfico usa como cortes los riesgos basales IWGDF 1 y 3 del horizonte.',
-    fuente: 'Cortes del portal sobre la probabilidad del modelo de referencia (Parte 1, Muñoz A. P.).',
+    fuente: 'Cortes del portal sobre la probabilidad del modelo de referencia (Parte 1).',
   },
   {
     key: 'corteAlto',
+    corto: 'Corte alto (modelo entrenado)',
+    ayuda: 'Tiene que ser mayor que el moderado.',
+    avanzado: true,
     group: 'riesgo',
     type: 'number',
     label: 'Corte de alto riesgo (modelo entrenado)',
@@ -294,10 +337,13 @@ const DEFINITIONS = Object.freeze([
     step: 1,
     default: 70,
     help: 'Sólo para el modelo entrenado. Debe ser mayor que el corte moderado.',
-    fuente: 'Cortes del portal sobre la probabilidad del modelo de referencia (Parte 1, Muñoz A. P.).',
+    fuente: 'Cortes del portal sobre la probabilidad del modelo de referencia (Parte 1).',
   },
   {
     key: 'pronosticoEtiqueta',
+    corto: 'Texto del pronóstico',
+    ayuda: 'Sólo cambia la etiqueta (por ejemplo, «~35 días»).',
+    avanzado: true,
     group: 'pronostico',
     type: 'text',
     label: 'Horizonte del pronóstico (etiqueta)',
@@ -309,6 +355,8 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'diasEntreTomas',
+    corto: 'Días entre toma 1 y toma 2',
+    ayuda: 'Para sugerir la fecha de la toma de control.',
     group: 'seguimiento',
     type: 'number',
     label: 'Días sugeridos entre toma 1 y toma 2',
@@ -322,6 +370,8 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'diasControl',
+    corto: 'Días hasta el control clínico',
+    ayuda: 'Se cuentan desde la toma 2.',
     group: 'seguimiento',
     type: 'number',
     label: 'Días para el control posterior al estudio',
@@ -335,6 +385,7 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'tempAmbienteMin',
+    corto: 'Temperatura mínima',
     group: 'protocolo',
     type: 'number',
     label: 'Temperatura ambiente mínima',
@@ -347,6 +398,7 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'tempAmbienteMax',
+    corto: 'Temperatura máxima',
     group: 'protocolo',
     type: 'number',
     label: 'Temperatura ambiente máxima',
@@ -359,6 +411,7 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'humedadMin',
+    corto: 'Humedad mínima',
     group: 'protocolo',
     type: 'number',
     label: 'Humedad relativa mínima',
@@ -371,6 +424,7 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'humedadMax',
+    corto: 'Humedad máxima',
     group: 'protocolo',
     type: 'number',
     label: 'Humedad relativa máxima',
@@ -383,6 +437,8 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'distanciaCm',
+    corto: 'Distancia de la cámara',
+    avanzado: true,
     group: 'protocolo',
     type: 'number',
     label: 'Distancia de la cámara',
@@ -395,6 +451,8 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'emisividad',
+    corto: 'Emisividad',
+    avanzado: true,
     group: 'protocolo',
     type: 'number',
     label: 'Emisividad',
@@ -407,6 +465,8 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'rangoCamaraMin',
+    corto: 'Rango de la cámara: mínimo',
+    avanzado: true,
     group: 'protocolo',
     type: 'number',
     label: 'Rango de la cámara: mínimo',
@@ -419,6 +479,8 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'rangoCamaraMax',
+    corto: 'Rango de la cámara: máximo',
+    avanzado: true,
     group: 'protocolo',
     type: 'number',
     label: 'Rango de la cámara: máximo',
@@ -431,6 +493,8 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'estabilizacionMin',
+    corto: 'Reposo antes de la captura',
+    avanzado: true,
     group: 'protocolo',
     type: 'number',
     label: 'Tiempo de estabilización',
@@ -443,6 +507,8 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'paletaDefecto',
+    corto: 'Paleta de colores',
+    ayuda: 'Con la que se abren las termografías.',
     group: 'visualizacion',
     type: 'enum',
     label: 'Paleta por defecto',
@@ -453,6 +519,8 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'tituloImagen1',
+    corto: 'Nombre de la imagen 1',
+    avanzado: true,
     group: 'visualizacion',
     type: 'text',
     label: 'Nombre de la imagen 1',
@@ -461,6 +529,8 @@ const DEFINITIONS = Object.freeze([
   },
   {
     key: 'tituloImagen2',
+    corto: 'Nombre de la imagen 2',
+    avanzado: true,
     group: 'visualizacion',
     type: 'text',
     label: 'Nombre de la imagen 2',

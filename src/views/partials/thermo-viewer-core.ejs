@@ -46,8 +46,7 @@
       <div class="tv-field" data-tv-quality hidden>
         <span class="tv-label">Calidad automática de la foto</span>
         <ul class="tv-flags" data-tv-flags aria-label="Avisos automáticos de la réplica"></ul>
-        <p class="tv-hint tv-hint--warn" data-tv-lowq hidden>Calidad baja: ninguna réplica de esta toma está libre de problemas; se usa la menos afectada.</p>
-        <p class="tv-hint">Avisos automáticos, aparte de la revisión manual.</p>
+        <p class="tv-hint tv-hint--warn" data-tv-lowq hidden>Calidad baja: ninguna réplica sin problemas; se usa la menos afectada.</p>
       </div>
       <div class="tv-field">
         <label class="tv-label" for="<%= uid %>-pal">Paleta</label>
@@ -65,7 +64,7 @@
           <option value="estandar">Estándar</option>
           <option value="completa">Paleta completa</option>
         </select>
-        <p class="tv-hint">Estándar: bajo el mínimo no se colorea (se ve el fondo velado), como en la cámara.</p>
+        <p class="tv-hint">Estándar: bajo el mínimo no se colorea, como en la cámara.</p>
       </div>
       <div class="tv-field">
         <label class="tv-label" for="<%= uid %>-alarm-mode">Alarma de color</label>
@@ -86,7 +85,7 @@
         <div class="tv-param"><span class="tv-label">Emisividad</span><output class="tv-readonly num" data-tv-param="emisividad">—</output></div>
         <div class="tv-param"><span class="tv-label">Temperatura de fondo</span><output class="tv-readonly num" data-tv-param="fondo">—</output></div>
         <div class="tv-param"><span class="tv-label">Transmisión</span><output class="tv-readonly num" data-tv-param="transmision">—</output></div>
-        <p class="tv-hint">Del archivo de la cámara; sólo lectura (las temperaturas usan la conversión lineal del portal).</p>
+        <p class="tv-hint">Datos de la cámara (sólo lectura).</p>
       </div>
     </div>
 
@@ -197,7 +196,7 @@
         <input id="<%= uid %>-blend" class="tv-range tv-range--fusion" type="range" min="0" max="100" step="1" value="<%= M ? 100 : 35 %>" data-tv-blend aria-describedby="<%= uid %>-blend-hint">
         <span class="tv-fusion__end">Visible completo</span>
       </div>
-      <p class="tv-hint" id="<%= uid %>-blend-hint" data-tv-nofoto hidden>Sin foto visible: el extremo «Visible» muestra la térmica en escala de grises.</p>
+      <p class="tv-hint" id="<%= uid %>-blend-hint" data-tv-nofoto hidden>Sin foto visible: se muestra la térmica en grises.</p>
     </div>
   </div>
 </div>

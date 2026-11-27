@@ -112,18 +112,18 @@ describe('SEED=real (datos locales precalculados)', () => {
     const img = await medico.get(`/media/estudios/${s1.id}/toma1`);
     expect(img.status).toBe(200);
     expect(img.headers['content-type']).toBe('image/png');
-    // «NO VALIDO» en la planilla: estudio válido, etiqueta histórica neutra y promedio de fotos.
+    // «NO VALIDO» en la planilla: estudio válido, sin ninguna etiqueta visible y con promedio de fotos.
     const nv = await container.repos.patients.findByCodigo('P.HC904');
     const [s4] = await container.repos.studies.listByPatient(nv.id);
     expect(s4.valida).toBe(true);
     expect(s4.motivoInvalidez).toBeNull();
     const p4 = await medico.get(`/medico/estudios/${s4.id}`);
     expect(p4.status).toBe(200);
-    expect(p4.text).toContain('Excluido en la tesis de Ana (imagen)');
+    expect(p4.text).not.toMatch(/tesis de Ana|NO VALIDO|Excluido/);
     expect(p4.text).toContain('Promedio de 3 fotos');
     expect(p4.text).not.toContain('marcadas como no válidas');
     const f4 = await medico.get(`/medico/pacientes/${nv.id}`);
-    expect(f4.text).toContain('Excluido en la tesis de Ana (imagen)');
+    expect(f4.text).not.toMatch(/tesis de Ana|NO VALIDO|Excluido/);
     expect(f4.text).not.toContain('Imagen no válida');
   });
 

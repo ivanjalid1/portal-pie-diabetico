@@ -14,7 +14,7 @@
 %>
 <%- include('../partials/page-header', {
   heading: 'Estudios realizados',
-  lead: 'Todos los estudios comparativos de tus pacientes. Buscá por nombre, apellido o código.',
+  lead: 'Todos los estudios de tus pacientes.',
   actions: `<a class="btn btn--ghost" href="/medico/estudios/exportar.csv${qs({ page: undefined })}">${include('../partials/icon', { name: 'table', size: 18 })}Exportar CSV</a><a class="btn btn--primary" href="/medico/estudios/nuevo">${include('../partials/icon', { name: 'scan', size: 18 })}Nuevo estudio</a>`
 }) %>
 

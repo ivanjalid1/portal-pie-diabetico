@@ -1,24 +1,27 @@
 <%
+  const adv = nivel === 'avanzado';
+  const fields = defs.filter((d) => d.group === g.key && Boolean(d.avanzado) === adv);
   const fmtVal = (d, v) => (d.type === 'number' ? String(v).replace('.', ',') : v);
-  const byGroup = (k) => defs.filter((d) => d.group === k);
   const isDefault = (d) => String(values[d.key]) === String(defaults[d.key]);
-  const pct = (n) => (preview.total ? Math.round((n / preview.total) * 100) : 0);
-  const sharedSrc = g.key === 'protocolo' ? byGroup(g.key)[0].fuente : null;
+  const pct = (n, of) => (of ? Math.round((n / of) * 100) : 0);
+  const grid = g.key === 'protocolo' || (adv && g.key === 'riesgo');
+  const uid = `${g.key}-${nivel}`;
 %>
-<section class="card cfg-card cfg-card--<%= g.key %>" aria-labelledby="cfg-<%= g.key %>">
+<% if (fields.length) { %>
+<section class="<%= adv ? 'cfg-sub' : 'card cfg-card' %> cfg-card--<%= g.key %>" aria-labelledby="cfg-<%= uid %>">
   <div class="cfg-card__head">
-    <span class="cfg-card__icon" aria-hidden="true"><%- include('../partials/icon', { name: g.icono, size: 18 }) %></span>
+    <% if (!adv) { %><span class="cfg-card__icon" aria-hidden="true"><%- include('../partials/icon', { name: g.icono, size: 18 }) %></span><% } %>
     <div>
-      <h2 id="cfg-<%= g.key %>" class="card__title"><%= g.titulo %></h2>
-      <p class="muted small"><%= g.descripcion %></p>
+      <% if (adv) { %><h3 id="cfg-<%= uid %>" class="cfg-sub__title"><%= g.titulo %></h3><% } else { %><h2 id="cfg-<%= uid %>" class="card__title"><%= g.titulo %></h2><% } %>
+      <% if (!adv || g.key === 'asimetria') { %><p class="muted small"><%= g.descripcion %></p><% } else if (g.key === 'riesgo') { %><p class="muted small">Úlcera a 3 años por grupo IWGDF (bibliografía) y cortes del modelo entrenado.</p><% } %>
     </div>
   </div>
 
-  <div class="cfg-fields<%= g.key === 'protocolo' ? ' cfg-fields--grid' : '' %>">
-    <% byGroup(g.key).forEach((d) => { const err = errors[d.key]; %>
+  <div class="cfg-fields<%= grid ? ' cfg-fields--grid' : '' %>">
+    <% fields.forEach((d) => { const err = errors[d.key]; const more = d.help || (d.fuente && !['protocolo', 'visualizacion'].includes(g.key)); %>
     <div class="cfg-field<%= err ? ' has-error' : '' %><%= d.type === 'text' ? ' cfg-field--wide' : '' %>" data-field="<%= d.key %>" data-default="<%= fmtVal(d, defaults[d.key]) %>">
       <div class="cfg-field__top">
-        <label for="cfg-<%= d.key %>" class="cfg-field__label"><%= d.label %></label>
+        <label for="cfg-<%= d.key %>" class="cfg-field__label" id="cfg-<%= d.key %>-label"><%= d.corto || d.label %></label>
         <button type="button" class="cfg-reset" data-reset="<%= d.key %>"<%= isDefault(d) ? ' hidden' : '' %> title="Volver al valor por defecto (<%= fmtVal(d, defaults[d.key]) %><%= d.unit ? ` ${d.unit}` : '' %>)">
           <%- include('../partials/icon', { name: 'rotateCcw', size: 14 }) %>Restablecer
         </button>
@@ -29,7 +32,7 @@
         <input id="cfg-<%= d.key %>" name="<%= d.key %>" inputmode="decimal" autocomplete="off" value="<%= fmtVal(d, values[d.key]) %>" data-min="<%= d.min %>" data-max="<%= d.max %>"<%- err ? ` aria-invalid="true" aria-describedby="err-${d.key}"` : '' %>>
         <% if (d.unit) { %><span class="cfg-input__unit"><%= d.unit %></span><% } %>
       </div>
-      <% } else if (d.type === 'enum') { %>
+      <% } else if (d.type === 'enum' && d.key === 'paletaDefecto') { %>
       <div class="cfg-palettes" role="radiogroup" aria-labelledby="cfg-<%= d.key %>-label">
         <% Object.entries(d.options).forEach(([k, label]) => { %>
         <label class="cfg-palette">
@@ -39,7 +42,15 @@
         </label>
         <% }) %>
       </div>
-      <span id="cfg-<%= d.key %>-label" class="sr-only"><%= d.label %></span>
+      <% } else if (d.type === 'enum') { %>
+      <div class="cfg-seg" role="radiogroup" aria-labelledby="cfg-<%= d.key %>-label">
+        <% Object.entries(d.options).forEach(([k, label]) => { %>
+        <label class="cfg-seg__opt">
+          <input type="radio" name="<%= d.key %>" value="<%= k %>"<%= String(values[d.key]) === k ? ' checked' : '' %>>
+          <span><%= label %></span>
+        </label>
+        <% }) %>
+      </div>
       <% } else { %>
       <input id="cfg-<%= d.key %>" name="<%= d.key %>" maxlength="<%= d.maxLength %>" value="<%= values[d.key] %>"<%- err ? ` aria-invalid="true" aria-describedby="err-${d.key}"` : '' %>>
       <% } %>
@@ -51,49 +62,35 @@
           <strong><%= p.label %></strong><span><%= p.detalle %></span>
         </button>
         <% }) %>
-        <span class="cfg-chip cfg-chip--custom<%= d.presets.some((p) => Number(values[d.key]) === p.value) ? '' : ' is-active' %>" data-custom="<%= d.key %>">Personalizado</span>
       </div>
       <% } %>
 
       <% if (err) { %><p class="field__error" id="err-<%= d.key %>"><%= err %></p><% } %>
-      <% if (d.help) { %><p class="cfg-field__help"><%= d.help %></p><% } %>
-      <% if (d.fuente && !sharedSrc) { %><p class="cfg-field__src"><%- include('../partials/icon', { name: 'file', size: 13 }) %><span>Fuente: <%= d.fuente %></span></p><% } %>
+      <% if (d.ayuda) { %><p class="cfg-field__help"><%= d.ayuda %></p><% } %>
+      <% if (more) { %>
+      <details class="cfg-more">
+        <summary>¿Qué es esto?</summary>
+        <% if (d.help) { %><p><%= d.help %></p><% } %>
+        <% if (d.fuente) { %><p class="cfg-field__src">Fuente: <%= d.fuente %></p><% } %>
+      </details>
+      <% } %>
     </div>
     <% }) %>
   </div>
 
-  <% if (sharedSrc) { %><p class="cfg-field__src cfg-card__src"><%- include('../partials/icon', { name: 'file', size: 13 }) %><span>Fuente de todos los rangos: <%= sharedSrc %></span></p><% } %>
+  <% if (adv && g.key === 'protocolo') { %><p class="cfg-field__src">Fuente: <%= fields[0].fuente %></p><% } %>
 
-  <% if (g.key === 'puntual' && preview.puntuales) { %>
+  <% if (!adv && g.key === 'puntual' && preview.puntuales) { %>
   <div class="cfg-preview" data-preview="puntual" aria-live="polite">
-    <div class="cfg-preview__row">
-      <span class="cfg-preview__label">Con estos umbrales</span>
-      <span><strong class="num" data-pv="conAsimetriaPuntual"><%= preview.conAsimetriaPuntual %></strong> de <strong class="num" data-pv="puntuales"><%= preview.puntuales %></strong> estudios tendrían «asimetría punto a punto» en su última toma <span class="muted">(hoy: <span class="num"><%= preview.conAsimetriaPuntualActual %></span>)</span></span>
-    </div>
-    <div class="cfg-bar" aria-hidden="true"><span data-pv-bar="conAsimetriaPuntual" style="width: <%= preview.puntuales ? Math.round((preview.conAsimetriaPuntual / preview.puntuales) * 100) : 0 %>%"></span></div>
+    <p class="cfg-preview__row"><span class="cfg-preview__label">Con estos valores</span>
+      <span><strong class="num" data-pv="conAsimetriaPuntual"><%= preview.conAsimetriaPuntual %></strong> de <strong class="num" data-pv="puntuales"><%= preview.puntuales %></strong> estudios con asimetría <span class="muted">(hoy <span class="num"><%= preview.conAsimetriaPuntualActual %></span>)</span></span></p>
+    <div class="cfg-bar" aria-hidden="true"><span data-pv-bar="conAsimetriaPuntual" data-pv-of="puntuales" style="width: <%= pct(preview.conAsimetriaPuntual, preview.puntuales) %>%"></span></div>
   </div>
   <% } %>
 
-  <% if (g.key === 'asimetria') { %>
-  <div class="cfg-preview" data-preview="asimetria" aria-live="polite">
-    <div class="cfg-preview__row">
-      <span class="cfg-preview__label">Con este umbral</span>
-      <span><strong class="num" data-pv="conAsimetria"><%= preview.conAsimetria %></strong> de <strong class="num" data-pv="total"><%= preview.total %></strong> estudios serían «Con asimetría» <span class="muted">(hoy: <span class="num"><%= preview.conAsimetriaActual %></span>)</span></span>
-    </div>
-    <div class="cfg-bar" aria-hidden="true"><span data-pv-bar="conAsimetria" style="width: <%= pct(preview.conAsimetria) %>%"></span></div>
-    <div class="cfg-preview__row">
-      <span class="cfg-preview__label">Simetría global</span>
-      <span><strong class="num" data-pv="simetricas"><%= preview.simetricas %></strong> de <span class="num"><%= preview.total %></span> tomas de control serían «Simétricas»</span>
-    </div>
-  </div>
-  <% } %>
-
-  <% if (g.key === 'riesgo') { %>
+  <% if (!adv && g.key === 'riesgo') { %>
   <div class="cfg-preview" data-preview="riesgo" aria-live="polite">
-    <div class="cfg-preview__row">
-      <span class="cfg-preview__label">Con estos cortes</span>
-      <span>los <span class="num"><%= preview.total %></span> estudios quedarían así (mientras el modelo no esté validado, la categoría sale del hallazgo térmico punto a punto):</span>
-    </div>
+    <p class="cfg-preview__row"><span class="cfg-preview__label">Con estos valores (<span class="num"><%= preview.total %></span> estudios)</span></p>
     <div class="cfg-stack" aria-hidden="true">
       <% ['sin_riesgo', 'moderado', 'alto'].forEach((k) => { %><span class="cfg-stack__seg cfg-stack__seg--<%= domain.RISK_CATEGORIES[k].tono %>" data-pv-seg="<%= k %>" style="flex-grow: <%= preview.riesgo[k] %>"></span><% }) %>
     </div>
@@ -104,4 +101,12 @@
     </ul>
   </div>
   <% } %>
+
+  <% if (adv && g.key === 'asimetria') { %>
+  <div class="cfg-preview" data-preview="asimetria" aria-live="polite">
+    <p class="cfg-preview__row"><span class="cfg-preview__label">Con estos valores</span>
+      <span><strong class="num" data-pv="conAsimetria"><%= preview.conAsimetria %></strong> de <strong class="num" data-pv="total"><%= preview.total %></strong> estudios con asimetría por regiones <span class="muted">(hoy <span class="num"><%= preview.conAsimetriaActual %></span>)</span>; <strong class="num" data-pv="simetricas"><%= preview.simetricas %></strong> simétricos</span></p>
+  </div>
+  <% } %>
 </section>
+<% } %>

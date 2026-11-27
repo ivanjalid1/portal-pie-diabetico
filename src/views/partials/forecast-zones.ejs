@@ -55,5 +55,5 @@
     </div>
     <% }) %>
   </div>
-  <p class="fc-card__foot">Área caliente: % de la zona más de <%= fmt.num(umbral, 1) %> °C más caliente que el otro pie. Prob. caliente: probabilidad de que la zona tenga al menos un <%= fmt.num(F.areaUmbral, 0) %> % de área caliente en el próximo control.</p>
+  <p class="fc-card__foot">Área caliente: % de la zona &gt; <%= fmt.num(umbral, 1) %> °C más caliente que el otro pie. Prob. caliente: chance de ≥ <%= fmt.num(F.areaUmbral, 0) %> % de área caliente en el próximo control.</p>
 </section>

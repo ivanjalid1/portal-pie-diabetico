@@ -1,8 +1,8 @@
 'use strict';
 
-const { exclusionTesis, etiquetaExclusionTesis } = require('../../src/utils/tesisExclusion');
+const { exclusionTesis, observacionesVisibles, conservarMarca } = require('../../src/utils/tesisExclusion');
 
-describe('Etiqueta histórica «Excluido en la tesis de Ana»', () => {
+describe('Marca «NO VALIDO» de la planilla (oculta en la interfaz)', () => {
   it('detecta el motivo a partir de las observaciones de la planilla', () => {
     expect(exclusionTesis('PACIENTE NO VALIDO X IMAGEN')).toBe('imagen');
     expect(exclusionTesis('PACIENTE NO VALIDO POR IMAGEN Es de otra ciudad')).toBe('imagen');
@@ -13,12 +13,21 @@ describe('Etiqueta histórica «Excluido en la tesis de Ana»', () => {
     expect(exclusionTesis(null)).toBeNull();
   });
 
-  it('arma el texto neutro para las vistas (paciente u observaciones)', () => {
-    expect(etiquetaExclusionTesis({ observaciones: 'PACIENTE NO VALIDO X IMAGEN' })).toBe(
-      'Excluido en la tesis de Ana (imagen)',
+  it('oculta la marca «NO VALIDO» de las observaciones que se muestran', () => {
+    expect(observacionesVisibles('PACIENTE NO VALIDO X IMAGEN')).toBeNull();
+    expect(observacionesVisibles('PACIENTE NO VALIDO X PESO172Kg')).toBeNull();
+    expect(observacionesVisibles('PACIENTE NO VALIDO X IMAGEN. Operada de tobillo')).toBe('Operada de tobillo');
+    expect(observacionesVisibles('PACIENTE NO VALIDO POR IMAGEN Es de otra ciudad')).toBe('Es de otra ciudad');
+    expect(observacionesVisibles('OB: Preguntar el peso.')).toBe('OB: Preguntar el peso.');
+    expect(observacionesVisibles(null)).toBeNull();
+  });
+
+  it('al guardar la ficha conserva la marca interna (sigue fuera del entrenamiento)', () => {
+    expect(conservarMarca('PACIENTE NO VALIDO X IMAGEN. Operada', 'Operada de tobillo')).toBe(
+      'PACIENTE NO VALIDO X IMAGEN. Operada de tobillo',
     );
-    expect(etiquetaExclusionTesis('PACIENTE NO VALIDO X PESO172Kg')).toBe('Excluido en la tesis de Ana (peso > 150 kg)');
-    expect(etiquetaExclusionTesis({ observaciones: null })).toBeNull();
-    expect(etiquetaExclusionTesis(null)).toBeNull();
+    expect(conservarMarca('PACIENTE NO VALIDO X PESO172Kg', '')).toBe('PACIENTE NO VALIDO X PESO172Kg');
+    expect(exclusionTesis(conservarMarca('PACIENTE NO VALIDO X PESO172Kg', 'nota'))).toBe('peso');
+    expect(conservarMarca('neuro leve', 'neuro moderada')).toBe('neuro moderada');
   });
 });

@@ -63,10 +63,14 @@ class SettingsService {
     return analysisParams(await this.get());
   }
 
-  /** Valida sin guardar. Devuelve los valores normalizados o lanza ValidationError. */
-  validate(input) {
+  /**
+   * Valida sin guardar. Devuelve los valores normalizados o lanza ValidationError.
+   * Los campos que no vienen en el formulario conservan `base` (la configuración
+   * vigente al guardar), para no volver al valor por defecto un parámetro que no se envió.
+   */
+  validate(input, base = DEFAULTS) {
     const merged = {};
-    for (const d of DEFINITIONS) merged[d.key] = input?.[d.key] ?? DEFAULTS[d.key];
+    for (const d of DEFINITIONS) merged[d.key] = input?.[d.key] ?? base[d.key] ?? DEFAULTS[d.key];
     const r = settingsSchema.safeParse(merged);
     if (!r.success) {
       const fields = {};
@@ -84,8 +88,8 @@ class SettingsService {
    * `{ key, label, antes, despues }` (vacía si no hubo cambios).
    */
   async update(input, actor) {
-    const next = this.validate(input);
     const current = await this.get();
+    const next = this.validate(input, current);
     const changes = DEFINITIONS.filter((d) => next[d.key] !== current[d.key]).map((d) => ({
       key: d.key,
       label: d.label,

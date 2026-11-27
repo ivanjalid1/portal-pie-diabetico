@@ -108,6 +108,20 @@ describe('Configuración de los parámetros del análisis', () => {
       expect(page.text).toMatch(/Umbral por punto <strong class="num">1,0 °C/);
     });
 
+    it('guardar sin un campo conserva su valor vigente (no vuelve al valor por defecto)', async () => {
+      const svc = container.services.settingsService;
+      await svc.update(form({ umbralPixel: '1,5', umbralAsimetria: '2,2', corteSimetria: '0,5' }), { id: null });
+      const { umbralPixel: _u, ...sinUmbral } = form({
+        umbralAsimetria: '2,2',
+        corteSimetria: '0,5',
+        diasControl: '43',
+      });
+      const changes = await svc.update(sinUmbral, { id: null });
+      expect(changes.map((c) => c.key)).toEqual(['diasControl']);
+      expect((await svc.get()).umbralPixel).toBe(1.5);
+      await svc.update(form({ umbralAsimetria: '2,2', corteSimetria: '0,5' }), { id: null });
+    });
+
     it('rechaza valores inválidos y muestra el error en el formulario', async () => {
       const csrf = await csrfFrom(medico, '/configuracion');
       const res = await medico
@@ -183,6 +197,26 @@ describe('Configuración de los parámetros del análisis', () => {
       expect((await paciente.post('/configuracion/recalcular').type('form').send({ _csrf: csrf })).status).toBe(403);
       const anon = await request(app).get('/configuracion');
       expect(anon.status).toBe(302);
+    });
+
+    it('muestra los parámetros principales, agrupa los técnicos en «Avanzado» y no nombra personas', async () => {
+      const res = await (await loginAs(app, 'medico@demo.com')).get('/configuracion');
+      expect(res.status).toBe(200);
+      for (const k of [
+        'umbralPixel',
+        'areaMinima',
+        'umbralCambio',
+        'horizonteSemanas',
+        'priorIwgdf0',
+        'tituloImagen2',
+      ]) {
+        expect(res.text).toContain(`name="${k}"`);
+      }
+      const adv = res.text.slice(res.text.indexOf('data-cfg-advanced'));
+      expect(adv).toContain('name="priorIwgdf0"');
+      expect(adv).not.toContain('name="umbralPixel"');
+      expect(res.text).toContain('¿Qué es esto?');
+      expect(res.text).not.toMatch(/Ana|Muñoz|Inés/);
     });
 
     it('el menú del médico y del administrador incluye «Configuración»', async () => {
